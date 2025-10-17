@@ -96,6 +96,47 @@ class BybitRealTimePrices:
         # Start WebSocket connection
         await self._start_websocket()
 
+    async def _fetch_symbol_price(self, session: aiohttp.ClientSession, symbol: str) -> None:
+        """Fetch price for a single symbol"""
+        try:
+            url = f"{self.rest_url}/v5/market/tickers"
+            params = {"category": "linear", "symbol": symbol}
+            
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    result = data.get('result', {})
+                    tickers = result.get('list', [])
+                    
+                    if tickers:
+                        ticker = tickers[0]
+                        price_data = self._parse_ticker_data(ticker)
+                        self.prices[symbol] = price_data
+                        
+                        logger.info(f"✅ {symbol}: ${price_data['price']:,.4f}")
+                    else:
+                        logger.warning(f"⚠️  No ticker data for {symbol}")
+                        
+                else:
+                    if response.status == 403:
+                        logger.debug(f"🔒 API rate limit for {symbol} (using WebSocket instead)")
+                    elif response.status == 429:
+                        logger.debug(f"⏳ Rate limited for {symbol} (using WebSocket instead)")
+                    else:
+                        logger.warning(f"⚠️  REST API error for {symbol}: {response.status}")
+                    
+        except Exception as e:
+            logger.error(f"❌ Error getting price for {symbol}: {e}")
+            # Set fallback price
+            self.prices[symbol] = {
+                'price': 0.0,
+                'symbol': symbol,
+                'timestamp': datetime.now(),
+                'volume_24h': 0.0,
+                'change_24h': 0.0,
+                'source': 'fallback'
+            }
+
     async def _initialize_prices(self):
         """Initialize prices using REST API"""
         try:
@@ -103,46 +144,9 @@ class BybitRealTimePrices:
             
             async with aiohttp.ClientSession() as session:
                 for symbol in self.symbols:
-                    try:
-                        url = f"{self.rest_url}/v5/market/tickers"
-                        params = {"category": "linear", "symbol": symbol}
-                        
-                        async with session.get(url, params=params) as response:
-                            if response.status == 200:
-                                data = await response.json()
-                                result = data.get('result', {})
-                                tickers = result.get('list', [])
-                                
-                                if tickers:
-                                    ticker = tickers[0]
-                                    price_data = self._parse_ticker_data(ticker)
-                                    self.prices[symbol] = price_data
-                                    
-                                    logger.info("✅ {symbol}: ${price_data['price']:,.4f}")
-                                else:
-                                    logger.warning(f"⚠️  No ticker data for {symbol}")
-                                    
-                            else:
-                                if response.status == 403:
-                                    logger.debug(f"🔒 API rate limit for {symbol} (using WebSocket instead)")
-                                elif response.status == 429:
-                                    logger.debug(f"⏳ Rate limited for {symbol} (using WebSocket instead)")
-                                else:
-                                    logger.warning(f"⚠️  REST API error for {symbol}: {response.status}")
-                                
-                    except Exception as e:
-                        logger.error(f"❌ Error getting price for {symbol}: {e}")
-                        # Set fallback price
-                        self.prices[symbol] = {
-                            'price': 0.0,
-                            'symbol': symbol,
-                            'timestamp': datetime.now(),
-                            'volume_24h': 0.0,
-                            'change_24h': 0.0,
-                            'source': 'fallback'
-                        }
+                    await self._fetch_symbol_price(session, symbol)
             
-            logger.info("✅ Initialized prices for {len(self.prices)} symbols")
+            logger.info(f"✅ Initialized prices for {len(self.prices)} symbols")
             
         except Exception as e:
             logger.error(f"❌ Error initializing prices: {e}")
