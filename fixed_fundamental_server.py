@@ -18,6 +18,9 @@ from systems.fundamental_analysis.fundamental_analysis_server import Fundamental
 class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
     """Fixed version with working news sources"""
     
+    # Constants
+    DEFAULT_NEWS_SOURCE = 'Market Analysis'
+    
     async def fetch_watcher_guru_news(self):
         """Fetch reliable crypto news with working fallbacks"""
         try:
@@ -36,7 +39,7 @@ class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
                     'crypto_mentioned': ['BTC'],
                     'published_at': current_time.isoformat(),
                     'url': '#',
-                    'source': 'Market Analysis'
+                    'source': self.DEFAULT_NEWS_SOURCE
                 },
                 {
                     'title': 'Cryptocurrency Market Resilience Amid Global Economic Shifts',
@@ -45,7 +48,7 @@ class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
                     'crypto_mentioned': ['BTC', 'ETH'],
                     'published_at': (current_time - timedelta(hours=1)).isoformat(),
                     'url': '#',
-                    'source': 'Market Analysis'
+                    'source': self.DEFAULT_NEWS_SOURCE
                 },
                 {
                     'title': 'Ethereum Network Upgrades Drive DeFi Innovation',
@@ -54,7 +57,7 @@ class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
                     'crypto_mentioned': ['ETH'],
                     'published_at': (current_time - timedelta(hours=2)).isoformat(),
                     'url': '#',
-                    'source': 'Market Analysis'
+                    'source': self.DEFAULT_NEWS_SOURCE
                 },
                 {
                     'title': 'Solana Ecosystem Growth Accelerates with New Partnerships',
@@ -63,7 +66,7 @@ class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
                     'crypto_mentioned': ['SOL'],
                     'published_at': (current_time - timedelta(hours=3)).isoformat(),
                     'url': '#',
-                    'source': 'Market Analysis'
+                    'source': self.DEFAULT_NEWS_SOURCE
                 },
                 {
                     'title': 'XRP Regulatory Progress Boosts Enterprise Adoption',
@@ -72,7 +75,7 @@ class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
                     'crypto_mentioned': ['XRP'],
                     'published_at': (current_time - timedelta(hours=4)).isoformat(),
                     'url': '#',
-                    'source': 'Market Analysis'
+                    'source': self.DEFAULT_NEWS_SOURCE
                 }
             ]
             

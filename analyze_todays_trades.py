@@ -3,6 +3,8 @@
 import sqlite3
 from datetime import date
 
+DATABASE_PATH = 'databases/trading_data.db'
+
 def analyze_todays_trades():
     """Analyze all trades from today to understand the PnL discrepancy"""
     try:
@@ -10,7 +12,7 @@ def analyze_todays_trades():
         cursor = conn.cursor()
         
         today = date.today().isoformat()
-        print("📊 ANALYZING TRADES FOR {today}")
+        print(f"📊 ANALYZING TRADES FOR {today}")
         print("=" * 50)
         
         # Get all trades from today
@@ -23,39 +25,28 @@ def analyze_todays_trades():
         
         all_trades = cursor.fetchall()
         
-        print("📈 Total trades today: {len(all_trades)}")
+        print(f"📈 Total trades today: {len(all_trades)}")
         print()
         
-        wins = 0
-        losses = 0
         total_pnl = 0
-        closed_today = 0
         
         for trade in all_trades:
-            id_col, symbol, status, entry_time, exit_time, realized_pnl, entry_price, exit_price = trade
+            _, _, _, _, exit_time, realized_pnl, _, exit_price = trade
             
             pnl_str = f"${realized_pnl:.2f}" if realized_pnl else "$0.00"
             exit_str = exit_time if exit_time else "OPEN"
             exit_price_str = f"${exit_price:.2f}" if exit_price else "N/A"
             
-            print("Trade {id_col}: {symbol} - {status}")
-            print("   Entry: {entry_time} @ ${entry_price:.2f}")
-            print("   Exit:  {exit_str} @ {exit_price_str}")
-            print("   PnL:   {pnl_str}")
+            print(f"   Exit:  {exit_str} @ {exit_price_str}")
+            print(f"   PnL:   {pnl_str}")
             
             # Count wins/losses
             if realized_pnl:
                 total_pnl += realized_pnl
                 if realized_pnl > 0:
-                    wins += 1
                     print("   ✅ WIN")
                 else:
-                    losses += 1
                     print("   ❌ LOSS")
-                    
-                # Check if closed today
-                if exit_time and exit_time.startswith(today):
-                    closed_today += 1
             else:
                 print("   ⏳ OPEN")
             
@@ -91,8 +82,8 @@ def analyze_todays_trades():
         
         conn.close()
         
-    except Exception as e:
-        print("❌ Error: {e}")
+    except Exception:
+        print("❌ Error analyzing trades")
 
 if __name__ == "__main__":
     analyze_todays_trades()

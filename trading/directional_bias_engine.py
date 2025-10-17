@@ -1159,11 +1159,11 @@ class DirectionalBiasEngine:
             fibonacci_confluence_score=0.7
         )
     
-    def _validate_choch_quality(self, signal, data):
+    def _validate_choch_quality(self, signal, _data):
         """Validate ChoCH signal quality."""
         return signal.volume_confirmation and signal.follow_through_strength > 0.6
     
-    def _analyze_retest_opportunity(self, data, choch_signal, current_price, current_time):
+    def _analyze_retest_opportunity(self, _data, choch_signal, current_price, current_time):
         """Analyze potential retest opportunity."""
         return RetestOpportunity(
             timestamp=current_time,
@@ -1178,15 +1178,15 @@ class DirectionalBiasEngine:
             wave_target_projection=current_price * 1.05
         )
     
-    def _calculate_fibonacci_confluence(self, retest, price_data):
+    def _calculate_fibonacci_confluence(self, _retest, _price_data):
         """Calculate Fibonacci confluence for retest."""
         return 0.79  # Placeholder
     
-    def _get_wave_context(self, retest, price_data):
+    def _get_wave_context(self, _retest, _price_data):
         """Get Elliott Wave context for retest."""
         return ElliottWavePattern.CORRECTION_2
     
-    def _determine_action(self, ny_bias, choch_signals):
+    def _determine_action(self, ny_bias, _choch_signals):
         """Determine recommended trading action."""
         if ny_bias.directional_bias in [DirectionalBias.BULLISH_CONFIRMED, DirectionalBias.BULLISH_DEVELOPING]:
             return 'BUY'
@@ -1230,12 +1230,12 @@ class DirectionalBiasEngine:
         
         return {'optimal': 0, 'min': 0, 'max': 0, 'confluence_levels': []}
     
-    def _calculate_stop_loss(self, ny_bias, retest_opportunities):
+    def _calculate_stop_loss(self, _ny_bias, retest_opportunities):
         """Calculate stop loss level."""
         if retest_opportunities:
             return retest_opportunities[0].retest_level * 0.99
         return 0
     
-    def _calculate_take_profit_targets(self, confluence_data):
+    def _calculate_take_profit_targets(self, _confluence_data):
         """Calculate take profit targets based on confluence."""
         return [1.5, 2.5, 4.0]  # Risk:reward ratios
