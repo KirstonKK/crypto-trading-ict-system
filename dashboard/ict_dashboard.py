@@ -315,7 +315,7 @@ class ICTTradingDashboard:
             fair_value_gaps = self.fvg_detector.detect_fair_value_gaps(market_data, symbol, timeframe)
             liquidity_map = self.liquidity_detector.detect_liquidity_zones(market_data, symbol, timeframe)
             fibonacci_zones = self.fibonacci_analyzer.analyze_fibonacci_confluence(
-                market_data, symbol, timeframe, order_blocks, fair_value_gaps, liquidity_map.buy_side_liquidity + liquidity_map.sell_side_liquidity
+                market_data, symbol, timeframe, enhanced_order_blocks, fair_value_gaps, liquidity_map.buy_side_liquidity + liquidity_map.sell_side_liquidity
             )
             
             # Get active signals
@@ -328,7 +328,7 @@ class ICTTradingDashboard:
                 timeframe=timeframe,
                 current_price=current_price,
                 hierarchy_analysis=self._serialize_hierarchy_analysis(hierarchy_analysis),
-                order_blocks=self._serialize_order_blocks(order_blocks),
+                order_blocks=self._serialize_order_blocks(enhanced_order_blocks),
                 fair_value_gaps=self._serialize_fvgs(fair_value_gaps),
                 liquidity_zones=self._serialize_liquidity_zones(liquidity_map),
                 fibonacci_zones=self._serialize_fibonacci_zones(fibonacci_zones),

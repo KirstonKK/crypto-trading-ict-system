@@ -43,27 +43,31 @@ def genSignature(payload):
     signature = hash.hexdigest()
     return signature
 
-# Test exact V5 endpoints from examples
-print("🔍 Testing with exact Bybit V5 format...")
+def test_exact_v5_format():
+    """Test exact V5 endpoints from examples"""
+    print("🔍 Testing with exact Bybit V5 format...")
 
-# Test 1: Account Info (simple endpoint)
-endpoint = "/v5/account/info"
-method = "GET"
-params = ""
-HTTP_Request(endpoint, method, params, "AccountInfo")
+    # Test 1: Account Info (simple endpoint)
+    endpoint = "/v5/account/info"
+    method = "GET"
+    params = ""
+    HTTP_Request(endpoint, method, params, "AccountInfo")
 
-print("\n" + "="*50 + "\n")
+    print("\n" + "="*50 + "\n")
 
-# Test 2: Wallet Balance  
-endpoint = "/v5/account/wallet-balance"
-method = "GET"
-params = "accountType=UNIFIED"
-HTTP_Request(endpoint, method, params, "WalletBalance")
+    # Test 2: Wallet Balance  
+    endpoint = "/v5/account/wallet-balance"
+    method = "GET"
+    params = "accountType=UNIFIED"
+    HTTP_Request(endpoint, method, params, "WalletBalance")
 
-print("\n" + "="*50 + "\n")
+    print("\n" + "="*50 + "\n")
 
-# Test 3: Position Info
-endpoint = "/v5/position/list"
-method = "GET" 
-params = "category=linear&symbol=BTCUSDT"
-HTTP_Request(endpoint, method, params, "PositionInfo")
+    # Test 3: Position Info
+    endpoint = "/v5/position/list"
+    method = "GET" 
+    params = "category=linear&symbol=BTCUSDT"
+    HTTP_Request(endpoint, method, params, "PositionInfo")
+
+if __name__ == "__main__":
+    test_exact_v5_format()

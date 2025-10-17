@@ -1308,29 +1308,6 @@ class ICTSignalGenerator:
             return np.random.random() < 0.6  # 60% pass in moderate trends
         
         return True
-        """Calculate current market volatility multiplier based on price movements"""
-        total_volatility = 0
-        count = 0
-        
-        for crypto, data in crypto_data.items():
-            change_24h = abs(data.get('change_24h', 0))
-            high_24h = data.get('high_24h', data['price'])
-            low_24h = data.get('low_24h', data['price'])
-            
-            # Calculate intraday range
-            if high_24h > 0 and low_24h > 0:
-                daily_range = ((high_24h - low_24h) / low_24h) * 100
-                total_volatility += daily_range
-                count += 1
-        
-        if count == 0:
-            return 1.0
-            
-        avg_volatility = total_volatility / count
-        
-        # Convert to multiplier (2% daily range = 1x, 6% = 3x, etc.)
-        volatility_multiplier = max(0.5, min(3.0, avg_volatility / 2.0))
-        return volatility_multiplier
     
     def _get_session_multiplier(self) -> float:
         """Get session-based opportunity multiplier"""

@@ -386,7 +386,32 @@ class ICTWebMonitor:
                 
             except Exception as e:
                 logger.error(f"❌ Error in analysis cycle: {e}")
-                await asyncio.sleep(5)\n    \n    def broadcast_update(self):\n        \"\"\"Broadcast real-time updates to all connected clients\"\"\"\n        try:\n            update_data = {\n                'prices': self.current_prices,\n                'scan_count': self.crypto_monitor.scan_count,\n                'signals_today': self.crypto_monitor.signals_today,\n                'total_signals': self.crypto_monitor.total_signals,\n                'daily_pnl': self.crypto_monitor.daily_pnl,\n                'active_hours': self.crypto_monitor.active_hours,\n                'live_signals': self.crypto_monitor.live_signals[-5:],  # Last 5 signals\n                'trading_journal': self.crypto_monitor.trading_journal[-10:],  # Last 10 for journal\n                'session_status': self.session_tracker.get_sessions_status(),\n                'market_hours': self.statistics.is_market_hours(),\n                'uptime': self.statistics.get_uptime(),\n                'scan_signal_ratio': self.statistics.calculate_scan_signal_ratio(\n                    self.crypto_monitor.scan_count, \n                    self.crypto_monitor.total_signals\n                ),\n                'timestamp': datetime.now().isoformat()\n            }\n            self.socketio.emit('status_update', update_data)\n        except Exception as e:\n            logger.error(f\"❌ Error broadcasting update: {e}\")
+                await asyncio.sleep(5)
+    
+    def broadcast_update(self):
+        """Broadcast real-time updates to all connected clients"""
+        try:
+            update_data = {
+                'prices': self.current_prices,
+                'scan_count': self.crypto_monitor.scan_count,
+                'signals_today': self.crypto_monitor.signals_today,
+                'total_signals': self.crypto_monitor.total_signals,
+                'daily_pnl': self.crypto_monitor.daily_pnl,
+                'active_hours': self.crypto_monitor.active_hours,
+                'live_signals': self.crypto_monitor.live_signals[-5:],  # Last 5 signals
+                'trading_journal': self.crypto_monitor.trading_journal[-10:],  # Last 10 for journal
+                'session_status': self.session_tracker.get_sessions_status(),
+                'market_hours': self.statistics.is_market_hours(),
+                'uptime': self.statistics.get_uptime(),
+                'scan_signal_ratio': self.statistics.calculate_scan_signal_ratio(
+                    self.crypto_monitor.scan_count, 
+                    self.crypto_monitor.total_signals
+                ),
+                'timestamp': datetime.now().isoformat()
+            }
+            self.socketio.emit('status_update', update_data)
+        except Exception as e:
+            logger.error(f"❌ Error broadcasting update: {e}")
     
     def get_dashboard_html(self):
         """Generate the dashboard HTML"""
