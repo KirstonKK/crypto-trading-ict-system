@@ -474,289 +474,287 @@ class ICTCryptoMonitor:
             logger.warning(f"⚠️ Invalid timestamp '{timestamp_str}': {e}, using current time")
             return datetime.now()
     
+    def _cleanup_expired_signals(self, cursor):
+        """Mark old ACTIVE signals as EXPIRED"""
+        current_time = datetime.now()
+        expiry_cutoff = current_time.timestamp() - (self.signal_lifetime_minutes * 60)
+        expiry_datetime = datetime.fromtimestamp(expiry_cutoff).strftime('%Y-%m-%d %H:%M:%S')
+        
+        cursor.execute("""
+            UPDATE signals 
+            SET status = 'EXPIRED' 
+            WHERE status = 'ACTIVE' 
+            AND entry_time < ?
+        """, (expiry_datetime,))
+        
+        expired_count = cursor.rowcount
+        if expired_count > 0:
+            logger.info(f"🗄️ Database cleanup: Marked {expired_count} old signals as EXPIRED (older than {self.signal_lifetime_minutes}min)")
+        return expired_count
+    
+    def _restore_scan_count(self, cursor, today):
+        """Restore scan count from database"""
+        cursor.execute("""
+            SELECT COUNT(*) FROM scan_history 
+            WHERE date(timestamp) = ?
+        """, (today,))
+        self.scan_count = cursor.fetchone()[0]
+        logger.info(f"📊 Restored scan count: {self.scan_count}")
+    
+    def _build_signal_from_data(self, signal_data, crypto):
+        """Build signal dictionary from database row"""
+        return {
+            'id': signal_data[0],
+            'symbol': signal_data[1],
+            'crypto': crypto,
+            'direction': signal_data[2],
+            'action': signal_data[2],
+            'entry_price': signal_data[3],
+            'stop_loss': signal_data[4],
+            'take_profit': signal_data[5],
+            'confluence_score': signal_data[6],
+            'confidence': signal_data[6],
+            'timeframes': signal_data[7],
+            'timeframe': signal_data[7],
+            'confluences': signal_data[8].split(',') if signal_data[8] else [],
+            'session': signal_data[9],
+            'market_regime': signal_data[10],
+            'directional_bias': signal_data[11],
+            'signal_strength': signal_data[12],
+            'status': signal_data[13],
+            'timestamp': self._safe_parse_timestamp(signal_data[14]) if signal_data[14] else datetime.now(),
+            'risk_amount': 1.0,
+            'pnl': 0.0
+        }
+    
+    def _validate_signal_price_separation(self, signal, valid_signals, crypto, cursor):
+        """Check if signal meets price separation requirements"""
+        min_separation = self.get_minimum_price_separation(crypto)
+        entry_price = signal['entry_price']
+        
+        for valid_signal in valid_signals:
+            existing_price = valid_signal['entry_price']
+            price_diff_pct = abs((entry_price - existing_price) / existing_price) * 100
+            
+            if price_diff_pct < min_separation:
+                logger.info(f"   ❌ REJECTING {crypto} @ ${entry_price:.2f} - too close to ${existing_price:.2f} ({price_diff_pct:.2f}% < {min_separation:.1f}%)")
+                cursor.execute("UPDATE signals SET status = 'INACTIVE' WHERE signal_id = ?", (signal['id'],))
+                return False
+        
+        logger.info(f"   ✅ KEEPING {crypto} @ ${entry_price:.2f}")
+        return True
+    
+    def _restore_todays_signals(self, cursor, today):
+        """Restore today's signals with price separation validation"""
+        fix_timestamp = '2025-10-09 08:49:00'
+        cursor.execute("""
+            SELECT signal_id, symbol, direction, entry_price, stop_loss, take_profit,
+                   confluence_score, timeframes, ict_concepts, session, market_regime,
+                   directional_bias, signal_strength, status, entry_time
+            FROM signals 
+            WHERE date(entry_time) = ? AND status = 'ACTIVE'
+            AND (date(entry_time) != '2025-10-09' OR entry_time >= ?)
+            ORDER BY entry_time DESC
+        """, (today, fix_timestamp))
+        
+        signals_data = cursor.fetchall()
+        self.live_signals = []
+        
+        logger.info("🔍 Restoring signals with price separation validation...")
+        
+        # Group signals by crypto
+        signals_by_crypto = {}
+        for signal_data in signals_data:
+            crypto = signal_data[1].replace('USDT', '')
+            if crypto not in signals_by_crypto:
+                signals_by_crypto[crypto] = []
+            signals_by_crypto[crypto].append(signal_data)
+        
+        # Process each crypto separately
+        for crypto, crypto_signals in signals_by_crypto.items():
+            logger.info(f"   🔍 Processing {len(crypto_signals)} {crypto} signals for price separation...")
+            valid_signals = []
+            crypto_signals.sort(key=lambda x: x[14], reverse=True)
+            
+            for signal_data in crypto_signals:
+                signal = self._build_signal_from_data(signal_data, crypto)
+                
+                if self._validate_signal_price_separation(signal, valid_signals, crypto, cursor):
+                    valid_signals.append(signal)
+                    if len(self.live_signals) + len(valid_signals) >= self.max_live_signals:
+                        logger.info(f"   ⚠️ Max signals limit reached, stopping at {len(valid_signals)} {crypto} signals")
+                        break
+            
+            self.live_signals.extend(valid_signals)
+            logger.info(f"   📊 {crypto}: {len(valid_signals)} valid signals restored")
+            
+            if len(self.live_signals) >= self.max_live_signals:
+                logger.info(f"   🛑 Max live signals ({self.max_live_signals}) reached, stopping restoration")
+                break
+        
+        # Update counters
+        cursor.execute(DAILY_COUNT_QUERY, (today,))
+        self.signals_today = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM signals")
+        self.total_signals = cursor.fetchone()[0]
+    
+    def _restore_paper_trades(self, cursor, today):
+        """Restore today's paper trades (open and closed)"""
+        fix_timestamp = '2025-10-09 08:49:00'
+        self.active_paper_trades = []
+        self.completed_paper_trades = []
+        
+        # Load open trades
+        cursor.execute("""
+            SELECT id, signal_id, symbol, direction, entry_price, position_size, 
+                   stop_loss, take_profit, entry_time, status, current_price, 
+                   unrealized_pnl, risk_amount
+            FROM paper_trades 
+            WHERE date(entry_time) = ? AND status = 'OPEN'
+            AND (date(entry_time) != '2025-10-09' OR entry_time >= ?)
+        """, (today, fix_timestamp))
+        
+        for trade_data in cursor.fetchall():
+            trade = {
+                'id': trade_data[0],
+                'signal_id': trade_data[1],
+                'symbol': trade_data[2],
+                'crypto': trade_data[2].replace('USDT', ''),
+                'direction': trade_data[3],
+                'action': trade_data[3],
+                'entry_price': float(trade_data[4]),
+                'position_size': float(trade_data[5]),
+                'stop_loss': float(trade_data[6]),
+                'take_profit': float(trade_data[7]),
+                'entry_time': trade_data[8],
+                'status': trade_data[9],
+                'current_price': float(trade_data[10]) if trade_data[10] else float(trade_data[4]),
+                'unrealized_pnl': float(trade_data[11]) if trade_data[11] else 0.0,
+                'pnl': float(trade_data[11]) if trade_data[11] else 0.0,
+                'risk_amount': float(trade_data[12])
+            }
+            self.active_paper_trades.append(trade)
+        
+        # Load completed trades
+        cursor.execute("""
+            SELECT id, signal_id, symbol, direction, entry_price, position_size,
+                   stop_loss, take_profit, entry_time, exit_time, exit_price,
+                   status, realized_pnl, risk_amount
+            FROM paper_trades 
+            WHERE date(entry_time) = ? AND status IN ('STOP_LOSS', 'TAKE_PROFIT')
+            AND (date(entry_time) != '2025-10-09' OR entry_time >= ?)
+        """, (today, fix_timestamp))
+        
+        for trade_data in cursor.fetchall():
+            trade = {
+                'id': trade_data[0],
+                'signal_id': trade_data[1],
+                'symbol': trade_data[2],
+                'crypto': trade_data[2].replace('USDT', ''),
+                'direction': trade_data[3],
+                'action': trade_data[3],
+                'entry_price': float(trade_data[4]),
+                'position_size': float(trade_data[5]),
+                'stop_loss': float(trade_data[6]),
+                'take_profit': float(trade_data[7]),
+                'entry_time': trade_data[8],
+                'exit_time': trade_data[9],
+                'exit_price': float(trade_data[10]) if trade_data[10] else 0.0,
+                'status': trade_data[11],
+                'realized_pnl': float(trade_data[12]) if trade_data[12] else 0.0,
+                'pnl': float(trade_data[12]) if trade_data[12] else 0.0,
+                'risk_amount': float(trade_data[13])
+            }
+            self.completed_paper_trades.append(trade)
+    
+    def _restore_balance(self, cursor):
+        """Load persistent balance from database"""
+        cursor.execute("""
+            SELECT balance FROM balance_history 
+            ORDER BY timestamp DESC LIMIT 1
+        """)
+        balance_result = cursor.fetchone()
+        
+        if balance_result:
+            self.paper_balance = float(balance_result[0])
+            logger.info(f"✅ Loaded persistent balance: ${self.paper_balance:.2f}")
+        else:
+            self.paper_balance = 100.0
+            logger.info(f"🆕 First time startup - using starting balance: ${self.paper_balance:.2f}")
+            self.save_balance_to_database(self.paper_balance, "Initial startup balance")
+        
+        # Calculate total PnL
+        cursor.execute("""
+            SELECT SUM(realized_pnl) FROM paper_trades 
+            WHERE status IN ('STOP_LOSS', 'TAKE_PROFIT', 'CLEANUP') AND realized_pnl IS NOT NULL
+        """)
+        result = cursor.fetchone()
+        total_realized_pnl = float(result[0]) if result and result[0] else 0.0
+        total_unrealized_pnl = sum(trade['unrealized_pnl'] for trade in self.active_paper_trades)
+        self.total_paper_pnl = total_realized_pnl + total_unrealized_pnl
+    
+    def _restore_journal_entries(self, cursor, today):
+        """Restore trading journal entries"""
+        self.trading_journal = []
+        cursor.execute("""
+            SELECT entry_type, title, content, signal_id, timestamp
+            FROM trading_journal_entries 
+            WHERE date(created_date) = ?
+            ORDER BY timestamp DESC
+        """, (today,))
+        
+        for entry_data in cursor.fetchall():
+            journal_entry = {
+                'type': entry_data[0],
+                'title': entry_data[1],
+                'content': entry_data[2],
+                'signal_id': entry_data[3],
+                'timestamp': entry_data[4]
+            }
+            self.trading_journal.append(journal_entry)
+    
     def _load_trading_state(self):
         """Load ALL trading state from database - TODAY'S SESSION ONLY"""
         try:
             import sqlite3
             from datetime import date, datetime
             
-            # Connect to database (FIXED PATH)
             conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             today = date.today().isoformat()
             
             logger.info(f"🔄 Restoring complete trading state for {today}...")
             
-            # 🔧 DATABASE CLEANUP: Mark old ACTIVE signals as EXPIRED (prevent duplicate position counting)
-            current_time = datetime.now()
-            expiry_cutoff = current_time.timestamp() - (self.signal_lifetime_minutes * 60)  # Convert to seconds ago
-            expiry_datetime = datetime.fromtimestamp(expiry_cutoff).strftime('%Y-%m-%d %H:%M:%S')
+            # Execute restoration steps using helper methods
+            self._cleanup_expired_signals(cursor)
+            conn.commit()
             
-            cursor.execute("""
-                UPDATE signals 
-                SET status = 'EXPIRED' 
-                WHERE status = 'ACTIVE' 
-                AND entry_time < ?
-            """, (expiry_datetime,))
+            self._restore_scan_count(cursor, today)
+            self._restore_todays_signals(cursor, today)
+            self._restore_paper_trades(cursor, today)
+            self._restore_balance(cursor)
+            self._restore_journal_entries(cursor, today)
             
-            expired_count = cursor.rowcount
-            if expired_count > 0:
-                logger.info(f"🗄️ Database cleanup: Marked {expired_count} old signals as EXPIRED (older than {self.signal_lifetime_minutes}min)")
-            
-            conn.commit()  # Commit the cleanup before proceeding
-            
-            # 1. RESTORE SCAN COUNT FROM TODAY
-            cursor.execute("""
-                SELECT COUNT(*) FROM scan_history 
-                WHERE date(timestamp) = ?
-            """, (today,))
-            self.scan_count = cursor.fetchone()[0]
-            logger.info(f"📊 Restored scan count: {self.scan_count}")
-            
-            # 2. RESTORE TODAY'S SIGNALS (exclude pre-fix signals from today)
-            # Conservative thresholds were implemented around 08:49 GMT on 2025-10-09
-            fix_timestamp = '2025-10-09 08:49:00'
-            cursor.execute("""
-                SELECT signal_id, symbol, direction, entry_price, stop_loss, take_profit,
-                       confluence_score, timeframes, ict_concepts, session, market_regime,
-                       directional_bias, signal_strength, status, entry_time
-                FROM signals 
-                WHERE date(entry_time) = ? AND status = 'ACTIVE'
-                AND (date(entry_time) != '2025-10-09' OR entry_time >= ?)
-                ORDER BY entry_time DESC
-            """, (today, fix_timestamp))
-            
-            signals_data = cursor.fetchall()
-            self.live_signals = []
-            
-            # Apply price separation validation during restoration
-            logger.info("🔍 Restoring signals with price separation validation...")
-            
-            # Group signals by crypto for price separation validation
-            signals_by_crypto = {}
-            for signal_data in signals_data:
-                crypto = signal_data[1].replace('USDT', '')  # symbol -> crypto
-                if crypto not in signals_by_crypto:
-                    signals_by_crypto[crypto] = []
-                signals_by_crypto[crypto].append(signal_data)
-            
-            # Process each crypto separately for price separation
-            for crypto, crypto_signals in signals_by_crypto.items():
-                logger.info(f"   🔍 Processing {len(crypto_signals)} {crypto} signals for price separation...")
-                
-                min_separation = self.get_minimum_price_separation(crypto)
-                valid_signals = []
-                
-                # Sort by timestamp (newest first, same as original query)
-                crypto_signals.sort(key=lambda x: x[14], reverse=True)  # entry_time index
-                
-                for signal_data in crypto_signals:
-                    signal = {
-                        'id': signal_data[0],
-                        'symbol': signal_data[1],
-                        'crypto': crypto,
-                        'direction': signal_data[2],
-                        'action': signal_data[2],
-                        'entry_price': signal_data[3],
-                        'stop_loss': signal_data[4],
-                        'take_profit': signal_data[5],
-                        'confluence_score': signal_data[6],
-                        'confidence': signal_data[6],
-                        'timeframes': signal_data[7],
-                        'timeframe': signal_data[7],
-                        'confluences': signal_data[8].split(',') if signal_data[8] else [],
-                        'session': signal_data[9],
-                        'market_regime': signal_data[10],
-                        'directional_bias': signal_data[11],
-                        'signal_strength': signal_data[12],
-                        'status': signal_data[13],
-                        'timestamp': self._safe_parse_timestamp(signal_data[14]) if signal_data[14] else datetime.now(),
-                        'risk_amount': 1.0,
-                        'pnl': 0.0
-                    }
-                    
-                    entry_price = signal['entry_price']
-                    should_keep = True
-                    
-                    # Check against all previously accepted signals for this crypto
-                    for valid_signal in valid_signals:
-                        existing_price = valid_signal['entry_price']
-                        price_diff_pct = abs((entry_price - existing_price) / existing_price) * 100
-                        
-                        if price_diff_pct < min_separation:
-                            logger.info(f"   ❌ REJECTING {crypto} @ ${entry_price:.2f} - too close to ${existing_price:.2f} ({price_diff_pct:.2f}% < {min_separation:.1f}%)")
-                            # Mark as inactive in database
-                            cursor.execute("UPDATE signals SET status = 'INACTIVE' WHERE signal_id = ?", (signal['id'],))
-                            should_keep = False
-                            break
-                    
-                    if should_keep:
-                        valid_signals.append(signal)
-                        logger.info(f"   ✅ KEEPING {crypto} @ ${entry_price:.2f}")
-                        
-                        # Stop if we hit the max signals limit
-                        if len(self.live_signals) + len(valid_signals) >= self.max_live_signals:
-                            logger.info(f"   ⚠️ Max signals limit reached, stopping at {len(valid_signals)} {crypto} signals")
-                            break
-                
-                # Add valid signals to live_signals
-                self.live_signals.extend(valid_signals)
-                logger.info(f"   📊 {crypto}: {len(valid_signals)} valid signals restored")
-                
-                # Stop processing if we've reached max signals
-                if len(self.live_signals) >= self.max_live_signals:
-                    logger.info(f"   🛑 Max live signals ({self.max_live_signals}) reached, stopping restoration")
-                    break
-            
-            # Count today's signals
-            cursor.execute(DAILY_COUNT_QUERY, (today,))
-            self.signals_today = cursor.fetchone()[0]
-            
-            # Count all-time signals
-            cursor.execute("SELECT COUNT(*) FROM signals")
-            self.total_signals = cursor.fetchone()[0]
-            
-            # 3. RESTORE TODAY'S PAPER TRADES
-            self.active_paper_trades = []
-            self.completed_paper_trades = []
-            
-            # Load open trades from today (exclude pre-fix trades)
-            cursor.execute("""
-                SELECT id, signal_id, symbol, direction, entry_price, position_size, 
-                       stop_loss, take_profit, entry_time, status, current_price, 
-                       unrealized_pnl, risk_amount
-                FROM paper_trades 
-                WHERE date(entry_time) = ? AND status = 'OPEN'
-                AND (date(entry_time) != '2025-10-09' OR entry_time >= ?)
-            """, (today, fix_timestamp))
-            
-            open_trades = cursor.fetchall()
-            for trade_data in open_trades:
-                trade = {
-                    'id': trade_data[0],
-                    'signal_id': trade_data[1],
-                    'symbol': trade_data[2],
-                    'crypto': trade_data[2].replace('USDT', ''),
-                    'direction': trade_data[3],
-                    'action': trade_data[3],
-                    'entry_price': float(trade_data[4]),
-                    'position_size': float(trade_data[5]),
-                    'stop_loss': float(trade_data[6]),
-                    'take_profit': float(trade_data[7]),
-                    'entry_time': trade_data[8],
-                    'status': trade_data[9],
-                    'current_price': float(trade_data[10]) if trade_data[10] else float(trade_data[4]),
-                    'unrealized_pnl': float(trade_data[11]) if trade_data[11] else 0.0,
-                    'pnl': float(trade_data[11]) if trade_data[11] else 0.0,
-                    'risk_amount': float(trade_data[12])
-                }
-                self.active_paper_trades.append(trade)
-            
-            # Load completed trades from today (exclude pre-fix trades)
-            cursor.execute("""
-                SELECT id, signal_id, symbol, direction, entry_price, position_size,
-                       stop_loss, take_profit, entry_time, exit_time, exit_price,
-                       status, realized_pnl, risk_amount
-                FROM paper_trades 
-                WHERE date(entry_time) = ? AND status IN ('STOP_LOSS', 'TAKE_PROFIT')
-                AND (date(entry_time) != '2025-10-09' OR entry_time >= ?)
-            """, (today, fix_timestamp))
-            
-            closed_trades = cursor.fetchall()
-            for trade_data in closed_trades:
-                trade = {
-                    'id': trade_data[0],
-                    'signal_id': trade_data[1],
-                    'symbol': trade_data[2],
-                    'crypto': trade_data[2].replace('USDT', ''),
-                    'direction': trade_data[3],
-                    'action': trade_data[3],
-                    'entry_price': float(trade_data[4]),
-                    'position_size': float(trade_data[5]),
-                    'stop_loss': float(trade_data[6]),
-                    'take_profit': float(trade_data[7]),
-                    'entry_time': trade_data[8],
-                    'exit_time': trade_data[9],
-                    'exit_price': float(trade_data[10]) if trade_data[10] else 0.0,
-                    'status': trade_data[11],
-                    'realized_pnl': float(trade_data[12]) if trade_data[12] else 0.0,
-                    'pnl': float(trade_data[12]) if trade_data[12] else 0.0,
-                    'risk_amount': float(trade_data[13])
-                }
-                self.completed_paper_trades.append(trade)
-            
-            # 4. LOAD PERSISTENT BALANCE (NO MORE RESETS TO $100!)
-            # First try to load the latest balance from balance_history
-            cursor.execute("""
-                SELECT balance FROM balance_history 
-                ORDER BY timestamp DESC LIMIT 1
-            """)
-            balance_result = cursor.fetchone()
-            
-            if balance_result:
-                # Use the last saved balance (persistent through crashes)
-                self.paper_balance = float(balance_result[0])
-                logger.info(f"✅ Loaded persistent balance: ${self.paper_balance:.2f}")
-            else:
-                # Only use $100 if this is truly the first time ever
-                self.paper_balance = 100.0
-                logger.info(f"🆕 First time startup - using starting balance: ${self.paper_balance:.2f}")
-                # Save initial balance to history
-                self.save_balance_to_database(self.paper_balance, "Initial startup balance")
-            
-            # Calculate total realized PnL from ALL closed trades (not just today)
-            cursor.execute("""
-                SELECT SUM(realized_pnl) FROM paper_trades 
-                WHERE status IN ('STOP_LOSS', 'TAKE_PROFIT', 'CLEANUP') AND realized_pnl IS NOT NULL
-            """)
-            result = cursor.fetchone()
-            total_realized_pnl = float(result[0]) if result and result[0] else 0.0
-            
-            # Calculate current unrealized PnL from open trades
-            total_unrealized_pnl = sum(trade['unrealized_pnl'] for trade in self.active_paper_trades)
-            self.total_paper_pnl = total_realized_pnl + total_unrealized_pnl
-            
-            # 5. RESTORE TRADING JOURNAL ENTRIES
-            self.trading_journal = []
-            cursor.execute("""
-                SELECT entry_type, title, content, signal_id, timestamp
-                FROM trading_journal_entries 
-                WHERE date(created_date) = ?
-                ORDER BY timestamp DESC
-            """, (today,))
-            
-            journal_data = cursor.fetchall()
-            for entry_data in journal_data:
-                journal_entry = {
-                    'type': entry_data[0],
-                    'title': entry_data[1],
-                    'content': entry_data[2],
-                    'signal_id': entry_data[3],
-                    'timestamp': entry_data[4]
-                }
-                self.trading_journal.append(journal_entry)
-            
-            # Commit any status updates made during signal restoration
             conn.commit()
             conn.close()
             
-            # Summary of restored data
+            # Summary
             logger.info(f"✅ COMPLETE DATA RESTORATION FOR {today}")
             logger.info(f"   📊 Scan Count: {self.scan_count}")
-            logger.info(f"   📈 Signals Today: {self.signals_today} | All Time: {self.total_signals}")
+            logger.info(f"   � Signals Today: {self.signals_today} | All Time: {self.total_signals}")
             logger.info(f"   🎯 Live Signals: {len(self.live_signals)}")
             logger.info(f"   📄 Active Trades: {len(self.active_paper_trades)}")
             logger.info(f"   ✅ Completed Trades: {len(self.completed_paper_trades)}")
             logger.info(f"   💰 Paper Balance: ${self.paper_balance:.2f}")
-            logger.info(f"   � Journal Entries: {len(self.trading_journal)}")
+            logger.info(f"   📝 Journal Entries: {len(self.trading_journal)}")
             logger.info(f"   💹 Total PnL: ${self.total_paper_pnl:.2f}")
             
             if len(self.trading_journal) > 0:
-                logger.info("📦 Restored persisted data: {} journal entries".format(len(self.trading_journal)))
+                logger.info(f"📦 Restored persisted data: {len(self.trading_journal)} journal entries")
             else:
                 logger.info("📦 Restored persisted data: 0 journal entries")
                 
-            # 🧹 CLEANUP: Remove any old journal entries that aren't from today
+            # Cleanup old entries
             self.cleanup_old_journal_entries()
                 
         except Exception as e:
@@ -766,6 +764,8 @@ class ICTCryptoMonitor:
             self.scan_count = 0
             self.signals_today = 0
             self.total_signals = 0
+            # PRESERVE BALANCE if it was successfully loaded! Only reset if it's still at default
+            # TRADING FIX: Use range comparison instead of exact float equality
             # PRESERVE BALANCE if it was successfully loaded! Only reset if it's still at default
             # TRADING FIX: Use range comparison instead of exact float equality
             if not hasattr(self, 'paper_balance') or abs(self.paper_balance - 100.0) < 0.01:
