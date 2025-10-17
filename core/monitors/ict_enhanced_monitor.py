@@ -3292,8 +3292,8 @@ class ICTWebMonitor:
         self.setup_routes()
         self.setup_socketio_events()
     
-    def _get_health_check_data(self):
-        """Get health check data for API endpoint"""
+    def _count_todays_signals(self):
+        """Count signals created today"""
         from datetime import date
         today = date.today()
 
@@ -3318,7 +3318,10 @@ class ICTWebMonitor:
                     today_signals += 1
             except Exception:
                 continue
-
+        return today_signals
+    
+    def _get_health_check_data(self):
+        """Get health check data for API endpoint"""
         return {
             'status': 'operational',
             'service': 'ICT Enhanced Trading Monitor',
@@ -3326,7 +3329,7 @@ class ICTWebMonitor:
             'timestamp': datetime.now().isoformat(),
             'symbols': self.crypto_monitor.display_symbols,
             'scan_count': self.crypto_monitor.scan_count,
-            'signals_today': today_signals,
+            'signals_today': self._count_todays_signals(),
             'market_hours': self.statistics.is_market_hours(),
             'paper_balance': self.crypto_monitor.paper_balance,
             'account_blown': self.crypto_monitor.account_blown,
@@ -3362,6 +3365,22 @@ class ICTWebMonitor:
         # Combine database + journal (database-first approach)
         return today_completed_trades + journal_supplement
     
+    def _is_signal_closed(self, signal, today_str):
+        """Check if signal has a corresponding closed trade"""
+        paper_trade_id = signal.get('paper_trade_id', '')
+        return any(
+            trade.get('exit_time', '').startswith(today_str) 
+            for trade in self.crypto_monitor.trading_journal
+            if str(trade.get('id', '')) in paper_trade_id
+        )
+    
+    def _format_signal_for_summary(self, signal):
+        """Format a signal for the summary response"""
+        cp = signal.copy()
+        if hasattr(cp.get('timestamp'), 'isoformat'):
+            cp['timestamp'] = cp['timestamp'].isoformat()
+        return cp
+    
     def _get_todays_signals_summary(self):
         """Get summary of today's signals (active only)"""
         from datetime import date
@@ -3380,20 +3399,8 @@ class ICTWebMonitor:
             if not ts:
                 continue
             try:
-                if _to_dt(ts).date() == date.today():
-                    # Skip if this signal has a corresponding closed trade in journal
-                    paper_trade_id = s.get('paper_trade_id', '')
-                    is_closed = any(
-                        trade.get('exit_time', '').startswith(today_str) 
-                        for trade in self.crypto_monitor.trading_journal
-                        if str(trade.get('id', '')) in paper_trade_id
-                    )
-                    
-                    if not is_closed:  # Only show if not closed
-                        cp = s.copy()
-                        if hasattr(cp.get('timestamp'), 'isoformat'):
-                            cp['timestamp'] = cp['timestamp'].isoformat()
-                        todays_summary.append(cp)
+                if _to_dt(ts).date() == date.today() and not self._is_signal_closed(s, today_str):
+                    todays_summary.append(self._format_signal_for_summary(s))
             except Exception:
                 continue
         
@@ -3433,6 +3440,60 @@ class ICTWebMonitor:
             'cooldown_minutes': self.crypto_monitor.signal_cooldown_minutes
         }
         
+    def _get_api_data_response(self):
+        """Gather all API data for the main data endpoint"""
+        # Serialize live signals for JSON
+        serialized_signals = []
+        for signal in self.crypto_monitor.live_signals[-5:]:
+            signal_copy = signal.copy()
+            if 'timestamp' in signal_copy and hasattr(signal_copy['timestamp'], 'isoformat'):
+                signal_copy['timestamp'] = signal_copy['timestamp'].isoformat()
+            serialized_signals.append(signal_copy)
+        
+        # Get today's completed trades
+        all_today_trades = self._get_todays_completed_trades()
+        serialized_journal = self.serialize_datetime_objects(all_today_trades[-10:])
+
+        # Derive signals_today from database
+        from datetime import date
+        import sqlite3
+        today = date.today().isoformat()
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute(DAILY_COUNT_QUERY, (today,))
+        today_signals = cursor.fetchone()[0]
+        conn.close()
+        
+        # Get today's signal summary
+        todays_summary = self._get_todays_signals_summary()
+        
+        # Get signal generation parameters
+        signal_params = self._get_signal_generation_params()
+
+        return {
+            'prices': self.current_prices,
+            'scan_count': self.crypto_monitor.scan_count,
+            'signals_today': today_signals,
+            'daily_pnl': self.crypto_monitor.daily_pnl,
+            'paper_balance': self.crypto_monitor.paper_balance,
+            'account_blown': self.crypto_monitor.account_blown,
+            'live_signals': serialized_signals,
+            'total_live_signals': len(self.crypto_monitor.live_signals),
+            'signals_summary': todays_summary,
+            'trading_journal': serialized_journal,
+            'paper_trades': self.crypto_monitor.get_todays_active_trades_from_db(),
+            'session_status': self.session_tracker.get_sessions_status(),
+            'uptime': self.statistics.get_uptime(),
+            'market_hours': self.statistics.is_market_hours(),
+            'signal_generation_params': signal_params,
+            'risk_management_status': self._get_risk_management_status(),
+            'ml_model_status': {
+                'loaded': self.signal_generator.ml_model is not None,
+                'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
+            }
+        }
+    
     def setup_routes(self):
         """Setup Flask routes"""
         
@@ -3447,57 +3508,7 @@ class ICTWebMonitor:
         @self.app.route('/api/data')
         def get_current_data():
             try:
-                # Serialize live signals for JSON
-                serialized_signals = []
-                for signal in self.crypto_monitor.live_signals[-5:]:
-                    signal_copy = signal.copy()
-                    if 'timestamp' in signal_copy and hasattr(signal_copy['timestamp'], 'isoformat'):
-                        signal_copy['timestamp'] = signal_copy['timestamp'].isoformat()
-                    serialized_signals.append(signal_copy)
-                
-                # Get today's completed trades
-                all_today_trades = self._get_todays_completed_trades()
-                serialized_journal = self.serialize_datetime_objects(all_today_trades[-10:])
-
-                # Derive signals_today from database
-                from datetime import date
-                import sqlite3
-                today = date.today().isoformat()
-                
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
-                cursor.execute(DAILY_COUNT_QUERY, (today,))
-                today_signals = cursor.fetchone()[0]
-                conn.close()
-                
-                # Get today's signal summary
-                todays_summary = self._get_todays_signals_summary()
-                
-                # Get signal generation parameters
-                signal_params = self._get_signal_generation_params()
-
-                return jsonify({
-                    'prices': self.current_prices,
-                    'scan_count': self.crypto_monitor.scan_count,
-                    'signals_today': today_signals,
-                    'daily_pnl': self.crypto_monitor.daily_pnl,
-                    'paper_balance': self.crypto_monitor.paper_balance,
-                    'account_blown': self.crypto_monitor.account_blown,
-                    'live_signals': serialized_signals,
-                    'total_live_signals': len(self.crypto_monitor.live_signals),
-                    'signals_summary': todays_summary,
-                    'trading_journal': serialized_journal,
-                    'paper_trades': self.crypto_monitor.get_todays_active_trades_from_db(),
-                    'session_status': self.session_tracker.get_sessions_status(),
-                    'uptime': self.statistics.get_uptime(),
-                    'market_hours': self.statistics.is_market_hours(),
-                    'signal_generation_params': signal_params,
-                    'risk_management_status': self._get_risk_management_status(),
-                    'ml_model_status': {
-                        'loaded': self.signal_generator.ml_model is not None,
-                        'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
-                    }
-                })
+                return jsonify(self._get_api_data_response())
             except Exception as e:
                 logger.error(f"❌ Error in API data endpoint: {e}")
                 return jsonify({'error': 'Internal server error'}), 500
