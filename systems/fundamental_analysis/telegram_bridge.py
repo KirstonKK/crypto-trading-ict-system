@@ -170,7 +170,7 @@ class TelegramNewsBridge:
         except Exception as e:
             logger.error(f"Error handling important news: {e}")
     
-    async def update_fundamental_analysis(self, news_entry: dict):
+    def update_fundamental_analysis(self, news_entry: dict):
         """Update the fundamental analysis system with new news"""
         try:
             # Add to fundamental analysis news cache
@@ -289,7 +289,7 @@ def integrate_with_fundamental_analysis():
         return False
 
 # Demo/Test function
-async def demo_telegram_integration():
+def demo_telegram_integration():
     """Demo the Telegram integration"""
     
     print("🚀 WatcherGuru Telegram Integration Demo")
@@ -310,18 +310,18 @@ async def demo_telegram_integration():
     
     print("📰 Testing Telegram message analysis:")
     for msg in test_messages:
-        analysis = bridge.telegram_bot.analyze_message(msg)
-        print("Message: {msg}")
-        print("Analysis: {analysis}")
+        _ = bridge.telegram_bot.analyze_message(msg)
+        print(f"Message: {msg}")
+        print(f"Analysis: {_}")
         print("-" * 40)
     
     # Test Bitcoin 105K check
-    btc_check = bridge.check_bitcoin_105k_alert()
-    print("Bitcoin $105K Alert Check: {btc_check}")
+    _ = bridge.check_bitcoin_105k_alert()
+    print(f"Bitcoin $105K Alert Check: {_}")
     
     # Generate summary
-    summary = bridge.get_telegram_news_summary(24)
-    print("📊 News Summary: {summary}")
+    _ = bridge.get_telegram_news_summary(24)
+    print(f"📊 News Summary: {_}")
 
 if __name__ == "__main__":
-    asyncio.run(demo_telegram_integration())
+    demo_telegram_integration()

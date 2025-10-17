@@ -10,6 +10,8 @@ import requests
 import json
 from datetime import datetime
 
+DATABASE_PATH = 'databases/trading_data.db'
+
 def test_eod_closure():
     print("🔍 EOD CLOSURE TEST")
     print("=" * 60)
@@ -32,14 +34,12 @@ def test_eod_closure():
     try:
         response = requests.get('http://localhost:5001/api/data', timeout=5)
         data = response.json()
-        current_balance = data.get('paper_balance', 0)
         
-        print("💰 Current Balance: ${current_balance:.2f}")
-        print("📈 Today's PnL: ${data.get('daily_pnl', 0):.2f}")
+        print(f"💰 Current Balance: ${data.get('paper_balance', 0):.2f}")
+        print(f"📈 Today's PnL: ${data.get('daily_pnl', 0):.2f}")
         
-    except Exception as e:
-        print("❌ Could not get current balance: {e}")
-        current_balance = 0
+    except Exception:
+        print("❌ Could not get current balance")
     
     # Get current prices from Bybit (REAL PRICES - NO MORE FICTIONAL DATA!)
     try:
@@ -63,10 +63,10 @@ def test_eod_closure():
             mock_prices = real_prices
             print("✅ Using REAL Bybit prices for EOD closure test")
         else:
-            raise Exception("No real prices available")
+            raise RuntimeError("No real prices available")
             
-    except Exception as e:
-        print("⚠️ Could not get real prices ({e}), using safer mock prices")
+    except Exception:
+        print("⚠️ Could not get real prices, using safer mock prices")
         # Use more realistic mock prices that won't create massive losses
         mock_prices = {
             'BTC': {'price': 110000.0},  # Realistic BTC price 
@@ -96,7 +96,7 @@ def test_eod_closure():
         crypto = symbol.replace('USDT', '')
         
         if crypto not in mock_prices:
-            print("⚠️ No price for {crypto}, skipping")
+            print(f"⚠️ No price for {crypto}, skipping")
             continue
             
         current_price = mock_prices[crypto]['price']
@@ -106,34 +106,43 @@ def test_eod_closure():
             pnl = (current_price - entry_price) * position_size
         else:
             pnl = (entry_price - current_price) * position_size
-            
+        
         total_pnl += pnl
         closed_count += 1
         
         # Show the closure
         entry_date = entry_time[:10]
         pnl_color = "🟢" if pnl > 0 else "🔴"
-        print("{pnl_color} {crypto:4} {direction:4} | Entry: ${entry_price:8.2f} | Exit: ${current_price:8.2f} | PnL: ${pnl:+8.2f} | From: {entry_date}")
+        print(f"💰 Closing {symbol} position - PnL: ${pnl:.2f}")
+        print(f"{pnl_color} {crypto:4} {direction:4} | Entry: ${entry_price:8.2f} | Exit: ${current_price:8.2f} | PnL: ${pnl:+8.2f} | From: {entry_date}")
     
     print("-" * 60)
-    print("💰 Total EOD PnL: ${total_pnl:.2f}")
-    print("📊 Positions to Close: {closed_count}")
-    print("🎯 New Balance: ${current_balance + total_pnl:.2f}")
+    print(f"💰 Total EOD PnL: ${total_pnl:.2f}")
+    print(f"📊 Positions to Close: {closed_count}")
+    
+    # Get current balance
+    try:
+        response = requests.get('http://localhost:5001/api/data', timeout=5)
+        data = response.json()
+        current_balance = data.get('paper_balance', 0)
+        print(f"🎯 New Balance: ${current_balance + total_pnl:.2f}")
+    except Exception:
+        print("🎯 Unable to calculate new balance")
     
     # Ask user if they want to actually close them
-    print("\n❓ Do you want to ACTUALLY close these {closed_count} positions?")
+    print(f"\n❓ Do you want to ACTUALLY close these {closed_count} positions?")
     print("   This will update the database and close all open trades.")
     
     choice = input("Type 'YES' to proceed: ").strip().upper()
     
     if choice == 'YES':
-        print("\n🔄 CLOSING {closed_count} POSITIONS...")
+        print(f"\n🔄 CLOSING {closed_count} POSITIONS...")
         
         # Update all open positions to EOD_CLOSE
         now = datetime.now().isoformat()
         
         for position in positions:
-            trade_id, symbol, direction, entry_price, position_size, entry_time = position
+            _, symbol, direction, entry_price, position_size, _ = position
             crypto = symbol.replace('USDT', '')
             
             if crypto not in mock_prices:
@@ -164,10 +173,10 @@ def test_eod_closure():
         eod_closed = cursor.fetchone()[0]
         
         print("✅ EOD CLOSURE COMPLETE!")
-        print("   - Closed: {closed_count} positions")
-        print("   - Remaining Open: {remaining_open}")
-        print("   - Total EOD Closures: {eod_closed}")
-        print("   - Total PnL Impact: ${total_pnl:.2f}")
+        print(f"   - Closed: {closed_count} positions")
+        print(f"   - Remaining Open: {remaining_open}")
+        print(f"   - Total EOD Closures: {eod_closed}")
+        print(f"   - Total PnL Impact: ${total_pnl:.2f}")
         
     else:
         print("❌ EOD closure cancelled")
