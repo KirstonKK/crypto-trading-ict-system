@@ -11,7 +11,7 @@ def check_trading_journal():
         response = requests.get('http://127.0.0.1:5001/api/data', timeout=5)
         
         if response.status_code != 200:
-            print(f"❌ API request failed: {response.status_code}")
+            print("❌ API request failed: {response.status_code}")
             return
             
         data = response.json()
@@ -21,7 +21,7 @@ def check_trading_journal():
         
         print("🗂️  TRADING JOURNAL FROM WEB INTERFACE:")
         print("=" * 60)
-        print(f"📋 Total journal entries: {len(journal)}")
+        print("📋 Total journal entries: {len(journal)}")
         print()
         
         today = date.today().isoformat()
@@ -41,30 +41,30 @@ def check_trading_journal():
             if is_today:
                 today_entries += 1
             
-            print(f"{i}. {timestamp} {'🔴 TODAY' if is_today else '📅 PAST'}")
-            print(f"   {trade_type}: {action} {symbol}")
-            print(f"   Details: {details}")
-            print(f"   Entry Price: ${entry_price:.2f}")
+            print("{i}. {timestamp} {'🔴 TODAY' if is_today else '📅 PAST'}")
+            print("   {trade_type}: {action} {symbol}")
+            print("   Details: {details}")
+            print("   Entry Price: ${entry_price:.2f}")
             if trade_id != 'No ID':
-                print(f"   Trade ID: {trade_id}")
+                print("   Trade ID: {trade_id}")
             print()
         
         print("=" * 60)
-        print(f"📊 SUMMARY:")
-        print(f"   Total journal entries: {len(journal)}")
-        print(f"   Entries from today ({today}): {today_entries}")
-        print(f"   Entries from other days: {len(journal) - today_entries}")
+        print("📊 SUMMARY:")
+        print("   Total journal entries: {len(journal)}")
+        print("   Entries from today ({today}): {today_entries}")
+        print("   Entries from other days: {len(journal) - today_entries}")
         
         # Also check daily PnL
         daily_pnl = data.get('daily_pnl', 'Not found')
-        print(f"   Current daily PnL: ${daily_pnl}")
+        print("   Current daily PnL: ${daily_pnl}")
         
     except requests.exceptions.RequestException as e:
-        print(f"❌ Network error: {e}")
+        print("❌ Network error: {e}")
     except json.JSONDecodeError as e:
-        print(f"❌ JSON decode error: {e}")
+        print("❌ JSON decode error: {e}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print("❌ Error: {e}")
 
 if __name__ == "__main__":
     check_trading_journal()

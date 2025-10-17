@@ -11,12 +11,12 @@ def test_daily_pnl_calculation():
     """Test the daily PnL calculation logic"""
     try:
         # Connect to the same database the monitor uses
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Get today's date
         today = datetime.now().strftime('%Y-%m-%d')
-        print(f"Testing daily PnL calculation for {today}")
+        print("Testing daily PnL calculation for {today}")
         
         # Query exactly like the monitor does
         cursor.execute("""
@@ -29,7 +29,7 @@ def test_daily_pnl_calculation():
         result = cursor.fetchone()
         daily_pnl = result[0] if result[0] is not None else 0.0
         
-        print(f"Daily PnL from calculation: ${daily_pnl:.2f}")
+        print("Daily PnL from calculation: ${daily_pnl:.2f}")
         
         # Also check what trades exist today
         cursor.execute("""
@@ -40,13 +40,13 @@ def test_daily_pnl_calculation():
         """)
         
         trades = cursor.fetchall()
-        print(f"\nFound {len(trades)} trades today:")
+        print("\nFound {len(trades)} trades today:")
         
         for trade in trades:
             trade_id, symbol, status, entry_time, exit_time, realized_pnl = trade
             pnl_str = f"${realized_pnl:.2f}" if realized_pnl else "$0.00"
             exit_str = exit_time if exit_time else "None"
-            print(f"  {trade_id}: {symbol} - {status} - Entry: {entry_time} - Exit: {exit_str} - PnL: {pnl_str}")
+            print("  {trade_id}: {symbol} - {status} - Entry: {entry_time} - Exit: {exit_str} - PnL: {pnl_str}")
         
         # Check specifically for closed trades
         cursor.execute("""
@@ -60,12 +60,12 @@ def test_daily_pnl_calculation():
         closed_count, closed_pnl = closed_result
         closed_pnl = closed_pnl if closed_pnl else 0.0
         
-        print(f"\nClosed trades today: {closed_count}, Total PnL: ${closed_pnl:.2f}")
+        print("\nClosed trades today: {closed_count}, Total PnL: ${closed_pnl:.2f}")
         
         conn.close()
         
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error: {e}")
 
 if __name__ == "__main__":
     test_daily_pnl_calculation()

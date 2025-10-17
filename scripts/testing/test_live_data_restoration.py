@@ -45,7 +45,7 @@ def test_live_data_persistence():
     
     signal_id = db.add_signal(signal_data)
     live_signals.append(signal_id)
-    print(f"   📈 Added live signal: {signal_data['symbol']} {signal_data['direction']} @ ${signal_data['entry_price']}")
+    print("   📈 Added live signal: {signal_data['symbol']} {signal_data['direction']} @ ${signal_data['entry_price']}")
     
     # Add another signal
     signal_data_2 = {
@@ -67,7 +67,7 @@ def test_live_data_persistence():
     
     signal_id_2 = db.add_signal(signal_data_2)
     live_signals.append(signal_id_2)
-    print(f"   📉 Added live signal: {signal_data_2['symbol']} {signal_data_2['direction']} @ ${signal_data_2['entry_price']}")
+    print("   📉 Added live signal: {signal_data_2['symbol']} {signal_data_2['direction']} @ ${signal_data_2['entry_price']}")
     
     # Execute one trade (simulate paper trading)
     trade_data = {
@@ -82,7 +82,7 @@ def test_live_data_persistence():
     }
     
     trade_id = db.add_trade(signal_id, trade_data)
-    print(f"   💰 Executed trade: PnL ${trade_data['pnl']:.2f}")
+    print("   💰 Executed trade: PnL ${trade_data['pnl']:.2f}")
     
     # Update scan count and balance (simulate live monitoring)
     db.increment_scan_count()
@@ -103,21 +103,21 @@ def test_live_data_persistence():
     todays_trades = db.get_trades_today()
     
     print("   📊 RESTORED DATA:")
-    print(f"     🔢 Scan count: {daily_stats.get('scan_count', 0)}")
-    print(f"     📈 Signals today: {daily_stats.get('signals_generated', 0)}")
-    print(f"     💰 Paper balance: ${daily_stats.get('paper_balance', 100):.2f}")
-    print(f"     📊 Total PnL: ${daily_stats.get('total_pnl', 0):.2f}")
+    print("     🔢 Scan count: {daily_stats.get('scan_count', 0)}")
+    print("     📈 Signals today: {daily_stats.get('signals_generated', 0)}")
+    print("     💰 Paper balance: ${daily_stats.get('paper_balance', 100):.2f}")
+    print("     📊 Total PnL: ${daily_stats.get('total_pnl', 0):.2f}")
     
-    print(f"\n   📈 LIVE SIGNALS RESTORED:")
+    print("\n   📈 LIVE SIGNALS RESTORED:")
     for i, signal in enumerate(todays_signals, 1):
-        print(f"     Signal {i}: {signal.get('symbol')} {signal.get('direction')} "
+        print("     Signal {i}: {signal.get('symbol')} {signal.get('direction')} "
               f"@ ${signal.get('entry_price', 0):.2f} (Conf: {signal.get('confluence_score', 0):.2f})")
     
-    print(f"\n   💰 TRADES RESTORED:")
+    print("\n   💰 TRADES RESTORED:")
     for i, trade in enumerate(todays_trades, 1):
         status = trade.get('status', 'UNKNOWN')
         pnl = trade.get('pnl', 0)
-        print(f"     Trade {i}: {status} - PnL: ${pnl:.2f}")
+        print("     Trade {i}: {status} - PnL: ${pnl:.2f}")
     
     print("\n3️⃣ VERIFYING WEB INTERFACE DATA...")
     
@@ -135,13 +135,13 @@ def test_live_data_persistence():
     }
     
     print("   🌐 Web interface will show:")
-    print(f"     📊 Signals Today: {web_interface_data['signals_today']}")
-    print(f"     💰 Balance: ${web_interface_data['paper_balance']:.2f}")
-    print(f"     📈 Daily PnL: ${web_interface_data['daily_pnl']:.2f}")
-    print(f"     🔢 Scan Count: {web_interface_data['scan_count']}")
-    print(f"     📈 Live Signals: {len(web_interface_data['live_signals'])}")
-    print(f"     🔄 Active Trades: {len(web_interface_data['active_trades'])}")
-    print(f"     ✅ Completed Trades: {len(web_interface_data['completed_trades'])}")
+    print("     📊 Signals Today: {web_interface_data['signals_today']}")
+    print("     💰 Balance: ${web_interface_data['paper_balance']:.2f}")
+    print("     📈 Daily PnL: ${web_interface_data['daily_pnl']:.2f}")
+    print("     🔢 Scan Count: {web_interface_data['scan_count']}")
+    print("     📈 Live Signals: {len(web_interface_data['live_signals'])}")
+    print("     🔄 Active Trades: {len(web_interface_data['active_trades'])}")
+    print("     ✅ Completed Trades: {len(web_interface_data['completed_trades'])}")
     
     return web_interface_data
 
@@ -164,12 +164,12 @@ def test_empty_state():
     todays_trades = db.get_trades_today()
     
     print("   📊 FRESH START DATA:")
-    print(f"     🔢 Scan count: {daily_stats.get('scan_count', 0)}")
-    print(f"     📈 Signals today: {daily_stats.get('signals_generated', 0)}")
-    print(f"     💰 Paper balance: ${daily_stats.get('paper_balance', 100):.2f}")
-    print(f"     📊 Total PnL: ${daily_stats.get('total_pnl', 0):.2f}")
-    print(f"     📈 Live signals: {len(todays_signals)}")
-    print(f"     💰 Trades: {len(todays_trades)}")
+    print("     🔢 Scan count: {daily_stats.get('scan_count', 0)}")
+    print("     📈 Signals today: {daily_stats.get('signals_generated', 0)}")
+    print("     💰 Paper balance: ${daily_stats.get('paper_balance', 100):.2f}")
+    print("     📊 Total PnL: ${daily_stats.get('total_pnl', 0):.2f}")
+    print("     📈 Live signals: {len(todays_signals)}")
+    print("     💰 Trades: {len(todays_trades)}")
     
     fresh_start_correct = (
         daily_stats.get('scan_count', 0) == 0 and
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     web_data = test_live_data_persistence()
     fresh_start_ok = test_empty_state()
     
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                        TEST RESULTS                             ║
 ╠══════════════════════════════════════════════════════════════════╣

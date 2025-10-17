@@ -986,7 +986,7 @@ if __name__ == "__main__":
                 close_price = current_price - 200  # Bearish candle
                 high_price = max(open_price, close_price) + 50
                 low_price = min(open_price, close_price) - 50
-                volume = np.random.randint(1000, 3000)  # Higher volume
+                volume = np.random.default_rng(42).integers(1000, 3000)  # Higher volume
                 
                 # Add displacement in next few candles
                 for j in range(1, 6):
@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
                 close_price = current_price + np.random.randn() * 30
                 high_price = max(open_price, close_price) + abs(np.random.randn()) * 20
                 low_price = min(open_price, close_price) - abs(np.random.randn()) * 20
-                volume = np.random.randint(500, 1500)
+                volume = np.random.default_rng(42).integers(500, 1500)
             
             price_data.append({
                 'open': open_price,
@@ -1024,7 +1024,7 @@ if __name__ == "__main__":
         # Get summary
         summary = detector.get_detection_summary(enhanced_order_blocks)
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                    ORDER BLOCK DETECTION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -1044,11 +1044,11 @@ if __name__ == "__main__":
             print("🎯 TOP ENHANCED ORDER BLOCKS:")
             for i, eob in enumerate(enhanced_order_blocks[:3], 1):
                 direction = "BULLISH" if eob.block_type == 'BULLISH_EOB' else "BEARISH"
-                print(f"  {i}. {direction} EOB - {eob.quality.value} quality ({eob.institutional_quality_score:.1f}/100)")
-                print(f"     Zone: ${eob.low:.2f} - ${eob.high:.2f}")
-                print(f"     Entry: ${eob.optimal_entry_zone[0]:.2f}-${eob.optimal_entry_zone[1]:.2f}")
-                print(f"     Smart Money: {eob.smart_money_signature:.1%} | Volume: {eob.volume_confirmation:.1%}")
-                print(f"     Confluence: {', '.join(eob.confluence_factors[:2])}")
+                print("  {i}. {direction} EOB - {eob.quality.value} quality ({eob.institutional_quality_score:.1f}/100)")
+                print("     Zone: ${eob.low:.2f} - ${eob.high:.2f}")
+                print("     Entry: ${eob.optimal_entry_zone[0]:.2f}-${eob.optimal_entry_zone[1]:.2f}")
+                print("     Smart Money: {eob.smart_money_signature:.1%} | Volume: {eob.volume_confirmation:.1%}")
+                print("     Confluence: {', '.join(eob.confluence_factors[:2])}")
                 print()
         
         print("✅ Enhanced Order Block Detection test completed!")

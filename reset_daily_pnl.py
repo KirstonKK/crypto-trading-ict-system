@@ -12,7 +12,7 @@ def reset_daily_pnl():
     print("🔄 DAILY PNL RESET TOOL")
     print("=" * 60)
     
-    conn = sqlite3.connect('databases/trading_data.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     today = date.today().isoformat()
@@ -36,12 +36,12 @@ def reset_daily_pnl():
     total_pnl = cursor.fetchone()[0]
     current_balance = 100 + total_pnl
     
-    print(f"📊 CURRENT SITUATION:")
-    print(f"   EOD Closures Today: {eod_count} trades")
-    print(f"   EOD PnL Impact: ${eod_pnl:.2f}")
-    print(f"   Current Balance: ${current_balance:.2f}")
+    print("📊 CURRENT SITUATION:")
+    print("   EOD Closures Today: {eod_count} trades")
+    print("   EOD PnL Impact: ${eod_pnl:.2f}")
+    print("   Current Balance: ${current_balance:.2f}")
     
-    print(f"\n🎯 RESET OPTIONS:")
+    print("\n🎯 RESET OPTIONS:")
     print("1. Mark EOD closures as 'CLEANUP' (exclude from PnL)")
     print("2. Reset balance to $70 (pre-EOD level)")
     print("3. Reset balance to $100 (fresh start)")
@@ -50,7 +50,7 @@ def reset_daily_pnl():
     choice = input("\nSelect option (1-4): ").strip()
     
     if choice == "1":
-        print(f"\n🏷️ MARKING {eod_count} EOD CLOSURES AS CLEANUP...")
+        print("\n🏷️ MARKING {eod_count} EOD CLOSURES AS CLEANUP...")
         
         # Change EOD_CLOSE to CLEANUP status
         cursor.execute("""
@@ -72,13 +72,13 @@ def reset_daily_pnl():
         new_total_pnl = cursor.fetchone()[0]
         new_balance = 100 + new_total_pnl
         
-        print(f"✅ CLEANUP COMPLETE!")
-        print(f"   - {eod_count} trades marked as CLEANUP")
-        print(f"   - New balance: ${new_balance:.2f}")
-        print(f"   - Daily PnL calculation will exclude cleanup trades")
+        print("✅ CLEANUP COMPLETE!")
+        print("   - {eod_count} trades marked as CLEANUP")
+        print("   - New balance: ${new_balance:.2f}")
+        print("   - Daily PnL calculation will exclude cleanup trades")
         
     elif choice == "2":
-        print(f"\n💰 RESETTING BALANCE TO $70...")
+        print("\n💰 RESETTING BALANCE TO $70...")
         
         # Add a balance adjustment trade
         now = datetime.now().isoformat()
@@ -93,12 +93,12 @@ def reset_daily_pnl():
         
         conn.commit()
         
-        print(f"✅ BALANCE RESET COMPLETE!")
-        print(f"   - Adjustment: ${adjustment:.2f}")
-        print(f"   - New balance: $70.00")
+        print("✅ BALANCE RESET COMPLETE!")
+        print("   - Adjustment: ${adjustment:.2f}")
+        print("   - New balance: $70.00")
         
     elif choice == "3":
-        print(f"\n🆕 RESETTING BALANCE TO $100 (FRESH START)...")
+        print("\n🆕 RESETTING BALANCE TO $100 (FRESH START)...")
         
         # Add a balance adjustment trade
         now = datetime.now().isoformat()
@@ -113,10 +113,10 @@ def reset_daily_pnl():
         
         conn.commit()
         
-        print(f"✅ FRESH START COMPLETE!")
-        print(f"   - Adjustment: ${adjustment:.2f}")
-        print(f"   - New balance: $100.00")
-        print(f"   - Ready for clean trading!")
+        print("✅ FRESH START COMPLETE!")
+        print("   - Adjustment: ${adjustment:.2f}")
+        print("   - New balance: $100.00")
+        print("   - Ready for clean trading!")
         
     elif choice == "4":
         print("❌ Reset cancelled")
@@ -126,7 +126,7 @@ def reset_daily_pnl():
     
     conn.close()
     
-    print(f"\n🎯 NEXT STEPS:")
+    print("\n🎯 NEXT STEPS:")
     print("1. Restart trading systems to reload balance")
     print("2. Monitor stop loss system closely")
     print("3. Verify 1% risk management is working")

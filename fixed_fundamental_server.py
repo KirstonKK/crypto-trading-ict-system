@@ -76,7 +76,7 @@ class FixedFundamentalAnalysisServer(FundamentalAnalysisServer):
                 }
             ]
             
-            logging.info(f"✅ Generated {len(demo_news)} market news articles for analysis")
+            logging.info("✅ Generated %d market news articles for analysis", len(demo_news))
             return demo_news
             
         except Exception as e:

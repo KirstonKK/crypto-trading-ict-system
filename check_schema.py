@@ -5,7 +5,7 @@ import sqlite3
 def check_database_schema():
     """Check the database schema and current data"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Get table schema
@@ -14,20 +14,20 @@ def check_database_schema():
         
         print("📋 Paper trades table schema:")
         for col in columns:
-            print(f"  {col[1]} ({col[2]})")
+            print("  {col[1]} ({col[2]})")
         
         # Get all trades today using correct column names
         cursor.execute("SELECT * FROM paper_trades LIMIT 5")
         trades = cursor.fetchall()
         
-        print(f"\n📊 Sample trades (first 5):")
+        print("\n📊 Sample trades (first 5):")
         for i, trade in enumerate(trades):
-            print(f"  Trade {i+1}: {trade}")
+            print("  Trade {i+1}: {trade}")
             
         # Count today's trades using different approach
         cursor.execute("SELECT COUNT(*) FROM paper_trades")
         total_count = cursor.fetchone()[0]
-        print(f"\n📈 Total trades in database: {total_count}")
+        print("\n📈 Total trades in database: {total_count}")
         
         # Check for daily PnL calculation
         cursor.execute("""
@@ -40,12 +40,12 @@ def check_database_schema():
         result = cursor.fetchone()
         daily_pnl = result[0] if result[0] is not None else 0.0
         
-        print(f"💰 Daily PnL: ${daily_pnl:.2f}")
+        print("💰 Daily PnL: ${daily_pnl:.2f}")
         
         conn.close()
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print("❌ Error: {e}")
 
 if __name__ == "__main__":
     check_database_schema()

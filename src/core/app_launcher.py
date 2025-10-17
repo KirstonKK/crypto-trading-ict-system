@@ -67,7 +67,7 @@ class TradingSystemLauncher:
                 if response.status_code == 200:
                     logger.info("✅ ICT Monitor is ready!")
                     return
-            except:
+            except Exception:
                 pass
             
             time.sleep(1)

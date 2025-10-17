@@ -17,15 +17,15 @@ def test_daily_pnl():
         # Test daily_pnl property
         daily_pnl = monitor.daily_pnl
         
-        print(f"✅ Daily PnL from monitor.daily_pnl: ${daily_pnl:.2f}")
+        print("✅ Daily PnL from monitor.daily_pnl: ${daily_pnl:.2f}")
         
         if daily_pnl == -2.8:
             print("🎉 SUCCESS: Daily PnL calculation is now correct!")
         else:
-            print(f"⚠️  Expected -$2.80, got ${daily_pnl:.2f}")
+            print("⚠️  Expected -$2.80, got ${daily_pnl:.2f}")
             
     except Exception as e:
-        print(f"❌ Error testing daily_pnl: {e}")
+        print("❌ Error testing daily_pnl: {e}")
 
 if __name__ == "__main__":
     test_daily_pnl()

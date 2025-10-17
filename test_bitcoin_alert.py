@@ -27,7 +27,7 @@ def test_bitcoin_alert_detection():
                 self.analysis_data = {}
                 
             def update_analysis(self, news_data):
-                print(f"📊 Analysis updated with: {news_data['title'][:50]}...")
+                print("📊 Analysis updated with: {news_data['title'][:50]}...")
         
         mock_system = MockFundamentalSystem()
         bridge = TelegramNewsBridge(mock_system)
@@ -56,21 +56,21 @@ def test_bitcoin_alert_detection():
         
         print("\n🧪 Testing message analysis...")
         for i, msg in enumerate(test_messages, 1):
-            print(f"\n--- Test Message {i} ---")
-            print(f"Text: {msg['text']}")
+            print("\n--- Test Message {i} ---")
+            print("Text: {msg['text']}")
             
             # Analyze the message
             analysis = bridge.telegram_bot.analyze_message(msg)
             
             if analysis:
-                print(f"✅ Detected crypto: {analysis.get('crypto_mentioned', [])}")
-                print(f"📊 Importance score: {analysis.get('importance_score', 0)}/10")
-                print(f"💭 Sentiment: {analysis.get('sentiment', 'Unknown')}")
+                print("✅ Detected crypto: {analysis.get('crypto_mentioned', [])}")
+                print("📊 Importance score: {analysis.get('importance_score', 0)}/10")
+                print("💭 Sentiment: {analysis.get('sentiment', 'Unknown')}")
                 
                 # Check for price info
                 price_info = bridge.telegram_bot.extract_price_info(msg['text'])
                 if price_info:
-                    print(f"💰 Price info: {price_info}")
+                    print("💰 Price info: {price_info}")
                     
                     # Check if it's the Bitcoin $105K alert
                     if (price_info.get('symbol') == 'BTC' and 
@@ -82,26 +82,26 @@ def test_bitcoin_alert_detection():
                 print("❌ No analysis generated")
         
         # Test the specific Bitcoin $105K check
-        print(f"\n🔍 Testing Bitcoin $105K alert check...")
+        print("\n🔍 Testing Bitcoin $105K alert check...")
         alert_check = bridge.check_bitcoin_105k_alert()
-        print(f"Result: {alert_check}")
+        print("Result: {alert_check}")
         
-        print(f"\n✅ Alert detection system functional!")
-        print(f"📋 Summary:")
-        print(f"   - Message analysis: Working")
-        print(f"   - Price extraction: Working") 
-        print(f"   - Bitcoin detection: Working")
-        print(f"   - Alert logging: Ready")
+        print("\n✅ Alert detection system functional!")
+        print("📋 Summary:")
+        print("   - Message analysis: Working")
+        print("   - Price extraction: Working") 
+        print("   - Bitcoin detection: Working")
+        print("   - Alert logging: Ready")
         
         return True
         
     except ImportError as e:
-        print(f"❌ Import error: {e}")
+        print("❌ Import error: {e}")
         print("💡 Make sure telegram_bridge.py and telegram_news_bot.py are in the current directory")
         return False
         
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print("❌ Test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -121,19 +121,19 @@ def check_current_alert_status():
         # Check the alert
         result = server.check_bitcoin_105k_alert()
         
-        print(f"Alert Status: {result}")
+        print("Alert Status: {result}")
         
         if result.get('caught_alert'):
             print("✅ System DID catch the Bitcoin $105K alert!")
         else:
             print("❌ System did NOT catch the Bitcoin $105K alert")
-            print(f"Reason: {result.get('reason', 'Unknown')}")
-            print(f"Recommendation: {result.get('recommendation', 'Enable monitoring')}")
+            print("Reason: {result.get('reason', 'Unknown')}")
+            print("Recommendation: {result.get('recommendation', 'Enable monitoring')}")
         
         return result
         
     except Exception as e:
-        print(f"❌ Error checking current status: {e}")
+        print("❌ Error checking current status: {e}")
         return {
             'caught_alert': False,
             'reason': f'Error: {e}',
@@ -157,17 +157,17 @@ def main():
     current_status = check_current_alert_status()
     
     # Summary
-    print(f"\n📋 FINAL SUMMARY")
+    print("\n📋 FINAL SUMMARY")
     print("="*40)
-    print(f"🔧 Detection System: {'✅ Working' if detection_works else '❌ Failed'}")
-    print(f"📡 Alert Caught: {'✅ Yes' if current_status.get('caught_alert') else '❌ No'}")
+    print("🔧 Detection System: {'✅ Working' if detection_works else '❌ Failed'}")
+    print("📡 Alert Caught: {'✅ Yes' if current_status.get('caught_alert') else '❌ No'}")
     
     if not current_status.get('caught_alert'):
-        print(f"\n💡 TO CATCH FUTURE ALERTS:")
-        print(f"   1. Configure Telegram bot token")
-        print(f"   2. Start fundamental analysis server")
-        print(f"   3. Enable WatcherGuru channel monitoring")
-        print(f"   4. Run: python systems/fundamental_analysis/fundamental_analysis_server.py")
+        print("\n💡 TO CATCH FUTURE ALERTS:")
+        print("   1. Configure Telegram bot token")
+        print("   2. Start fundamental analysis server")
+        print("   3. Enable WatcherGuru channel monitoring")
+        print("   4. Run: python systems/fundamental_analysis/fundamental_analysis_server.py")
 
 if __name__ == "__main__":
     main()

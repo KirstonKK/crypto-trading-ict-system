@@ -131,13 +131,13 @@ def update_stats(alert_data):
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
-    print(f"Client connected: {request.sid}")
+    print("Client connected: {request.sid}")
     emit('connected', {'message': 'Connected to TradingView Monitor'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection"""
-    print(f"Client disconnected: {request.sid}")
+    print("Client disconnected: {request.sid}")
 
 def create_template():
     """Create the HTML template"""

@@ -73,7 +73,7 @@ class ICTTestDataGenerator:
             # Downward pressure creating the Order Block
             price = base_price - (i * 50) + np.random.normal(0, 20)
             prices.append(price)
-            volumes.append(np.random.uniform(800, 1200))  # Higher volume during accumulation
+            volumes.append(np.random.default_rng(42).uniform(800, 1200))  # Higher volume during accumulation
         
         # Phase 2: Displacement (Strong move up)
         displacement_start = prices[-1]
@@ -81,7 +81,7 @@ class ICTTestDataGenerator:
             # Strong bullish displacement
             price = displacement_start + (i * 200) + np.random.normal(0, 30)
             prices.append(price)
-            volumes.append(np.random.uniform(1200, 2000))  # High volume on displacement
+            volumes.append(np.random.default_rng(42).uniform(1200, 2000))  # High volume on displacement
         
         # Phase 3: Retracement to Order Block
         retracement_high = prices[-1]
@@ -91,19 +91,19 @@ class ICTTestDataGenerator:
             price = retracement_high - ((retracement_high - displacement_start) * (i / 15) * retracement)
             price += np.random.normal(0, 25)
             prices.append(price)
-            volumes.append(np.random.uniform(600, 1000))  # Lower volume on retracement
+            volumes.append(np.random.default_rng(42).uniform(600, 1000))  # Lower volume on retracement
         
         # Phase 4: Reaction from Order Block
         for i in range(55):
             # Continuation higher from Order Block
             if i < 10:
                 # Strong reaction
-                price = prices[-1] + np.random.uniform(50, 150)
+                price = prices[-1] + np.random.default_rng(42).uniform(50, 150)
             else:
                 # Trend continuation
                 price = prices[-1] + np.random.normal(20, 40)
             prices.append(price)
-            volumes.append(np.random.uniform(700, 1100))
+            volumes.append(np.random.default_rng(42).uniform(700, 1100))
         
         # Create OHLCV DataFrame
         df = pd.DataFrame(index=dates)
@@ -128,27 +128,27 @@ class ICTTestDataGenerator:
         for i in range(25):
             current_price += np.random.normal(0, 30)
             prices.append(current_price)
-            volumes.append(np.random.uniform(500, 800))
+            volumes.append(np.random.default_rng(42).uniform(500, 800))
         
         # Phase 2: Create Fair Value Gap (3-candle pattern)
         # Candle 1: Normal
         prices.append(current_price + np.random.normal(0, 20))
-        volumes.append(np.random.uniform(600, 900))
+        volumes.append(np.random.default_rng(42).uniform(600, 900))
         
         # Candle 2: Gap up (creates FVG)
         gap_low = prices[-1] + 100  # Gap of $100
         gap_high = gap_low + 150
         prices.append(gap_high)
-        volumes.append(np.random.uniform(1500, 2500))  # High volume on gap
+        volumes.append(np.random.default_rng(42).uniform(1500, 2500))  # High volume on gap
         
         # Candle 3: Continuation higher
-        prices.append(prices[-1] + np.random.uniform(50, 100))
-        volumes.append(np.random.uniform(1200, 1800))
+        prices.append(prices[-1] + np.random.default_rng(42).uniform(50, 100))
+        volumes.append(np.random.default_rng(42).uniform(1200, 1800))
         
         # Phase 3: Movement away from FVG
         for i in range(20):
             prices.append(prices[-1] + np.random.normal(25, 40))
-            volumes.append(np.random.uniform(700, 1100))
+            volumes.append(np.random.default_rng(42).uniform(700, 1100))
         
         # Phase 4: Return to fill FVG
         for i in range(32):
@@ -164,7 +164,7 @@ class ICTTestDataGenerator:
                 price = prices[-1] + np.random.normal(10, 35)
             
             prices.append(price)
-            volumes.append(np.random.uniform(600, 1000))
+            volumes.append(np.random.default_rng(42).uniform(600, 1000))
         
         # Create OHLCV DataFrame
         df = pd.DataFrame(index=dates)
@@ -188,34 +188,34 @@ class ICTTestDataGenerator:
         eq_high_level = base_price + 200
         for i in range(15):
             if i in [4, 8, 12]:  # Touch the equal high level
-                price = eq_high_level + np.random.uniform(-10, 10)
+                price = eq_high_level + np.random.default_rng(42).uniform(-10, 10)
             else:
-                price = base_price + np.random.uniform(-50, 150)
+                price = base_price + np.random.default_rng(42).uniform(-50, 150)
             prices.append(price)
-            volumes.append(np.random.uniform(600, 1000))
+            volumes.append(np.random.default_rng(42).uniform(600, 1000))
         
         # Phase 2: Buildup to sweep
         for i in range(10):
             price = prices[-1] + np.random.normal(5, 25)
             prices.append(price)
-            volumes.append(np.random.uniform(500, 800))
+            volumes.append(np.random.default_rng(42).uniform(500, 800))
         
         # Phase 3: Liquidity sweep
         # Break above equal highs to grab stops
         sweep_price = eq_high_level + 80
         prices.append(sweep_price)
-        volumes.append(np.random.uniform(2000, 3500))  # High volume on sweep
+        volumes.append(np.random.default_rng(42).uniform(2000, 3500))  # High volume on sweep
         
         # Phase 4: Reversal after sweep
         for i in range(34):
             if i < 5:
                 # Sharp reversal
-                price = prices[-1] - np.random.uniform(40, 80)
+                price = prices[-1] - np.random.default_rng(42).uniform(40, 80)
             else:
                 # Continued move lower
                 price = prices[-1] + np.random.normal(-15, 30)
             prices.append(price)
-            volumes.append(np.random.uniform(800, 1400))
+            volumes.append(np.random.default_rng(42).uniform(800, 1400))
         
         # Create OHLCV DataFrame
         df = pd.DataFrame(index=dates)
@@ -673,7 +673,7 @@ def run_ict_system_tests():
     results = validator.run_comprehensive_validation()
     
     # Display results
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                    VALIDATION RESULTS                           ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -687,14 +687,14 @@ def run_ict_system_tests():
     print("\n📋 Test Suite Results:")
     for suite_name, suite_results in results['test_results'].items():
         status = "✅ PASS" if suite_results['passed'] else "❌ FAIL"
-        print(f"   {suite_name:<20} {status} ({suite_results['tests_run']} tests)")
+        print("   {suite_name:<20} {status} ({suite_results['tests_run']} tests)")
     
     # Display recommendations
     print("\n💡 Recommendations:")
     for i, rec in enumerate(results['recommendations'][:5], 1):
-        print(f"   {i}. {rec}")
+        print("   {i}. {rec}")
     
-    print(f"\n🎯 ICT System Status: {results['overall_status']}")
+    print("\n🎯 ICT System Status: {results['overall_status']}")
     
     if results['overall_status'] in ['EXCELLENT', 'GOOD']:
         print("✅ ICT trading system is ready for live trading!")

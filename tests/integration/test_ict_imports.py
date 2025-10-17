@@ -27,7 +27,7 @@ def test_imports():
         detector = EnhancedOrderBlockDetector()
         print("✅ Enhanced Order Block Detector - OK")
     except Exception as e:
-        print(f"❌ Enhanced Order Block Detector - FAILED: {e}")
+        print("❌ Enhanced Order Block Detector - FAILED: {e}")
         return False
     
     try:
@@ -36,7 +36,7 @@ def test_imports():
         analyzer = ICTAnalyzer()
         print("✅ ICT Analyzer - OK")
     except Exception as e:
-        print(f"❌ ICT Analyzer - FAILED: {e}")
+        print("❌ ICT Analyzer - FAILED: {e}")
         return False
     
     try:
@@ -45,7 +45,7 @@ def test_imports():
         processor = ICTSignalProcessor()
         print("✅ ICT Signal Processor - OK")
     except Exception as e:
-        print(f"❌ ICT Signal Processor - FAILED: {e}")
+        print("❌ ICT Signal Processor - FAILED: {e}")
         return False
     
     try:
@@ -54,7 +54,7 @@ def test_imports():
         controller = TradingAlgorithmController()
         print("✅ Main Controller - OK")
     except Exception as e:
-        print(f"❌ Main Controller - FAILED: {e}")
+        print("❌ Main Controller - FAILED: {e}")
         return False
     
     print("🎉 All ICT Enhanced System imports successful!")

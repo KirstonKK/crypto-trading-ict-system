@@ -40,7 +40,7 @@ class AlertMonitor:
             try:
                 dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 return dt.strftime('%H:%M:%S')
-            except:
+            except Exception:
                 return timestamp[:8] if len(timestamp) > 8 else timestamp
         return datetime.now().strftime('%H:%M:%S')
     
@@ -69,14 +69,14 @@ class AlertMonitor:
         try:
             response = requests.get(f"{self.webhook_url}/health", timeout=2)
             return response.status_code == 200
-        except:
+        except Exception:
             try:
                 # Fallback: test webhook endpoint
                 test_data = {"test": "connection"}
                 response = requests.post(f"{self.webhook_url}/webhook/tradingview", 
                                        json=test_data, timeout=2)
                 return True  # Any response means server is up
-            except:
+            except Exception:
                 return False
     
     def simulate_alert(self, symbol="BTCUSDT", action="BUY"):
@@ -145,8 +145,8 @@ class AlertMonitor:
         print("╔" + "═" * 78 + "╗")
         print("║" + " " * 20 + "🎯 TRADINGVIEW ALERT MONITOR" + " " * 29 + "║")
         print("╠" + "═" * 78 + "╣")
-        print(f"║ Webhook: {webhook_status:<10} │ Uptime: {uptime_str:<8} │ Total Alerts: {self.stats['total_alerts']:<6} ║")
-        print(f"║ BUY: {self.stats['buy_signals']:<6} │ SELL: {self.stats['sell_signals']:<6} │ URL: {self.webhook_url:<25} ║")
+        print("║ Webhook: {webhook_status:<10} │ Uptime: {uptime_str:<8} │ Total Alerts: {self.stats['total_alerts']:<6} ║")
+        print("║ BUY: {self.stats['buy_signals']:<6} │ SELL: {self.stats['sell_signals']:<6} │ URL: {self.webhook_url:<25} ║")
         print("╚" + "═" * 78 + "╝")
         print()
     
@@ -175,7 +175,7 @@ class AlertMonitor:
             color = self.get_signal_color(action)
             reset = self.reset_color()
             
-            print(f"│ {alert['display_time']:<8} │ {symbol:<10} │ {color}{action:<10}{reset} │ {price:<11} │ {rsi:<8} │ {status:<10} │")
+            print("│ {alert['display_time']:<8} │ {symbol:<10} │ {color}{action:<10}{reset} │ {price:<11} │ {rsi:<8} │ {status:<10} │")
         
         print("└──────────┴────────────┴────────────┴─────────────┴──────────┴────────────┘")
     
@@ -186,7 +186,7 @@ class AlertMonitor:
         print("   🔹 'c' - Clear alerts         🔹 'q' - Quit monitor")
         print("   🔹 'r' - Refresh display      🔹 't' - Test webhook connection")
         print("\n🌐 TradingView Webhook URL:")
-        print(f"   {self.webhook_url}/webhook/tradingview")
+        print("   {self.webhook_url}/webhook/tradingview")
         
         # Check for ngrok
         try:
@@ -196,7 +196,7 @@ class AlertMonitor:
                 print("\n🔗 ngrok tunnel should be running for external access")
             else:
                 print("\n⚠️  ngrok not detected - only local testing available")
-        except:
+        except Exception:
             pass
     
     def handle_input(self):

@@ -51,7 +51,7 @@ class CryptoPricePredictor:
             return df[['open', 'high', 'low', 'close', 'volume']]
             
         except Exception as e:
-            print(f"Error fetching data: {e}")
+            print("Error fetching data: {e}")
             return None
     
     def create_features(self, df):
@@ -115,7 +115,7 @@ class CryptoPricePredictor:
     
     def train_model(self, symbol="BTCUSDT"):
         """Train the ML model on historical data"""
-        print(f"🤖 Training ML model for {symbol}...")
+        print("🤖 Training ML model for {symbol}...")
         
         # Fetch historical data
         df = self.fetch_historical_data(symbol, limit=5000)
@@ -147,9 +147,9 @@ class CryptoPricePredictor:
         train_score = self.model.score(X_train_scaled, y_train)
         test_score = self.model.score(X_test_scaled, y_test)
         
-        print(f"✅ Model trained successfully!")
-        print(f"📊 Training Score: {train_score:.4f}")
-        print(f"🎯 Test Score: {test_score:.4f}")
+        print("✅ Model trained successfully!")
+        print("📊 Training Score: {train_score:.4f}")
+        print("🎯 Test Score: {test_score:.4f}")
         
         # Save model
         self.save_model()
@@ -183,7 +183,7 @@ class CryptoPricePredictor:
             }
             
         except Exception as e:
-            print(f"Prediction error: {e}")
+            print("Prediction error: {e}")
             return None
     
     def save_model(self):
@@ -200,7 +200,7 @@ class CryptoPricePredictor:
             self.feature_names = joblib.load('crypto_predictor_features.pkl')
             return True
         except Exception as e:
-            print(f"Error loading model: {e}")
+            print("Error loading model: {e}")
             return False
 
 # Enhanced webhook handler with ML predictions
@@ -227,11 +227,11 @@ def enhanced_webhook_handler(tradingview_data):
             # Add prediction to webhook data
             tradingview_data['ml_prediction'] = prediction
             
-            print(f"🔮 ML Prediction for {symbol}:")
-            print(f"   Direction: {prediction['direction']}")
-            print(f"   Expected Change: {prediction['predicted_change_pct']:.2f}%")
-            print(f"   Confidence: {prediction['confidence']:.2f}")
-            print(f"   Time Horizon: {prediction['prediction_horizon_minutes']} minutes")
+            print("🔮 ML Prediction for {symbol}:")
+            print("   Direction: {prediction['direction']}")
+            print("   Expected Change: {prediction['predicted_change_pct']:.2f}%")
+            print("   Confidence: {prediction['confidence']:.2f}")
+            print("   Time Horizon: {prediction['prediction_horizon_minutes']} minutes")
     
     return tradingview_data
 
@@ -244,4 +244,4 @@ if __name__ == "__main__":
     test_data = predictor.fetch_historical_data("BTCUSDT", limit=100)
     if test_data is not None:
         prediction = predictor.predict_future_movement(test_data)
-        print(f"🔮 Test Prediction: {prediction}")
+        print("🔮 Test Prediction: {prediction}")

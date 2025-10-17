@@ -27,7 +27,7 @@ class TradingDataPersistence:
             # Connect to database
             db_path = self.base_dir / "trading_data.db"
             if not db_path.exists():
-                print(f"Database not found at {db_path}")
+                print("Database not found at {db_path}")
                 return None
                 
             conn = sqlite3.connect(str(db_path))
@@ -91,7 +91,7 @@ class TradingDataPersistence:
             return state_data
             
         except Exception as e:
-            print(f"Error saving state from database: {e}")
+            print("Error saving state from database: {e}")
             return None
     
     def get_last_state(self):
@@ -102,7 +102,7 @@ class TradingDataPersistence:
                     return json.load(f)
             return None
         except Exception as e:
-            print(f"Error loading state: {e}")
+            print("Error loading state: {e}")
             return None
 
 # Create and use persistence system
@@ -117,11 +117,11 @@ if __name__ == "__main__":
     
     if current_state:
         print("✅ Current state saved successfully!")
-        print(f"   📈 Scan Count: {current_state['scan_count']}")
-        print(f"   🎯 Signals: {current_state['signals_today']}")
-        print(f"   💰 Balance: ${current_state['paper_balance']:.2f}")
-        print(f"   📁 State File: {persistence.state_file}")
-        print(f"   📅 Daily File: {persistence.daily_file}")
+        print("   📈 Scan Count: {current_state['scan_count']}")
+        print("   🎯 Signals: {current_state['signals_today']}")
+        print("   💰 Balance: ${current_state['paper_balance']:.2f}")
+        print("   📁 State File: {persistence.state_file}")
+        print("   📅 Daily File: {persistence.daily_file}")
         print()
         print("🔄 On restart, this data can be restored!")
     else:

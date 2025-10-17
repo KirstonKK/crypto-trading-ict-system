@@ -21,40 +21,40 @@ def test_data_restoration():
     # Test 1: Check signals restoration
     print("\n1️⃣ SIGNALS RESTORATION TEST:")
     signals = db.get_signals_today()
-    print(f"   📊 Total signals in database: {len(signals)}")
+    print("   📊 Total signals in database: {len(signals)}")
     
     for i, signal in enumerate(signals, 1):
-        print(f"   📈 Signal {i}: {signal.get('symbol', 'N/A')} {signal.get('direction', 'N/A')} "
+        print("   📈 Signal {i}: {signal.get('symbol', 'N/A')} {signal.get('direction', 'N/A')} "
               f"- Confidence: {signal.get('confluence_score', 0):.2f}")
     
     # Test 2: Check trades restoration
     print("\n2️⃣ TRADES RESTORATION TEST:")
     trades = db.get_trades_today()
-    print(f"   💰 Total trades in database: {len(trades)}")
+    print("   💰 Total trades in database: {len(trades)}")
     
     executed_trades = [t for t in trades if t.get('status') == 'CLOSED']
     active_trades = [t for t in trades if t.get('status') in ['ACTIVE', 'OPEN']]
     lost_trades = [t for t in trades if t.get('status') == 'LOST_IN_RESTART']
     
-    print(f"   ✅ Executed trades: {len(executed_trades)}")
-    print(f"   🔄 Active trades: {len(active_trades)}")
-    print(f"   ⚠️  Lost in restart: {len(lost_trades)}")
+    print("   ✅ Executed trades: {len(executed_trades)}")
+    print("   🔄 Active trades: {len(active_trades)}")
+    print("   ⚠️  Lost in restart: {len(lost_trades)}")
     
     # Show executed trade details
     for i, trade in enumerate(executed_trades, 1):
         pnl = trade.get('pnl', 0)
         outcome = 'WIN' if pnl > 0 else 'LOSS'
-        print(f"   💸 Trade {i}: {trade.get('symbol', 'N/A')} - PnL: ${pnl:.2f} ({outcome})")
+        print("   💸 Trade {i}: {trade.get('symbol', 'N/A')} - PnL: ${pnl:.2f} ({outcome})")
     
     # Test 3: Check daily stats restoration
     print("\n3️⃣ DAILY STATS RESTORATION TEST:")
     daily_stats = db.get_daily_stats()
     
-    print(f"   📊 Signals generated: {daily_stats.get('signals_generated', 0)}")
-    print(f"   💰 Paper balance: ${daily_stats.get('paper_balance', 100):.2f}")
-    print(f"   📈 Total PnL: ${daily_stats.get('total_pnl', 0):.2f}")
-    print(f"   🔢 Scan count: {daily_stats.get('scan_count', 0)}")
-    print(f"   💸 Trades executed: {daily_stats.get('trades_executed', 0)}")
+    print("   📊 Signals generated: {daily_stats.get('signals_generated', 0)}")
+    print("   💰 Paper balance: ${daily_stats.get('paper_balance', 100):.2f}")
+    print("   📈 Total PnL: ${daily_stats.get('total_pnl', 0):.2f}")
+    print("   🔢 Scan count: {daily_stats.get('scan_count', 0)}")
+    print("   💸 Trades executed: {daily_stats.get('trades_executed', 0)}")
     
     # Test 4: Verify user's specific data
     print("\n4️⃣ USER DATA VERIFICATION TEST:")
@@ -66,8 +66,8 @@ def test_data_restoration():
     actual_executed = len(executed_trades)
     actual_lost = len(lost_trades)
     
-    print(f"   Expected: {expected_signals} signals, {expected_executed} executed, {expected_lost} lost")
-    print(f"   Actual:   {actual_signals} signals, {actual_executed} executed, {actual_lost} lost")
+    print("   Expected: {expected_signals} signals, {expected_executed} executed, {expected_lost} lost")
+    print("   Actual:   {actual_signals} signals, {actual_executed} executed, {actual_lost} lost")
     
     verification_passed = (
         actual_signals == expected_signals and
@@ -85,9 +85,9 @@ def test_data_restoration():
     all_losses = all(trade.get('pnl', 0) < 0 for trade in executed_trades)
     
     if executed_trades:
-        print(f"   📉 All executed trades are losses: {'✅ YES' if all_losses else '❌ NO'}")
+        print("   📉 All executed trades are losses: {'✅ YES' if all_losses else '❌ NO'}")
         total_loss = sum(trade.get('pnl', 0) for trade in executed_trades)
-        print(f"   💸 Total loss amount: ${total_loss:.2f}")
+        print("   💸 Total loss amount: ${total_loss:.2f}")
     else:
         print("   📉 No executed trades to verify")
     
@@ -108,15 +108,15 @@ def test_data_restoration():
     }
     
     print("   🌐 Web interface will display:")
-    print(f"     📊 Signals Today: {web_data['signals_today']}")
-    print(f"     💰 Paper Balance: ${web_data['paper_balance']:.2f}")
-    print(f"     📈 Daily PnL: ${web_data['daily_pnl']:.2f}")
-    print(f"     🔢 Scan Count: {web_data['scan_count']}")
-    print(f"     💥 Account Blown: {web_data['account_blown']}")
-    print(f"     📈 Live Signals: {len(web_data['live_signals'])}")
-    print(f"     🔄 Active Trades: {web_data['active_trades_count']}")
-    print(f"     ✅ Executed Trades: {len(web_data['executed_trades'])}")
-    print(f"     ⚠️  Lost Trades: {len(web_data['lost_trades'])}")
+    print("     📊 Signals Today: {web_data['signals_today']}")
+    print("     💰 Paper Balance: ${web_data['paper_balance']:.2f}")
+    print("     📈 Daily PnL: ${web_data['daily_pnl']:.2f}")
+    print("     🔢 Scan Count: {web_data['scan_count']}")
+    print("     💥 Account Blown: {web_data['account_blown']}")
+    print("     📈 Live Signals: {len(web_data['live_signals'])}")
+    print("     🔄 Active Trades: {web_data['active_trades_count']}")
+    print("     ✅ Executed Trades: {len(web_data['executed_trades'])}")
+    print("     ⚠️  Lost Trades: {len(web_data['lost_trades'])}")
     
     return {
         'verification_passed': verification_passed,
@@ -159,24 +159,24 @@ def simulate_monitor_restart():
     ]
     
     print("📊 MONITOR STATE AFTER RESTART:")
-    print(f"   🔢 Scan Count: {scan_count}")
-    print(f"   📈 Signals Today: {signals_today}")
-    print(f"   💰 Paper Balance: ${paper_balance:.2f}")
-    print(f"   📊 Total PnL: ${total_paper_pnl:.2f}")
-    print(f"   💥 Account Blown: {account_blown}")
-    print(f"   🎯 Live Signals Count: {len(live_signals)}")
-    print(f"   🔄 Active Trades: {len(active_paper_trades)}")
-    print(f"   ✅ Completed Trades: {len(completed_trades)}")
+    print("   🔢 Scan Count: {scan_count}")
+    print("   📈 Signals Today: {signals_today}")
+    print("   💰 Paper Balance: ${paper_balance:.2f}")
+    print("   📊 Total PnL: ${total_paper_pnl:.2f}")
+    print("   💥 Account Blown: {account_blown}")
+    print("   🎯 Live Signals Count: {len(live_signals)}")
+    print("   🔄 Active Trades: {len(active_paper_trades)}")
+    print("   ✅ Completed Trades: {len(completed_trades)}")
     
     # Verify the exact user data
     losses = len([t for t in completed_trades if t.get('pnl', 0) < 0])
     lost_in_restart = len([t for t in todays_trades if t.get('status') == 'LOST_IN_RESTART'])
     
-    print(f"\n✅ USER VERIFICATION:")
-    print(f"   📊 Total signals: {len(live_signals)} (Expected: 7)")
-    print(f"   💸 Executed trades: {len(completed_trades)} (Expected: 3)")
-    print(f"   📉 All losses: {losses == len(completed_trades)} (Expected: True)")
-    print(f"   ⚠️  Lost in restart: {lost_in_restart} (Expected: 4)")
+    print("\n✅ USER VERIFICATION:")
+    print("   📊 Total signals: {len(live_signals)} (Expected: 7)")
+    print("   💸 Executed trades: {len(completed_trades)} (Expected: 3)")
+    print("   📉 All losses: {losses == len(completed_trades)} (Expected: True)")
+    print("   ⚠️  Lost in restart: {lost_in_restart} (Expected: 4)")
     
     user_data_correct = (
         len(live_signals) == 7 and
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     test_results = test_data_restoration()
     restart_success = simulate_monitor_restart()
     
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                         TEST RESULTS                            ║
 ╠══════════════════════════════════════════════════════════════════╣

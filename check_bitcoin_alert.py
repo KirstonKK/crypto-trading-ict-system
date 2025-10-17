@@ -22,7 +22,7 @@ def check_bitcoin_alert_in_database():
     
     for db_file in db_files:
         if os.path.exists(db_file):
-            print(f"📁 Found database: {db_file}")
+            print("📁 Found database: {db_file}")
             try:
                 conn = sqlite3.connect(db_file)
                 cursor = conn.cursor()
@@ -42,9 +42,9 @@ def check_bitcoin_alert_in_database():
                     results = cursor.fetchall()
                     
                     if results:
-                        print(f"🎯 Found {len(results)} Bitcoin $105K related messages:")
+                        print("🎯 Found {len(results)} Bitcoin $105K related messages:")
                         for row in results:
-                            print(f"   📅 {row[3]} | {row[1][:80]}...")
+                            print("   📅 {row[3]} | {row[1][:80]}...")
                     else:
                         print("❌ No Bitcoin $105K messages found")
                 
@@ -61,18 +61,18 @@ def check_bitcoin_alert_in_database():
                     alerts = cursor.fetchall()
                     
                     if alerts:
-                        print(f"🚨 Found {len(alerts)} Bitcoin $105K price alerts:")
+                        print("🚨 Found {len(alerts)} Bitcoin $105K price alerts:")
                         for alert in alerts:
-                            print(f"   📅 {alert[4]} | BTC ${alert[2]} {alert[3]}")
+                            print("   📅 {alert[4]} | BTC ${alert[2]} {alert[3]}")
                     else:
                         print("❌ No Bitcoin $105K price alerts found")
                 
                 conn.close()
                 
             except Exception as e:
-                print(f"❌ Error checking database {db_file}: {e}")
+                print("❌ Error checking database {db_file}: {e}")
         else:
-            print(f"📁 Database not found: {db_file}")
+            print("📁 Database not found: {db_file}")
     
     return False
 
@@ -99,8 +99,8 @@ def test_alert_detection_capability():
     detected_count = 0
     
     for i, message in enumerate(test_messages, 1):
-        print(f"\n--- Test {i} ---")
-        print(f"Message: {message}")
+        print("\n--- Test {i} ---")
+        print("Message: {message}")
         
         # Check if message contains Bitcoin + $105K + downward movement
         has_bitcoin = bool(re.search(bitcoin_pattern, message, re.IGNORECASE))
@@ -111,9 +111,9 @@ def test_alert_detection_capability():
             print("✅ BITCOIN $105K ALERT DETECTED!")
             detected_count += 1
         else:
-            print(f"❌ Not detected (Bitcoin: {has_bitcoin}, Price: {has_price}, Direction: {has_direction})")
+            print("❌ Not detected (Bitcoin: {has_bitcoin}, Price: {has_price}, Direction: {has_direction})")
     
-    print(f"\n📊 Detection Results: {detected_count}/{len(test_messages)} alerts detected")
+    print("\n📊 Detection Results: {detected_count}/{len(test_messages)} alerts detected")
     
     return detected_count > 0
 
@@ -128,7 +128,7 @@ def answer_user_question():
     caught_in_db = check_bitcoin_alert_in_database()
     can_detect = test_alert_detection_capability()
     
-    print(f"\n📋 FINAL ANSWER")
+    print("\n📋 FINAL ANSWER")
     print("="*30)
     
     if caught_in_db:
@@ -146,13 +146,13 @@ def answer_user_question():
             print("\n✅ However, the detection system IS capable of catching such alerts!")
             print("💡 Recommendation: Enable WatcherGuru Telegram monitoring to catch future alerts")
         
-        print(f"\n🚀 TO CATCH FUTURE ALERTS:")
-        print(f"   1. Configure Telegram bot token for WatcherGuru channel")
-        print(f"   2. Start: python systems/fundamental_analysis/fundamental_analysis_server.py")
-        print(f"   3. The system will monitor WatcherGuru Telegram in real-time")
-        print(f"   4. Future Bitcoin $105K alerts will be captured automatically")
+        print("\n🚀 TO CATCH FUTURE ALERTS:")
+        print("   1. Configure Telegram bot token for WatcherGuru channel")
+        print("   2. Start: python systems/fundamental_analysis/fundamental_analysis_server.py")
+        print("   3. The system will monitor WatcherGuru Telegram in real-time")
+        print("   4. Future Bitcoin $105K alerts will be captured automatically")
     
-    print(f"\n⏰ System Status at 9:57 AM:")
+    print("\n⏰ System Status at 9:57 AM:")
     
     # Check if fundamental analysis server was running
     log_files = [
@@ -164,7 +164,7 @@ def answer_user_question():
     
     for log_file in log_files:
         if os.path.exists(log_file):
-            print(f"📁 Found log: {log_file}")
+            print("📁 Found log: {log_file}")
             # Could check if server was running at 9:57, but for now just note the file exists
         
     return not caught_in_db  # Return True if we missed it
@@ -180,11 +180,11 @@ def main():
     missed_alert = answer_user_question()
     
     if missed_alert:
-        print(f"\n🔧 NEXT STEPS TO ENABLE REAL-TIME MONITORING:")
-        print(f"   1. cd systems/fundamental_analysis")
-        print(f"   2. Configure TELEGRAM_BOT_TOKEN in environment")
-        print(f"   3. python fundamental_analysis_server.py")
-        print(f"   4. System will monitor WatcherGuru Telegram 24/7")
+        print("\n🔧 NEXT STEPS TO ENABLE REAL-TIME MONITORING:")
+        print("   1. cd systems/fundamental_analysis")
+        print("   2. Configure TELEGRAM_BOT_TOKEN in environment")
+        print("   3. python fundamental_analysis_server.py")
+        print("   4. System will monitor WatcherGuru Telegram 24/7")
 
 if __name__ == "__main__":
     main()

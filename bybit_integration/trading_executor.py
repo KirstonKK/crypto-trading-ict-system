@@ -124,10 +124,10 @@ class BybitTradingExecutor:
         self.total_pnl: float = 0.0
         
         logger.info("🤖 Bybit Trading Executor initialized")
-        logger.info(f"   Max Positions: {max_positions}")
-        logger.info(f"   Max Risk/Trade: {max_risk_per_trade*100:.1f}%")
-        logger.info(f"   Max Portfolio Risk: {max_portfolio_risk*100:.1f}%")
-        logger.info(f"   Min Confidence: {min_confidence*100:.1f}%")
+        logger.info("   Max Positions: {max_positions}")
+        logger.info("   Max Risk/Trade: {max_risk_per_trade*100:.1f}%")
+        logger.info("   Max Portfolio Risk: {max_portfolio_risk*100:.1f}%")
+        logger.info("   Min Confidence: {min_confidence*100:.1f}%")
 
     async def initialize(self):
         """Initialize executor by updating portfolio state"""
@@ -183,7 +183,7 @@ class BybitTradingExecutor:
             for trade_id in trades_to_remove:
                 closed_trade = self.active_trades.pop(trade_id)
                 self.execution_history.append(closed_trade)
-                logger.info(f"🔄 Synced closed position: {closed_trade.symbol}")
+                logger.info("🔄 Synced closed position: {closed_trade.symbol}")
                 
         except Exception as e:
             logger.error(f"❌ Failed to sync positions: {e}")
@@ -254,8 +254,8 @@ class BybitTradingExecutor:
             else:
                 position_size = adjusted_risk / current_price
         else:
-            # Default to 2% price movement as stop loss
-            default_stop_distance = current_price * 0.02
+            # Default to 2% price movement as stop loss  
+            # FIXED: Removed unused variable default_stop_distance
             position_value = adjusted_risk / 0.02
             position_size = position_value / current_price
         
@@ -365,7 +365,7 @@ class BybitTradingExecutor:
             take_profit_price = signal.take_profit
             if self.dynamic_take_profit and hasattr(signal, 'confluence_score') and hasattr(signal, 'bias_strength'):
                 take_profit_price = self.calculate_dynamic_take_profit(signal, current_price)
-                logger.info(f"🎯 Using dynamic take profit: ${take_profit_price:.6f} (original: ${signal.take_profit:.6f if signal.take_profit else 0:.6f})")
+                logger.info("🎯 Using dynamic take profit: ${take_profit_price:.6f} (original: ${signal.take_profit:.6f if signal.take_profit else 0:.6f})")
             
             # Place order
             order_result = await self.client.place_order(
@@ -397,10 +397,10 @@ class BybitTradingExecutor:
             # Update statistics
             self.total_trades += 1
             
-            logger.info(f"🚀 Trade executed: {bybit_symbol} {side} {position_size:.6f} @ ${current_price:.4f}")
-            logger.info(f"   Order ID: {trade_execution.order_id}")
-            logger.info(f"   Confidence: {signal.confidence:.1%}")
-            logger.info(f"   Confluences: {', '.join(signal.confluence_factors)}")
+            logger.info("🚀 Trade executed: {bybit_symbol} {side} {position_size:.6f} @ ${current_price:.4f}")
+            logger.info("   Order ID: {trade_execution.order_id}")
+            logger.info("   Confidence: {signal.confidence:.1%}")
+            logger.info("   Confluences: {', '.join(signal.confluence_factors)}")
             
             # Update portfolio state
             await self._update_portfolio_state()
@@ -417,7 +417,7 @@ class BybitTradingExecutor:
             if not self.active_trades:
                 return
             
-            for trade_id, trade in list(self.active_trades.items()):
+            for trade_id, trade in self.active_trades.items():
                 if trade.status != OrderStatus.PENDING:
                     continue
                 
@@ -438,7 +438,7 @@ class BybitTradingExecutor:
                         trade.status = OrderStatus.FILLED
                         trade.entry_price = float(current_order.get('avgPrice', trade.entry_price))
                         
-                        logger.info(f"✅ Trade filled: {trade.symbol} @ ${trade.entry_price:.4f}")
+                        logger.info("✅ Trade filled: {trade.symbol} @ ${trade.entry_price:.4f}")
                         
                     elif order_status in ['Cancelled', 'Rejected']:
                         # Order cancelled/rejected
@@ -490,9 +490,9 @@ class BybitTradingExecutor:
             self.active_trades.pop(trade_id)
             self.execution_history.append(trade)
             
-            logger.info(f"🏁 Trade closed: {trade.symbol}")
-            logger.info(f"   Entry: ${trade.entry_price:.4f} | Exit: ${exit_price:.4f}")
-            logger.info(f"   PnL: ${pnl:.2f} ({'✅' if pnl > 0 else '❌'})")
+            logger.info("🏁 Trade closed: {trade.symbol}")
+            logger.info("   Entry: ${trade.entry_price:.4f} | Exit: ${exit_price:.4f}")
+            logger.info("   PnL: ${pnl:.2f} ({'✅' if pnl > 0 else '❌'})")
             
         except Exception as e:
             logger.error(f"❌ Error closing trade: {e}")
@@ -508,10 +508,10 @@ class BybitTradingExecutor:
                 
                 if size > 0:
                     await self.client.close_position(symbol)
-                    logger.info(f"🔒 Emergency close: {symbol}")
+                    logger.info("🔒 Emergency close: {symbol}")
             
             # Clear active trades
-            for trade_id in list(self.active_trades.keys()):
+            for trade_id in self.active_trades.keys():
                 await self._close_trade(trade_id)
                 
         except Exception as e:

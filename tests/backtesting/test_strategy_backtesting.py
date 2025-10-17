@@ -320,7 +320,7 @@ class TestLongRunningBacktests:
             high_price = base_price * (1 + abs(np.random.normal(0, 0.002)))
             low_price = base_price * (1 - abs(np.random.normal(0, 0.002)))
             close_price = base_price
-            volume = np.random.uniform(50, 200)
+            volume = np.random.default_rng(42).uniform(50, 200)
             
             extended_data.append([timestamp, open_price, high_price, low_price, close_price, volume])
         

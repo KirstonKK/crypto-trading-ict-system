@@ -14,7 +14,7 @@ print()
 print('📊 CHECKING DATABASE RECORDS...')
 
 if os.path.exists('trading_data.db'):
-    with sqlite3.connect('databases/trading_data.db') as conn:
+    with sqlite3.connect(DATABASE_PATH) as conn:
         cursor = conn.execute('SELECT date, scan_count, signals_generated, paper_balance FROM daily_stats ORDER BY date DESC LIMIT 3')
         rows = cursor.fetchall()
         

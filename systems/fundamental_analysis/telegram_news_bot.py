@@ -392,7 +392,7 @@ class WatcherGuruTelegramBot:
                 if news_item['price_alert']:
                     try:
                         news_item['price_alert'] = json.loads(news_item['price_alert'])
-                    except:
+                    except Exception:
                         news_item['price_alert'] = None
                 news.append(news_item)
             
@@ -459,8 +459,8 @@ async def test_telegram_bot():
     print("📰 Testing message analysis:")
     for msg in test_messages:
         analysis = bot.analyze_message(msg)
-        print(f"Message: {msg[:50]}...")
-        print(f"Analysis: {analysis}")
+        print("Message: {msg[:50]}...")
+        print("Analysis: {analysis}")
         print("-" * 50)
     
     # Test database operations
@@ -473,10 +473,10 @@ async def test_telegram_bot():
     )
     
     recent_news = bot.get_recent_news(24)
-    print(f"📊 Recent news items: {len(recent_news)}")
+    print("📊 Recent news items: {len(recent_news)}")
     
     price_alerts = bot.get_price_alerts()
-    print(f"🚨 Active price alerts: {len(price_alerts)}")
+    print("🚨 Active price alerts: {len(price_alerts)}")
 
 if __name__ == "__main__":
     asyncio.run(test_telegram_bot())

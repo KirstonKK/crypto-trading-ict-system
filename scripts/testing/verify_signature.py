@@ -52,12 +52,12 @@ def main():
         '{"category":"linear","symbol":"BTCUSDT","side":"Buy","orderType":"Market","qty":"0.001"}',  # POST JSON
     ]
     
-    print(f"📊 Using API Key: {api_key[:8]}...")
-    print(f"📊 Timestamp: {timestamp}")
+    print("📊 Using API Key: {api_key[:8]}...")
+    print("📊 Timestamp: {timestamp}")
     print()
     
     for i, payload in enumerate(test_cases, 1):
-        print(f"Test Case {i}: {payload[:50]}{'...' if len(payload) > 50 else ''}")
+        print("Test Case {i}: {payload[:50]}{'...' if len(payload) > 50 else ''}")
         
         # Official method
         official_sig = official_bybit_signature(api_key, api_secret, timestamp, recv_window, payload)
@@ -65,9 +65,9 @@ def main():
         # Our method
         our_sig = our_signature_generation(api_key, api_secret, timestamp, payload)
         
-        print(f"  Official: {official_sig}")
-        print(f"  Our impl: {our_sig}")
-        print(f"  Match: {'✅' if official_sig == our_sig else '❌'}")
+        print("  Official: {official_sig}")
+        print("  Our impl: {our_sig}")
+        print("  Match: {'✅' if official_sig == our_sig else '❌'}")
         print()
     
     # Test with current timestamp for real API call
@@ -77,14 +77,14 @@ def main():
     
     signature = our_signature_generation(api_key, api_secret, current_timestamp, test_payload)
     
-    print(f"Generated signature for server time call:")
-    print(f"  Timestamp: {current_timestamp}")
-    print(f"  Payload: '{test_payload}'")
-    print(f"  Signature: {signature}")
+    print("Generated signature for server time call:")
+    print("  Timestamp: {current_timestamp}")
+    print("  Payload: '{test_payload}'")
+    print("  Signature: {signature}")
     
     # Show the exact string being signed
     param_str = str(current_timestamp) + api_key + "5000" + test_payload
-    print(f"  String being signed: '{param_str}'")
+    print("  String being signed: '{param_str}'")
 
 if __name__ == "__main__":
     main()

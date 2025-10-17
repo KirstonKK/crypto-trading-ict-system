@@ -574,8 +574,8 @@ if __name__ == "__main__":
     
     async def test_signal_handler(signal: ProcessedSignal):
         """Test signal handler."""
-        print(f"Processed signal: {signal.action} {signal.symbol} at {signal.validated_price}")
-        print(f"Confidence: {signal.confidence_score:.2f}, R/R: {signal.risk_reward_ratio:.2f}")
+        print("Processed signal: {signal.action} {signal.symbol} at {signal.validated_price}")
+        print("Confidence: {signal.confidence_score:.2f}, R/R: {signal.risk_reward_ratio:.2f}")
     
     async def main():
         # Initialize signal processor
@@ -600,13 +600,13 @@ if __name__ == "__main__":
         result = await processor.process_alert(test_alert)
         
         if result:
-            print(f"Signal processing successful: {result.validation_status}")
+            print("Signal processing successful: {result.validation_status}")
         else:
             print("Signal processing failed")
         
         # Print statistics
         stats = processor.get_statistics()
-        print(f"Processing stats: {stats}")
+        print("Processing stats: {stats}")
     
     # Run test
     asyncio.run(main())

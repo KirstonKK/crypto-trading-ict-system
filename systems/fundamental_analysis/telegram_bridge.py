@@ -311,17 +311,17 @@ async def demo_telegram_integration():
     print("📰 Testing Telegram message analysis:")
     for msg in test_messages:
         analysis = bridge.telegram_bot.analyze_message(msg)
-        print(f"Message: {msg}")
-        print(f"Analysis: {analysis}")
+        print("Message: {msg}")
+        print("Analysis: {analysis}")
         print("-" * 40)
     
     # Test Bitcoin 105K check
     btc_check = bridge.check_bitcoin_105k_alert()
-    print(f"Bitcoin $105K Alert Check: {btc_check}")
+    print("Bitcoin $105K Alert Check: {btc_check}")
     
     # Generate summary
     summary = bridge.get_telegram_news_summary(24)
-    print(f"📊 News Summary: {summary}")
+    print("📊 News Summary: {summary}")
 
 if __name__ == "__main__":
     asyncio.run(demo_telegram_integration())

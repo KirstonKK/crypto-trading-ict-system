@@ -343,11 +343,11 @@ class DirectionalBiasEngine:
             
             self.current_bias = ny_bias
             
-            self.logger.info(f"🎯 NY Open Bias Analysis:")
-            self.logger.info(f"   Directional Bias: {bias_analysis['bias'].value}")
-            self.logger.info(f"   Bias Strength: {bias_analysis['strength']:.2f}")
-            self.logger.info(f"   Elliott Wave: {wave_analysis['current_wave'].value}")
-            self.logger.info(f"   Institutional Flow: {institutional_flow}")
+            self.logger.info("🎯 NY Open Bias Analysis:")
+            self.logger.info("   Directional Bias: {bias_analysis['bias'].value}")
+            self.logger.info("   Bias Strength: {bias_analysis['strength']:.2f}")
+            self.logger.info("   Elliott Wave: {wave_analysis['current_wave'].value}")
+            self.logger.info("   Institutional Flow: {institutional_flow}")
             
             return ny_bias
             
@@ -406,8 +406,8 @@ class DirectionalBiasEngine:
             
             self.smart_money_areas = smart_areas
             
-            self.logger.info(f"💰 Smart Money Areas Identified: {len(smart_areas)}")
-            self.logger.info(f"   Current Value Area: {current_area_type.value}")
+            self.logger.info("💰 Smart Money Areas Identified: {len(smart_areas)}")
+            self.logger.info("   Current Value Area: {current_area_type.value}")
             
             return smart_areas
             
@@ -463,9 +463,9 @@ class DirectionalBiasEngine:
             self.active_choch_signals.extend(validated_signals)
             
             if validated_signals:
-                self.logger.info(f"🔄 Change of Character Detected: {len(validated_signals)} signals")
+                self.logger.info("🔄 Change of Character Detected: {len(validated_signals)} signals")
                 for signal in validated_signals:
-                    self.logger.info(f"   {signal.choch_type.value} at {signal.break_level:.4f}")
+                    self.logger.info("   {signal.choch_type.value} at {signal.break_level:.4f}")
             
             return validated_signals
             
@@ -520,9 +520,9 @@ class DirectionalBiasEngine:
             self.pending_retests = high_quality_retests
             
             if high_quality_retests:
-                self.logger.info(f"🎯 Retest Opportunities: {len(high_quality_retests)}")
+                self.logger.info("🎯 Retest Opportunities: {len(high_quality_retests)}")
                 for retest in high_quality_retests:
-                    self.logger.info(f"   {retest.retest_type} at {retest.retest_level:.4f} (Quality: {retest.retest_quality})")
+                    self.logger.info("   {retest.retest_type} at {retest.retest_level:.4f} (Quality: {retest.retest_quality})")
             
             return high_quality_retests
             
@@ -613,10 +613,10 @@ class DirectionalBiasEngine:
                 1.0
             )
             
-            self.logger.info(f"📊 Fibonacci + Elliott Wave Confluence:")
-            self.logger.info(f"   Fibonacci Score: {confluence_analysis['fibonacci_score']:.2f}")
-            self.logger.info(f"   Elliott Wave Score: {confluence_analysis['elliott_wave_score']:.2f}")
-            self.logger.info(f"   Combined Confluence: {confluence_analysis['combined_confluence']:.2f}")
+            self.logger.info("📊 Fibonacci + Elliott Wave Confluence:")
+            self.logger.info("   Fibonacci Score: {confluence_analysis['fibonacci_score']:.2f}")
+            self.logger.info("   Elliott Wave Score: {confluence_analysis['elliott_wave_score']:.2f}")
+            self.logger.info("   Combined Confluence: {confluence_analysis['combined_confluence']:.2f}")
             
             return confluence_analysis
             
@@ -700,7 +700,7 @@ class DirectionalBiasEngine:
             valid_fvgs = [fvg for fvg in fvgs if fvg.get_gap_strength() > 0.3]
             valid_fvgs.sort(key=lambda x: x.get_gap_strength(), reverse=True)
             
-            self.logger.info(f"🔍 Found {len(valid_fvgs)} high-quality Fair Value Gaps")
+            self.logger.info("🔍 Found {len(valid_fvgs)} high-quality Fair Value Gaps")
             return valid_fvgs[:5]  # Return top 5 FVGs
             
         except Exception as e:
@@ -807,7 +807,7 @@ class DirectionalBiasEngine:
             valid_obs = [ob for ob in order_blocks if ob.is_valid_for_trade()]
             valid_obs.sort(key=lambda x: x.get_block_strength(), reverse=True)
             
-            self.logger.info(f"🏗️ Found {len(valid_obs)} high-quality Enhanced Order Blocks")
+            self.logger.info("🏗️ Found {len(valid_obs)} high-quality Enhanced Order Blocks")
             return valid_obs[:5]  # Return top 5 Order Blocks
             
         except Exception as e:
@@ -1039,11 +1039,11 @@ class DirectionalBiasEngine:
                 'take_profit_targets': self._calculate_take_profit_targets(confluence_data)
             }
             
-            self.logger.info(f"🎯 ICT ENHANCED BIAS SIGNAL GENERATED")
-            self.logger.info(f"   Overall Confluence: {signal['overall_confluence_score']:.2f}")
-            self.logger.info(f"   FVG Confluence: {fvg_confluence} gaps")
-            self.logger.info(f"   Order Block Confluence: {ob_confluence} blocks")
-            self.logger.info(f"   Recommended Action: {signal['recommended_action']}")
+            self.logger.info("🎯 ICT ENHANCED BIAS SIGNAL GENERATED")
+            self.logger.info("   Overall Confluence: {signal['overall_confluence_score']:.2f}")
+            self.logger.info("   FVG Confluence: {fvg_confluence} gaps")
+            self.logger.info("   Order Block Confluence: {ob_confluence} blocks")
+            self.logger.info("   Recommended Action: {signal['recommended_action']}")
             
             return signal
             

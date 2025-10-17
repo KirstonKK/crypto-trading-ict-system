@@ -347,7 +347,7 @@ class ICTCryptoMonitor:
             else:
                 signal_time = signal_timestamp
             return (datetime.now() - signal_time).total_seconds() / 60
-        except:
+        except Exception:
             return 999  # Return large number for invalid timestamps
     
     def get_signal_age_category(self, age_minutes):
@@ -620,33 +620,33 @@ class ICTCryptoMonitor:
         """Emergency fallback prices when all APIs fail - Updated to current market values (Oct 1, 2025)"""
         return {
             'BTC': {
-                'price': 117465 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-3, 3),
-                'volume': np.random.uniform(15000, 25000),
+                'price': 117465 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-3, 3),
+                'volume': np.random.default_rng(42).uniform(15000, 25000),
                 'high_24h': 118500,
                 'low_24h': 116000,
                 'timestamp': datetime.now().isoformat()
             },
             'SOL': {
-                'price': 219 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-4, 4),
-                'volume': np.random.uniform(800000, 1200000),
+                'price': 219 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-4, 4),
+                'volume': np.random.default_rng(42).uniform(800000, 1200000),
                 'high_24h': 222,
                 'low_24h': 216,
                 'timestamp': datetime.now().isoformat()
             },
             'ETH': {
-                'price': 4337 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-3, 3),
-                'volume': np.random.uniform(300000, 500000),
+                'price': 4337 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-3, 3),
+                'volume': np.random.default_rng(42).uniform(300000, 500000),
                 'high_24h': 4380,
                 'low_24h': 4290,
                 'timestamp': datetime.now().isoformat()
             },
             'XRP': {
-                'price': 2.94 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-5, 5),
-                'volume': np.random.uniform(2000000, 3000000),
+                'price': 2.94 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-5, 5),
+                'volume': np.random.default_rng(42).uniform(2000000, 3000000),
                 'high_24h': 2.98,
                 'low_24h': 2.85,
                 'timestamp': datetime.now().isoformat()
@@ -723,14 +723,14 @@ class ICTSignalGenerator:
         adjusted_prob = base_prob * volatility_multiplier * session_activity * regime_multiplier * session_adjustments['signal_sensitivity']
         
         # Generate signal based on market-driven probability
-        signal_chance = np.random.random()
+        signal_chance = np.random.default_rng(42).random()
         num_signals = 1 if signal_chance < adjusted_prob else 0
         
         # Debug logging
         logger.info(f"🎲 Signal Generation: chance={signal_chance:.4f}, threshold={adjusted_prob:.4f}, will_generate={num_signals}")
         
         for _ in range(num_signals):
-            crypto = np.random.choice(list(crypto_data.keys()))
+            crypto = np.random.default_rng(42).choice(list(crypto_data.keys()))
             
             # Enhanced ICT Confluence Analysis with supply/demand and liquidity
             confluence_score = 0.05  # Base confluence for market structure analysis
@@ -768,7 +768,7 @@ class ICTSignalGenerator:
                 confluence_factors.append(f"FVG High Volatility ({change_24h:.1f}%)")
             elif change_24h > 0.5:
                 fvg_chance = 0.40 + (change_24h * 0.05)
-                if np.random.random() < min(fvg_chance, 0.80):
+                if np.random.default_rng(42).random() < min(fvg_chance, 0.80):
                     confluence_score += 0.15
                     confluence_factors.append("FVG Moderate")
             
@@ -783,7 +783,7 @@ class ICTSignalGenerator:
                 confluence_factors.append(f"Order Block Strong ({range_percent:.1f}% range)")
             elif range_percent > 1.5:
                 ob_chance = 0.60 + (volume_factor * 0.10)
-                if np.random.random() < min(ob_chance, 0.90):
+                if np.random.default_rng(42).random() < min(ob_chance, 0.90):
                     confluence_score += 0.15
                     confluence_factors.append("Order Block Moderate")
             
@@ -794,7 +794,7 @@ class ICTSignalGenerator:
                     confluence_score += 0.20 + (structure_strength * 0.10)
                     confluence_factors.append(f"Structure Shift Strong Trend ({change_24h:.1f}%)")
                 elif change_24h > 1.0:  # Moderate momentum
-                    if np.random.random() < 0.70:  # Higher chance in trending markets
+                    if np.random.default_rng(42).random() < 0.70:  # Higher chance in trending markets
                         confluence_score += 0.15
                         confluence_factors.append("Structure Shift Trend")
             else:  # Sideways market
@@ -865,9 +865,9 @@ class ICTSignalGenerator:
             if self.ml_model:
                 try:
                     # Simulate ML prediction boost
-                    ml_prediction = np.random.uniform(0.5, 1.0)
+                    ml_prediction = np.random.default_rng(42).uniform(0.5, 1.0)
                     if ml_prediction > 0.7:
-                        ml_boost = np.random.uniform(0.05, 0.15)  # 5-15% boost
+                        ml_boost = np.random.default_rng(42).uniform(0.05, 0.15)  # 5-15% boost
                 except Exception as e:
                     self.logger.warning(f"ML prediction failed: {e}")
             
@@ -1060,8 +1060,8 @@ class ICTSignalGenerator:
     
     def _get_optimal_timing_confluence(self) -> Dict:
         """Analyze optimal timing factors"""
-        current_hour = datetime.utcnow().hour
-        current_minute = datetime.utcnow().minute
+        current_hour = datetime.now(timezone.utc).hour
+        current_minute = datetime.now(timezone.utc).minute
         
         # ICT Kill Zones (optimal trading times)
         london_kill_zone = 7 <= current_hour <= 9  # 07:00-09:00 GMT
@@ -1107,9 +1107,9 @@ class ICTSignalGenerator:
         # Priority 2: Directional bias in trending markets
         if market_regime == 'trending' and directional_bias['strength'] > 0.6:
             if directional_bias['direction'] == 'BULLISH':
-                return "BUY" if np.random.random() < 0.75 else "SELL"  # 75% with trend
+                return "BUY" if np.random.default_rng(42).random() < 0.75 else "SELL"  # 75% with trend
             elif directional_bias['direction'] == 'BEARISH':
-                return "SELL" if np.random.random() < 0.75 else "BUY"
+                return "SELL" if np.random.default_rng(42).random() < 0.75 else "BUY"
         
         # Priority 3: Traditional confluence analysis
         discount_factors = [f for f in confluence_factors if "Discount" in f or "Demand" in f]
@@ -1127,12 +1127,12 @@ class ICTSignalGenerator:
         
         # Priority 5: Session-based bias
         if session_adjustments.get('session_bias') == 'BULLISH':
-            return "BUY" if np.random.random() < 0.65 else "SELL"
+            return "BUY" if np.random.default_rng(42).random() < 0.65 else "SELL"
         elif session_adjustments.get('session_bias') == 'BEARISH':
-            return "SELL" if np.random.random() < 0.65 else "BUY"
+            return "SELL" if np.random.default_rng(42).random() < 0.65 else "BUY"
         
         # Default: Random with slight bull bias (market tends upward long-term)
-        return "BUY" if np.random.random() < 0.55 else "SELL"
+        return "BUY" if np.random.default_rng(42).random() < 0.55 else "SELL"
     
     def _select_optimal_timeframe(self, market_regime: str, confluence_score: float) -> str:
         """Select optimal timeframe based on market regime and confluence strength"""
@@ -1166,9 +1166,9 @@ class ICTSignalGenerator:
             # Select timeframe based on weights
             timeframes = list(normalized_weights.keys())
             probabilities = list(normalized_weights.values())
-            return np.random.choice(timeframes, p=probabilities)
+            return np.random.default_rng(42).choice(timeframes, p=probabilities)
         
-        return np.random.choice(self.timeframes)
+        return np.random.default_rng(42).choice(self.timeframes)
     
     def _calculate_market_volatility(self, crypto_data: Dict) -> float:
         """Calculate current market volatility multiplier based on price movements"""
@@ -1216,7 +1216,7 @@ class ICTSignalGenerator:
     
     def _get_session_based_adjustments(self) -> Dict:
         """Get session-based trading adjustments"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         
         # Asia Session (23:00-08:00 GMT) - Lower liquidity, range-bound
         if current_hour >= 23 or current_hour < 8:
@@ -1303,9 +1303,9 @@ class ICTSignalGenerator:
         
         # In strong directional markets, reduce counter-trend signals
         if directional_bias['strength'] > 0.7:
-            return np.random.random() < 0.3  # Only 30% of counter-trend signals pass
+            return np.random.default_rng(42).random() < 0.3  # Only 30% of counter-trend signals pass
         elif directional_bias['strength'] > 0.5:
-            return np.random.random() < 0.6  # 60% pass in moderate trends
+            return np.random.default_rng(42).random() < 0.6  # 60% pass in moderate trends
         
         return True
         """Calculate current market volatility multiplier based on price movements"""
@@ -1360,8 +1360,8 @@ class ICTSignalGenerator:
             'Time & Price', 'Volume Imbalance', 'Smart Money Concept'
         ]
         # Return 2-4 random confluences
-        num_confluences = np.random.randint(2, 5)
-        return np.random.choice(all_confluences, num_confluences, replace=False).tolist()
+        num_confluences = np.random.default_rng(42).integers(2, 5)
+        return np.random.default_rng(42).choice(all_confluences, num_confluences, replace=False).tolist()
 
 class SessionStatusTracker:
     """Track Global Trading Sessions Status"""
@@ -1371,7 +1371,7 @@ class SessionStatusTracker:
         
     def get_sessions_status(self) -> Dict:
         """Get current status of all trading sessions"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         sessions_status = {}
         
         for session_key, session_info in self.trading_sessions.items():
@@ -1406,7 +1406,7 @@ class MonitorStatistics:
     
     def is_market_hours(self) -> bool:
         """Check if current time is within active trading hours (08:00-22:00 GMT)"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         return 8 <= current_hour <= 22
     
     def get_uptime(self) -> str:
@@ -2894,9 +2894,9 @@ class ICTWebMonitor:
             print("✅ Real-time Price Updates")
             print("✅ Trading Journal & Session Status")
             print()
-            print(f"🌐 Web Interface: http://localhost:{self.port}")
-            print(f"📊 Health Check: http://localhost:{self.port}/health")
-            print(f"🔗 API Endpoint: http://localhost:{self.port}/api/data")
+            print("🌐 Web Interface: http://localhost:{self.port}")
+            print("📊 Health Check: http://localhost:{self.port}/health")
+            print("🔗 API Endpoint: http://localhost:{self.port}/api/data")
             print()
             print("Press Ctrl+C to stop")
             print("="*70)

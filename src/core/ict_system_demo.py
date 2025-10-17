@@ -117,7 +117,7 @@ class ICTSystemDemo:
         # Simulate traditional analysis
         traditional_signals = self._simulate_traditional_analysis(test_data)
         
-        print(f"""
+        print("""
 📊 Traditional System Results:
    RSI Signals:           {traditional_signals['rsi_signals']}
    MACD Crossovers:       {traditional_signals['macd_signals']}
@@ -137,7 +137,7 @@ class ICTSystemDemo:
     def _simulate_traditional_analysis(self, df: pd.DataFrame) -> Dict:
         """Simulate traditional technical analysis."""
         # Simple simulation of traditional indicators
-        df['rsi'] = np.random.uniform(20, 80, len(df))  # Mock RSI
+        df['rsi'] = np.random.default_rng(42).uniform(20, 80, len(df))  # Mock RSI
         df['macd'] = np.random.normal(0, 1, len(df))    # Mock MACD
         df['ema'] = df['close'].rolling(20).mean()      # Mock EMA
         
@@ -231,7 +231,7 @@ class ICTSystemDemo:
             1 for ob in enhanced_order_blocks if str(_get_type(ob)).upper().find('BULLISH') != -1
         )
 
-        print(f"""
+        print("""
 📦 Order Block Analysis Results:
    Total Order Blocks:    {len(enhanced_order_blocks)}
    Fresh Order Blocks:    {fresh_count}
@@ -243,7 +243,7 @@ class ICTSystemDemo:
         print("\n🔍 Analyzing Fair Value Gaps...")
         fvgs = self.fvg_detector.detect_fair_value_gaps(fvg_data, "BTC/USDT", "5m")
 
-        print(f"""
+        print("""
 🔄 Fair Value Gap Analysis Results:
    Total FVGs:           {len(fvgs)}
    Fresh FVGs:           {len([fvg for fvg in fvgs if getattr(fvg, 'state', None) == FVGState.FRESH])}
@@ -255,7 +255,7 @@ class ICTSystemDemo:
         print("\n🔍 Analyzing Liquidity Zones...")
         liquidity_map = self.liquidity_detector.detect_liquidity_zones(liq_data, "BTC/USDT", "5m")
 
-        print(f"""
+        print("""
 💧 Liquidity Analysis Results:
    Total Zones:          {getattr(liquidity_map, 'total_zones', 0)}
    Buy Side Liquidity:   {len(getattr(liquidity_map, 'buy_side_liquidity', []))}
@@ -277,7 +277,7 @@ class ICTSystemDemo:
             buy_liq + sell_liq,
         )
 
-        print(f"""
+        print("""
 📐 Fibonacci Confluence Results:
    Total Fib Zones:      {len(fib_zones)}
    79% Level Zones:      {len([z for z in fib_zones if abs(z.fibonacci_level - 0.79) < 0.01])}
@@ -301,7 +301,7 @@ class ICTSystemDemo:
         # Get signal processor statistics
         stats = self.signal_processor.get_ict_statistics()
         
-        print(f"""
+        print("""
 📡 ICT Signal Processing Engine:
    Conversion Algorithm:  Traditional indicators → ICT concepts
    Signal Types:         Order Block, FVG, Structure Break setups
@@ -347,7 +347,7 @@ class ICTSystemDemo:
         validator = ICTSystemValidator()
         results = validator.run_comprehensive_validation()
         
-        print(f"""
+        print("""
 ✅ ICT System Validation Results:
    Overall Status:       {results['overall_status']}
    Success Rate:         {results['performance_metrics'].get('success_rate', 0):.1%}
@@ -358,9 +358,9 @@ class ICTSystemDemo:
         
         for suite_name, suite_results in results['test_results'].items():
             status = "✅ PASS" if suite_results['passed'] else "❌ FAIL"
-            print(f"   {suite_name:<20} {status}")
+            print("   {suite_name:<20} {status}")
         
-        print(f"""
+        print("""
 🎯 Validation Summary:
    • All ICT components functioning correctly
    • Order Block detection accuracy validated

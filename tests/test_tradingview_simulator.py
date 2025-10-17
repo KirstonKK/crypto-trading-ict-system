@@ -59,20 +59,20 @@ class TradingViewSimulator:
                                    timeout=10)
             
             if response.status_code == 200:
-                print(f"✅ Alert sent successfully: {alert['action']} {alert['symbol']} @ ${alert['price']}")
+                print("✅ Alert sent successfully: {alert['action']} {alert['symbol']} @ ${alert['price']}")
                 return True
             else:
-                print(f"❌ Failed to send alert: {response.status_code} - {response.text}")
+                print("❌ Failed to send alert: {response.status_code} - {response.text}")
                 return False
                 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Connection error: {e}")
+            print("❌ Connection error: {e}")
             return False
     
     def simulate_trading_session(self, duration_minutes=10, alert_interval=30):
         """Simulate a trading session with multiple alerts"""
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║               🎯 TRADINGVIEW ALERT SIMULATOR                     ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -95,10 +95,10 @@ class TradingViewSimulator:
                 alert_count += 1
                 
             # Wait for next alert
-            print(f"⏱️  Waiting {alert_interval} seconds until next alert...")
+            print("⏱️  Waiting {alert_interval} seconds until next alert...")
             time.sleep(alert_interval)
             
-        print(f"\n🎉 Simulation complete! Sent {alert_count} alerts in {duration_minutes} minutes")
+        print("\n🎉 Simulation complete! Sent {alert_count} alerts in {duration_minutes} minutes")
 
 def main():
     simulator = TradingViewSimulator()
@@ -116,7 +116,7 @@ def main():
         if choice == "1":
             # Single alert test
             alert = simulator.generate_alert()
-            print(f"\n📡 Sending test alert: {json.dumps(alert, indent=2)}")
+            print("\n📡 Sending test alert: {json.dumps(alert, indent=2)}")
             simulator.send_alert(alert)
             
         elif choice == "2":
@@ -130,7 +130,7 @@ def main():
             symbol = input("Symbol (default BTCUSDT): ").upper() or "BTCUSDT"
             action = input("Action BUY/SELL (default BUY): ").upper() or "BUY"
             alert = simulator.generate_alert(symbol, action)
-            print(f"\n📡 Sending custom alert: {json.dumps(alert, indent=2)}")
+            print("\n📡 Sending custom alert: {json.dumps(alert, indent=2)}")
             simulator.send_alert(alert)
             
         elif choice == "4":

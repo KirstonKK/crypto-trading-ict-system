@@ -6,11 +6,11 @@ from datetime import date
 def analyze_todays_trades():
     """Analyze all trades from today to understand the PnL discrepancy"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         today = date.today().isoformat()
-        print(f"📊 ANALYZING TRADES FOR {today}")
+        print("📊 ANALYZING TRADES FOR {today}")
         print("=" * 50)
         
         # Get all trades from today
@@ -23,7 +23,7 @@ def analyze_todays_trades():
         
         all_trades = cursor.fetchall()
         
-        print(f"📈 Total trades today: {len(all_trades)}")
+        print("📈 Total trades today: {len(all_trades)}")
         print()
         
         wins = 0
@@ -38,10 +38,10 @@ def analyze_todays_trades():
             exit_str = exit_time if exit_time else "OPEN"
             exit_price_str = f"${exit_price:.2f}" if exit_price else "N/A"
             
-            print(f"Trade {id_col}: {symbol} - {status}")
-            print(f"   Entry: {entry_time} @ ${entry_price:.2f}")
-            print(f"   Exit:  {exit_str} @ {exit_price_str}")
-            print(f"   PnL:   {pnl_str}")
+            print("Trade {id_col}: {symbol} - {status}")
+            print("   Entry: {entry_time} @ ${entry_price:.2f}")
+            print("   Exit:  {exit_str} @ {exit_price_str}")
+            print("   PnL:   {pnl_str}")
             
             # Count wins/losses
             if realized_pnl:
@@ -62,12 +62,12 @@ def analyze_todays_trades():
             print()
         
         print("=" * 50)
-        print(f"📊 SUMMARY:")
-        print(f"   Total Trades: {len(all_trades)}")
-        print(f"   Wins: {wins}")
-        print(f"   Losses: {losses}")
-        print(f"   Total PnL: ${total_pnl:.2f}")
-        print(f"   Closed Today: {closed_today}")
+        print("📊 SUMMARY:")
+        print("   Total Trades: {len(all_trades)}")
+        print("   Wins: {wins}")
+        print("   Losses: {losses}")
+        print("   Total PnL: ${total_pnl:.2f}")
+        print("   Closed Today: {closed_today}")
         
         # Now check the daily PnL calculation
         cursor.execute("""
@@ -80,19 +80,19 @@ def analyze_todays_trades():
         
         daily_pnl_calc = cursor.fetchone()[0]
         
-        print(f"   Daily PnL Calculation: ${daily_pnl_calc:.2f}")
+        print("   Daily PnL Calculation: ${daily_pnl_calc:.2f}")
         
         if abs(total_pnl - daily_pnl_calc) > 0.01:
             print("⚠️  DISCREPANCY FOUND!")
-            print(f"   Total PnL from all trades: ${total_pnl:.2f}")
-            print(f"   Daily PnL calculation: ${daily_pnl_calc:.2f}")
+            print("   Total PnL from all trades: ${total_pnl:.2f}")
+            print("   Daily PnL calculation: ${daily_pnl_calc:.2f}")
         else:
             print("✅ PnL calculations match")
         
         conn.close()
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print("❌ Error: {e}")
 
 if __name__ == "__main__":
     analyze_todays_trades()

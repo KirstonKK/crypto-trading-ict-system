@@ -70,9 +70,9 @@ class BybitRealTimePrices:
         self.update_count = 0
         self.start_time = datetime.now()
         
-        logger.info(f"📊 Bybit Real-Time Prices initialized")
-        logger.info(f"   Symbols: {', '.join(self.symbols)}")
-        logger.info(f"   Environment: {'Testnet' if testnet else 'Mainnet'}")
+        logger.info("📊 Bybit Real-Time Prices initialized")
+        logger.info("   Symbols: {', '.join(self.symbols)}")
+        logger.info("   Environment: {'Testnet' if testnet else 'Mainnet'}")
 
     def _format_symbol(self, symbol: str) -> str:
         """Format symbol for Bybit (ensure USDT suffix)"""
@@ -118,7 +118,7 @@ class BybitRealTimePrices:
                                     price_data = self._parse_ticker_data(ticker)
                                     self.prices[symbol] = price_data
                                     
-                                    logger.info(f"✅ {symbol}: ${price_data['price']:,.4f}")
+                                    logger.info("✅ {symbol}: ${price_data['price']:,.4f}")
                                 else:
                                     logger.warning(f"⚠️  No ticker data for {symbol}")
                                     
@@ -142,7 +142,7 @@ class BybitRealTimePrices:
                             'source': 'fallback'
                         }
             
-            logger.info(f"✅ Initialized prices for {len(self.prices)} symbols")
+            logger.info("✅ Initialized prices for {len(self.prices)} symbols")
             
         except Exception as e:
             logger.error(f"❌ Error initializing prices: {e}")
@@ -178,7 +178,7 @@ class BybitRealTimePrices:
         
         while retry_count < max_retries:
             try:
-                logger.info(f"🔗 Connecting to Bybit WebSocket... (attempt {retry_count + 1})")
+                logger.info("🔗 Connecting to Bybit WebSocket... (attempt {retry_count + 1})")
                 
                 async with websockets.connect(self.ws_url) as websocket:
                     self.ws_connection = websocket
@@ -219,7 +219,7 @@ class BybitRealTimePrices:
             }
             
             await websocket.send(json.dumps(subscribe_message))
-            logger.info(f"📡 Subscribed to {len(topics)} ticker streams")
+            logger.info("📡 Subscribed to {len(topics)} ticker streams")
             
             # Wait for subscription confirmation
             response = await websocket.recv()
@@ -251,7 +251,7 @@ class BybitRealTimePrices:
             # Handle subscription confirmations
             elif data.get("success") is not None:
                 if data.get("success"):
-                    logger.info(f"✅ WebSocket subscription confirmed: {data.get('op', 'unknown')}")
+                    logger.info("✅ WebSocket subscription confirmed: {data.get('op', 'unknown')}")
                 else:
                     logger.warning(f"⚠️ WebSocket subscription failed: {data}")
                 
@@ -298,7 +298,7 @@ class BybitRealTimePrices:
                         if self.delta_skip_count[symbol] <= 3:
                             logger.debug(f"🔄 Building {symbol} baseline data (delta #{self.delta_skip_count[symbol]})")
                         elif self.delta_skip_count[symbol] == 10:  # Log summary after 10
-                            logger.info(f"📊 {symbol} baseline initialization in progress...")
+                            logger.info("📊 {symbol} baseline initialization in progress...")
                         return
                 else:
                     # Fallback to snapshot parsing for unknown types
@@ -354,13 +354,13 @@ class BybitRealTimePrices:
             
             # Log the raw data for debugging (only for snapshots with actual price data)
             if 'lastPrice' in ticker:
-                logger.info(f"🔍 SNAPSHOT {symbol}: lastPrice = '{last_price_str}' (type: {type(last_price_str)})")
+                logger.info("🔍 SNAPSHOT {symbol}: lastPrice = '{last_price_str}' (type: {type(last_price_str)})")
             
             # Convert to float, handling both string and numeric types
             try:
                 price_value = float(last_price_str) if last_price_str else 0.0
                 if 'lastPrice' in ticker:
-                    logger.info(f"✅ SNAPSHOT {symbol}: Converted to float: {price_value}")
+                    logger.info("✅ SNAPSHOT {symbol}: Converted to float: {price_value}")
             except (ValueError, TypeError) as e:
                 logger.error(f"❌ SNAPSHOT {symbol}: Invalid lastPrice format '{last_price_str}': {e}")
                 price_value = 0.0
@@ -379,7 +379,7 @@ class BybitRealTimePrices:
             
             # Log when we get 0 prices but don't reject them
             if price_value == 0:
-                logger.info(f"⚠️ Received zero price for {symbol}: {price_value} (might be valid)")
+                logger.info("⚠️ Received zero price for {symbol}: {price_value} (might be valid)")
             
             # Parse other fields safely
             volume_24h = self._safe_float(ticker.get('volume24h', '0'))
@@ -433,7 +433,7 @@ class BybitRealTimePrices:
                 new_price = self._safe_float(delta_data['lastPrice'])
                 if new_price > 0:  # Only update if valid price
                     existing_data['price'] = new_price
-                    logger.info(f"✅ DELTA UPDATE {symbol}: price=${new_price}")
+                    logger.info("✅ DELTA UPDATE {symbol}: price=${new_price}")
                 else:
                     logger.warning(f"⚠️ DELTA UPDATE {symbol}: received invalid lastPrice {new_price}")
             # Don't update price if lastPrice is not in delta - preserve existing price

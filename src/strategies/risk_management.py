@@ -157,7 +157,7 @@ class RiskManager:
         
         final_size = min(final_position_size, max_allowed_position)
         
-        self.logger.info(f"Position size for {symbol}: ${final_size:,.2f}")
+        self.logger.info("Position size for {symbol}: ${final_size:,.2f}")
         return max(final_size, 0.0)
     
     def calculate_stop_loss(self, symbol: str, entry_price: float, 
@@ -194,7 +194,7 @@ class RiskManager:
         else:  # short
             stop_loss_price = entry_price * (1 + adjusted_stop_loss_pct)
         
-        self.logger.info(f"Stop loss for {symbol} ({side}): ${stop_loss_price:.4f} ({adjusted_stop_loss_pct:.1%})")
+        self.logger.info("Stop loss for {symbol} ({side}): ${stop_loss_price:.4f} ({adjusted_stop_loss_pct:.1%})")
         return stop_loss_price
     
     def classify_volatility(self, volatility: float) -> VolatilityRegime:
@@ -242,7 +242,7 @@ class RiskManager:
         
         # Add position
         self.positions[position.symbol] = position
-        self.logger.info(f"Added position: {position.symbol} ({position.side}) ${position.size:,.2f}")
+        self.logger.info("Added position: {position.symbol} ({position.side}) ${position.size:,.2f}")
         
         return True
     
@@ -302,7 +302,7 @@ class RiskManager:
         # Remove position
         del self.positions[symbol]
         
-        self.logger.info(f"Closed position: {symbol} P&L: ${realized_pnl:,.2f}")
+        self.logger.info("Closed position: {symbol} P&L: ${realized_pnl:,.2f}")
         return realized_pnl
     
     def should_trigger_stop_loss(self, position: Position) -> bool:

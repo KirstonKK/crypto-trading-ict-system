@@ -89,7 +89,7 @@ def check_database_tables():
     print("="*80)
     
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Check for required tables
@@ -107,9 +107,9 @@ def check_database_tables():
             if table in tables:
                 cursor.execute(f"SELECT COUNT(*) FROM {table}")
                 count = cursor.fetchone()[0]
-                print(f"✅ Table '{table}' exists with {count} records")
+                print("✅ Table '{table}' exists with {count} records")
             else:
-                print(f"❌ WARNING: Table '{table}' does not exist!")
+                print("❌ WARNING: Table '{table}' does not exist!")
         
         # Check paper_trades structure for risk_amount column
         cursor.execute("PRAGMA table_info(paper_trades)")
@@ -123,7 +123,7 @@ def check_database_tables():
         conn.close()
         
     except Exception as e:
-        print(f"❌ ERROR checking database: {e}")
+        print("❌ ERROR checking database: {e}")
 
 def check_recent_trades():
     """Check recent trades in database"""
@@ -132,7 +132,7 @@ def check_recent_trades():
     print("="*80)
     
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         today = date.today().isoformat()
         
@@ -146,7 +146,7 @@ def check_recent_trades():
         """, (today,))
         
         total, open_count, closed_count = cursor.fetchone()
-        print(f"📄 Paper Trades Today: {total} total ({open_count} open, {closed_count} closed)")
+        print("📄 Paper Trades Today: {total} total ({open_count} open, {closed_count} closed)")
         
         # Check today's journal entries
         cursor.execute("""
@@ -155,7 +155,7 @@ def check_recent_trades():
         """, (today,))
         
         journal_count = cursor.fetchone()[0]
-        print(f"📝 Trading Journal Entries Today: {journal_count}")
+        print("📝 Trading Journal Entries Today: {journal_count}")
         
         # Check recent closed trades with risk analysis
         cursor.execute("""
@@ -169,7 +169,7 @@ def check_recent_trades():
         
         recent_trades = cursor.fetchall()
         if recent_trades:
-            print(f"\n🔍 Last 5 Closed Trades:")
+            print("\n🔍 Last 5 Closed Trades:")
             for trade in recent_trades:
                 symbol, direction, entry, exit, status, pnl, risk, exit_time = trade
                 risk_val = float(risk) if risk else 0.0
@@ -179,22 +179,22 @@ def check_recent_trades():
                 if status == 'STOP_LOSS' and pnl_val < 0:
                     loss_ratio = abs(pnl_val) / abs(risk_val) if risk_val != 0 else 0
                     risk_check = "✅" if loss_ratio <= 1.01 else f"❌ {loss_ratio:.2%}"
-                    print(f"   {symbol} {direction} | {status} | PnL: ${pnl_val:.2f} | Risk: ${risk_val:.2f} | {risk_check}")
+                    print("   {symbol} {direction} | {status} | PnL: ${pnl_val:.2f} | Risk: ${risk_val:.2f} | {risk_check}")
                 else:
-                    print(f"   {symbol} {direction} | {status} | PnL: ${pnl_val:.2f} | Risk: ${risk_val:.2f}")
+                    print("   {symbol} {direction} | {status} | PnL: ${pnl_val:.2f} | Risk: ${risk_val:.2f}")
         else:
             print("   No closed trades found")
         
         conn.close()
         
     except Exception as e:
-        print(f"❌ ERROR checking recent trades: {e}")
+        print("❌ ERROR checking recent trades: {e}")
 
 def main():
     """Run all verification checks"""
     print("\n" + "🔒 KIRSTON'S TRADING SYSTEM - RISK & PERSISTENCE VERIFICATION")
     print("=" * 80)
-    print(f"Verification Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Verification Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     verify_risk_management()
     verify_persistence()

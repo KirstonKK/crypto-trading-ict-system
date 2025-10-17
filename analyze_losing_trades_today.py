@@ -20,20 +20,20 @@ def analyze_trading_performance():
     ]
     
     today = datetime.now().strftime('%Y-%m-%d')
-    print(f"🔍 TRADING ANALYSIS FOR {today}")
+    print("🔍 TRADING ANALYSIS FOR {today}")
     print("=" * 80)
     
     results = {}
     
     for db_path in db_paths:
         if os.path.exists(db_path):
-            print(f"\n📊 Analyzing database: {db_path}")
+            print("\n📊 Analyzing database: {db_path}")
             try:
                 results[db_path] = analyze_database(db_path, today)
             except Exception as e:
-                print(f"❌ Error analyzing {db_path}: {e}")
+                print("❌ Error analyzing {db_path}: {e}")
         else:
-            print(f"⚠️  Database not found: {db_path}")
+            print("⚠️  Database not found: {db_path}")
     
     return results
 
@@ -44,7 +44,7 @@ def analyze_database(db_path, today):
     
     # Check available tables
     tables = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table'", conn)
-    print(f"📋 Available tables: {list(tables['name'])}")
+    print("📋 Available tables: {list(tables['name'])}")
     
     analysis_results = {}
     
@@ -53,11 +53,11 @@ def analyze_database(db_path, today):
     
     for table in trading_tables:
         if table in list(tables['name']):
-            print(f"\n🔎 Analyzing table: {table}")
+            print("\n🔎 Analyzing table: {table}")
             try:
                 # Get table schema
                 schema = pd.read_sql_query(f"PRAGMA table_info({table})", conn)
-                print(f"Columns: {list(schema['name'])}")
+                print("Columns: {list(schema['name'])}")
                 
                 # Get today's data
                 query = f"SELECT * FROM {table} WHERE date(timestamp) = '{today}' OR date(created_at) = '{today}' OR date(signal_time) = '{today}'"
@@ -66,7 +66,7 @@ def analyze_database(db_path, today):
                     if len(data) > 0:
                         analysis_results[table] = analyze_table_data(data, table)
                     else:
-                        print(f"   No data found for today in {table}")
+                        print("   No data found for today in {table}")
                 except Exception as e:
                     # Try alternative date column names
                     for date_col in ['date', 'time', 'scan_time', 'entry_time']:
@@ -76,13 +76,13 @@ def analyze_database(db_path, today):
                             if len(data) > 0:
                                 analysis_results[table] = analyze_table_data(data, table)
                                 break
-                        except:
+                        except Exception:
                             continue
                     else:
-                        print(f"   Could not find date column for {table}: {e}")
+                        print("   Could not find date column for {table}: {e}")
                         
             except Exception as e:
-                print(f"   ❌ Error analyzing {table}: {e}")
+                print("   ❌ Error analyzing {table}: {e}")
     
     conn.close()
     return analysis_results
@@ -90,7 +90,7 @@ def analyze_database(db_path, today):
 def analyze_table_data(data, table_name):
     """Analyze specific table data for patterns"""
     
-    print(f"   📈 Found {len(data)} records in {table_name}")
+    print("   📈 Found {len(data)} records in {table_name}")
     
     analysis = {
         'total_records': len(data),
@@ -103,7 +103,7 @@ def analyze_table_data(data, table_name):
     
     for col in pnl_columns:
         if col in data.columns:
-            print(f"   📊 Analysis of {col}:")
+            print("   📊 Analysis of {col}:")
             if col in ['pnl', 'profit_loss']:
                 # Numeric PnL analysis
                 try:
@@ -112,15 +112,15 @@ def analyze_table_data(data, table_name):
                     winning_trades = len(data[data[col] > 0])
                     losing_trades = len(data[data[col] < 0])
                     
-                    print(f"      Total PnL: ${total_pnl:.2f}")
-                    print(f"      Winning Trades: {winning_trades}")
-                    print(f"      Losing Trades: {losing_trades}")
+                    print("      Total PnL: ${total_pnl:.2f}")
+                    print("      Winning Trades: {winning_trades}")
+                    print("      Losing Trades: {losing_trades}")
                     
                     if losing_trades > 0:
                         avg_loss = data[data[col] < 0][col].mean()
                         max_loss = data[data[col] < 0][col].min()
-                        print(f"      Average Loss: ${avg_loss:.2f}")
-                        print(f"      Maximum Loss: ${max_loss:.2f}")
+                        print("      Average Loss: ${avg_loss:.2f}")
+                        print("      Maximum Loss: ${max_loss:.2f}")
                     
                     analysis['pnl_summary'] = {
                         'total_pnl': total_pnl,
@@ -131,22 +131,22 @@ def analyze_table_data(data, table_name):
                     }
                     
                 except Exception as e:
-                    print(f"      Error analyzing PnL: {e}")
+                    print("      Error analyzing PnL: {e}")
             
             elif col in ['result', 'outcome', 'status']:
                 # Categorical analysis
                 value_counts = data[col].value_counts()
-                print(f"      {col} distribution:")
+                print("      {col} distribution:")
                 for value, count in value_counts.items():
-                    print(f"        {value}: {count}")
+                    print("        {value}: {count}")
                 analysis[f'{col}_distribution'] = value_counts.to_dict()
             
             elif col in ['direction', 'crypto']:
                 # Direction/crypto analysis
                 value_counts = data[col].value_counts()
-                print(f"      {col} distribution:")
+                print("      {col} distribution:")
                 for value, count in value_counts.items():
-                    print(f"        {value}: {count}")
+                    print("        {value}: {count}")
                 analysis[f'{col}_distribution'] = value_counts.to_dict()
     
     return analysis
@@ -167,7 +167,7 @@ def identify_patterns_and_lessons(analysis_results):
     direction_performance = defaultdict(list)
     
     for db_path, db_results in analysis_results.items():
-        print(f"\n📊 Analysis from {os.path.basename(db_path)}:")
+        print("\n📊 Analysis from {os.path.basename(db_path)}:")
         
         for table, table_data in db_results.items():
             if 'pnl_summary' in table_data:
@@ -176,7 +176,7 @@ def identify_patterns_and_lessons(analysis_results):
                 total_losses += losing_trades
                 total_trades += pnl['winning_trades'] + losing_trades
                 
-                print(f"   {table}: {losing_trades} losing trades")
+                print("   {table}: {losing_trades} losing trades")
                 
                 if losing_trades >= 8:
                     lessons.append(f"⚠️  High loss rate in {table}: {losing_trades} losses")
@@ -193,32 +193,32 @@ def identify_patterns_and_lessons(analysis_results):
                 for direction, count in dir_dist.items():
                     direction_performance[direction].append(count)
     
-    print(f"\n📈 OVERALL PERFORMANCE:")
-    print(f"   Total Trades Today: {total_trades}")
-    print(f"   Total Losses: {total_losses}")
+    print("\n📈 OVERALL PERFORMANCE:")
+    print("   Total Trades Today: {total_trades}")
+    print("   Total Losses: {total_losses}")
     if total_trades > 0:
         win_rate = ((total_trades - total_losses) / total_trades) * 100
-        print(f"   Win Rate: {win_rate:.1f}%")
+        print("   Win Rate: {win_rate:.1f}%")
     
     # Pattern Analysis
-    print(f"\n🔍 PATTERN ANALYSIS:")
+    print("\n🔍 PATTERN ANALYSIS:")
     
     # Crypto performance patterns
     if crypto_performance:
-        print(f"   Crypto Activity:")
+        print("   Crypto Activity:")
         for crypto, counts in crypto_performance.items():
             total_count = sum(counts)
-            print(f"     {crypto}: {total_count} signals")
+            print("     {crypto}: {total_count} signals")
             if total_count >= 3:
                 lessons.append(f"🔄 High activity in {crypto}: {total_count} signals - may indicate over-trading")
     
     # Direction bias patterns
     if direction_performance:
-        print(f"   Direction Bias:")
+        print("   Direction Bias:")
         total_buys = sum(direction_performance.get('BUY', []))
         total_sells = sum(direction_performance.get('SELL', []))
-        print(f"     BUY signals: {total_buys}")
-        print(f"     SELL signals: {total_sells}")
+        print("     BUY signals: {total_buys}")
+        print("     SELL signals: {total_sells}")
         
         if total_buys > total_sells * 2:
             lessons.append("📈 Strong BUY bias detected - may need better bearish signal detection")
@@ -253,7 +253,7 @@ def main():
     
     if lessons:
         for i, lesson in enumerate(lessons, 1):
-            print(f"{i}. {lesson}")
+            print("{i}. {lesson}")
     else:
         print("✅ No critical patterns detected in available data")
     
@@ -274,7 +274,7 @@ def main():
     ]
     
     for i, rec in enumerate(recommendations, 1):
-        print(f"{i}. {rec}")
+        print("{i}. {rec}")
     
     print("\n✨ Analysis complete!")
 

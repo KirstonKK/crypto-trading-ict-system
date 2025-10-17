@@ -17,7 +17,7 @@ def restore_scan_count():
     """Restore scan count from database records"""
     try:
         # Connect to database
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Get today's scan count
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     scan_count, signal_count = restore_scan_count()
     
     print("=" * 50)
-    print(f"✅ RESTORATION COMPLETE")
-    print(f"📊 Today's Scans: {scan_count}")
-    print(f"📈 Today's Signals: {signal_count}")
-    print(f"📋 Ratio: {signal_count}/{scan_count}")
+    print("✅ RESTORATION COMPLETE")
+    print("📊 Today's Scans: {scan_count}")
+    print("📈 Today's Signals: {signal_count}")
+    print("📋 Ratio: {signal_count}/{scan_count}")

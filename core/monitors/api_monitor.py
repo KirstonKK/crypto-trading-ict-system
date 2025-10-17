@@ -63,8 +63,8 @@ class APIKeyMonitor:
         """Monitor API key activation with automatic checks"""
         print('🔄 BYBIT API KEY ACTIVATION MONITOR')
         print('=' * 50)
-        print(f'📋 API Key: {self.api_key}')
-        print(f'📅 Created: {self.creation_time}')
+        print('📋 API Key: {self.api_key}')
+        print('📅 Created: {self.creation_time}')
         print('⏰ Checking every 2 minutes until active...')
         print()
         
@@ -75,7 +75,7 @@ class APIKeyMonitor:
             check_count += 1
             current_time = datetime.now().strftime('%H:%M:%S')
             
-            print(f'🔍 Check #{check_count} at {current_time}...', end=' ')
+            print('🔍 Check #{check_count} at {current_time}...', end=' ')
             
             ret_code, ret_msg = await self.test_api_key()
             
@@ -95,7 +95,7 @@ class APIKeyMonitor:
                 print('⏳ Still pending...')
                 
             else:
-                print(f'❌ Error {ret_code}: {ret_msg}')
+                print('❌ Error {ret_code}: {ret_msg}')
             
             if check_count < max_checks:
                 print('   Waiting 2 minutes before next check...')

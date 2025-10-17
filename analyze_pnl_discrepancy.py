@@ -6,11 +6,11 @@ from datetime import date
 def analyze_trades():
     """Analyze today's trades to understand the PnL discrepancy"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         today = date.today().isoformat()
-        print(f"📊 ANALYZING TRADES FOR {today}")
+        print("📊 ANALYZING TRADES FOR {today}")
         print("=" * 60)
         
         # Get all trades from today
@@ -22,7 +22,7 @@ def analyze_trades():
         """, (today,))
         
         all_trades = cursor.fetchall()
-        print(f"📈 Total trades today: {len(all_trades)}")
+        print("📈 Total trades today: {len(all_trades)}")
         print()
         
         wins = 0
@@ -38,10 +38,10 @@ def analyze_trades():
             exit_str = exit_time if exit_time else "OPEN"
             exit_price_str = f"${exit_price:.2f}" if exit_price else "N/A"
             
-            print(f"Trade {id_col}: {symbol} - {status}")
-            print(f"   Entry: {entry_time} @ ${entry_price:.2f}")
-            print(f"   Exit:  {exit_str} @ {exit_price_str}")
-            print(f"   PnL:   {pnl_str}")
+            print("Trade {id_col}: {symbol} - {status}")
+            print("   Entry: {entry_time} @ ${entry_price:.2f}")
+            print("   Exit:  {exit_str} @ {exit_price_str}")
+            print("   PnL:   {pnl_str}")
             
             # Count wins/losses
             if realized_pnl is not None and realized_pnl != 0:
@@ -65,14 +65,14 @@ def analyze_trades():
             print()
         
         print("=" * 60)
-        print(f"📊 SUMMARY:")
-        print(f"   Total Trades: {len(all_trades)}")
-        print(f"   Open Trades: {open_trades}")
-        print(f"   Closed Trades: {wins + losses}")
-        print(f"   Wins: {wins}")
-        print(f"   Losses: {losses}")
-        print(f"   Total PnL from all trades: ${total_pnl:.2f}")
-        print(f"   Trades closed today: {closed_today}")
+        print("📊 SUMMARY:")
+        print("   Total Trades: {len(all_trades)}")
+        print("   Open Trades: {open_trades}")
+        print("   Closed Trades: {wins + losses}")
+        print("   Wins: {wins}")
+        print("   Losses: {losses}")
+        print("   Total PnL from all trades: ${total_pnl:.2f}")
+        print("   Trades closed today: {closed_today}")
         
         # Check the daily PnL calculation (what the system uses)
         cursor.execute("""
@@ -85,14 +85,14 @@ def analyze_trades():
         
         daily_pnl_calc = cursor.fetchone()[0]
         
-        print(f"   Daily PnL (system calculation): ${daily_pnl_calc:.2f}")
+        print("   Daily PnL (system calculation): ${daily_pnl_calc:.2f}")
         
         # Check if there's a discrepancy
         if abs(total_pnl - daily_pnl_calc) > 0.01:
             print("\n⚠️  DISCREPANCY FOUND!")
-            print(f"   Expected from trades: ${total_pnl:.2f}")
-            print(f"   System calculated: ${daily_pnl_calc:.2f}")
-            print(f"   Difference: ${abs(total_pnl - daily_pnl_calc):.2f}")
+            print("   Expected from trades: ${total_pnl:.2f}")
+            print("   System calculated: ${daily_pnl_calc:.2f}")
+            print("   Difference: ${abs(total_pnl - daily_pnl_calc):.2f}")
             
             # Check what the daily calculation is missing
             cursor.execute("""
@@ -104,17 +104,17 @@ def analyze_trades():
             
             missing_trades = cursor.fetchall()
             if missing_trades:
-                print(f"\n🔍 Trades not counted in daily PnL:")
+                print("\n🔍 Trades not counted in daily PnL:")
                 for trade in missing_trades:
                     id_col, symbol, status, exit_time, realized_pnl = trade
-                    print(f"   Trade {id_col}: {symbol} - {status} - Exit: {exit_time} - PnL: ${realized_pnl or 0:.2f}")
+                    print("   Trade {id_col}: {symbol} - {status} - Exit: {exit_time} - PnL: ${realized_pnl or 0:.2f}")
         else:
             print("\n✅ PnL calculations match!")
         
         conn.close()
         
     except Exception as e:
-        print(f"❌ Error analyzing trades: {e}")
+        print("❌ Error analyzing trades: {e}")
 
 if __name__ == "__main__":
     analyze_trades()

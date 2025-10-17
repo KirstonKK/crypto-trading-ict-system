@@ -114,9 +114,9 @@ class BybitIntegrationManager:
         self.http_session = None
         
         logger.info("🔧 Bybit Integration Manager initialized")
-        logger.info(f"   ICT Monitor: {ict_monitor_url}")
-        logger.info(f"   Auto Trading: {'Enabled' if auto_trading else 'Disabled'}")
-        logger.info(f"   Environment: {'Testnet' if testnet else 'Mainnet'}")
+        logger.info("   ICT Monitor: {ict_monitor_url}")
+        logger.info("   Auto Trading: {'Enabled' if auto_trading else 'Disabled'}")
+        logger.info("   Environment: {'Testnet' if testnet else 'Mainnet'}")
 
     async def initialize(self):
         """Initialize all components"""
@@ -165,14 +165,14 @@ class BybitIntegrationManager:
         
         async def on_order_update(order_update: OrderUpdate):
             """Handle order status updates"""
-            logger.info(f"📋 Order update: {order_update.symbol} {order_update.status}")
+            logger.info("📋 Order update: {order_update.symbol} {order_update.status}")
             
             # Update trading executor
             # (The executor will handle this through its own monitoring)
             
         async def on_position_update(position_update: PositionUpdate):
             """Handle position updates"""
-            logger.info(f"📊 Position update: {position_update.symbol} Size: {position_update.size}")
+            logger.info("📊 Position update: {position_update.symbol} Size: {position_update.size}")
             
             # Update status
             positions = await self.bybit_client.get_positions()
@@ -191,7 +191,7 @@ class BybitIntegrationManager:
                     data = await response.json()
                     self.status.ict_monitor_connected = True
                     logger.info("✅ ICT Monitor connection successful")
-                    logger.info(f"   Status: {data.get('status', 'Unknown')}")
+                    logger.info("   Status: {data.get('status', 'Unknown')}")
                 else:
                     raise Exception(f"ICT Monitor returned status {response.status}")
                     
@@ -220,7 +220,7 @@ class BybitIntegrationManager:
                                 self.status.total_signals_received += 1
                                 self.status.last_signal_time = datetime.now()
                                 
-                                logger.info(f"📡 New signal received: {signal.get('symbol')} {signal.get('action')}")
+                                logger.info("📡 New signal received: {signal.get('symbol')} {signal.get('action')}")
                 
                 await asyncio.sleep(2)  # Poll every 2 seconds
                 
@@ -238,7 +238,7 @@ class BybitIntegrationManager:
                 except asyncio.TimeoutError:
                     continue
                 
-                logger.info(f"🔄 Processing signal: {signal_data.get('symbol')} {signal_data.get('action')}")
+                logger.info("🔄 Processing signal: {signal_data.get('symbol')} {signal_data.get('action')}")
                 
                 # Validate signal format
                 if not self._validate_signal_format(signal_data):
@@ -267,7 +267,7 @@ class BybitIntegrationManager:
                             except Exception as e:
                                 logger.error(f"❌ Trade callback error: {e}")
                         
-                        logger.info(f"✅ Trade executed: {execution.symbol} {execution.side}")
+                        logger.info("✅ Trade executed: {execution.symbol} {execution.side}")
                     else:
                         logger.info("🚫 Signal not executed (validation failed)")
                 else:
@@ -331,7 +331,7 @@ class BybitIntegrationManager:
                 if self.status.bybit_connected:
                     try:
                         await self.bybit_client.test_connection()
-                    except:
+                    except Exception:
                         self.status.bybit_connected = False
                         logger.warning("⚠️  Bybit connection lost")
                 
@@ -342,7 +342,7 @@ class BybitIntegrationManager:
                 if self.status.ict_monitor_connected:
                     try:
                         await self._test_ict_connection()
-                    except:
+                    except Exception:
                         pass  # Already logged in _test_ict_connection
                 
                 # Monitor trading executor
@@ -376,7 +376,7 @@ class BybitIntegrationManager:
                 ]
                 
                 logger.info("✅ Integration system started successfully")
-                logger.info(f"   Auto Trading: {'ON' if self.auto_trading else 'OFF'}")
+                logger.info("   Auto Trading: {'ON' if self.auto_trading else 'OFF'}")
                 
                 # Run all tasks concurrently
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -431,12 +431,12 @@ class BybitIntegrationManager:
         """Subscribe to real-time data for a symbol"""
         self.websocket_client.subscribe_ticker(symbol)
         self.websocket_client.subscribe_trades(symbol)
-        logger.info(f"📡 Subscribed to real-time data: {symbol}")
+        logger.info("📡 Subscribed to real-time data: {symbol}")
 
     async def manual_trade(self, signal_data: Dict) -> Optional[TradeExecution]:
         """Manually execute a trade"""
         try:
-            logger.info(f"🔧 Manual trade execution: {signal_data.get('symbol')}")
+            logger.info("🔧 Manual trade execution: {signal_data.get('symbol')}")
             
             if not self._validate_signal_format(signal_data):
                 logger.warning("⚠️  Invalid signal format for manual trade")
@@ -447,7 +447,7 @@ class BybitIntegrationManager:
             if execution:
                 self.status.total_trades_executed += 1
                 self.status.last_trade_time = datetime.now()
-                logger.info(f"✅ Manual trade executed: {execution.symbol}")
+                logger.info("✅ Manual trade executed: {execution.symbol}")
             
             return execution
             

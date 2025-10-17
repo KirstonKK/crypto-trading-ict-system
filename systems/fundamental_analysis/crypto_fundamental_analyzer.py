@@ -573,42 +573,42 @@ class CryptoFundamentalAnalyzer:
     def print_analysis_report(self, analysis: FundamentalAnalysis):
         """Print detailed analysis report"""
         print("\n" + "="*80)
-        print(f"🚀 FUNDAMENTAL ANALYSIS REPORT - {analysis.symbol}")
+        print("🚀 FUNDAMENTAL ANALYSIS REPORT - {analysis.symbol}")
         print("="*80)
         
-        print(f"\n📊 OVERALL ASSESSMENT:")
-        print(f"   Score: {analysis.overall_score}/100")
-        print(f"   Recommendation: {analysis.recommendation}")
-        print(f"   Target Timeframe: {analysis.target_timeframe}")
-        print(f"   Confidence: {analysis.confidence:.1%}")
+        print("\n📊 OVERALL ASSESSMENT:")
+        print("   Score: {analysis.overall_score}/100")
+        print("   Recommendation: {analysis.recommendation}")
+        print("   Target Timeframe: {analysis.target_timeframe}")
+        print("   Confidence: {analysis.confidence:.1%}")
         
-        print(f"\n📉 SUPPLY ANALYSIS:")
-        print(f"   Inflation Rate: {analysis.supply_metrics.inflation_rate:.1f}% annually")
-        print(f"   Supply Growth: {analysis.supply_metrics.supply_growth_rate:.1f}%")
-        print(f"   Token Burns: {'✅ Yes' if analysis.supply_metrics.token_burns else '❌ No'}")
-        print(f"   Supply Score: {analysis.supply_metrics.supply_score}")
+        print("\n📉 SUPPLY ANALYSIS:")
+        print("   Inflation Rate: {analysis.supply_metrics.inflation_rate:.1f}% annually")
+        print("   Supply Growth: {analysis.supply_metrics.supply_growth_rate:.1f}%")
+        print("   Token Burns: {'✅ Yes' if analysis.supply_metrics.token_burns else '❌ No'}")
+        print("   Supply Score: {analysis.supply_metrics.supply_score}")
         
-        print(f"\n📈 DEMAND ANALYSIS:")
-        print(f"   Daily Active Users: {analysis.demand_metrics.daily_active_users:,}" if analysis.demand_metrics.daily_active_users else "   DAU: Not available")
-        print(f"   Total Value Locked: ${analysis.demand_metrics.total_value_locked/1_000_000_000:.1f}B" if analysis.demand_metrics.total_value_locked else "   TVL: Not available")
-        print(f"   24h Volume: ${analysis.demand_metrics.transaction_volume/1_000_000:.1f}M")
-        print(f"   Institutional Adoption: {'✅ Yes' if analysis.demand_metrics.institutional_adoption else '❌ No'}")
-        print(f"   Demand Score: {analysis.demand_metrics.demand_score}")
+        print("\n📈 DEMAND ANALYSIS:")
+        print("   Daily Active Users: {analysis.demand_metrics.daily_active_users:,}" if analysis.demand_metrics.daily_active_users else "   DAU: Not available")
+        print("   Total Value Locked: ${analysis.demand_metrics.total_value_locked/1_000_000_000:.1f}B" if analysis.demand_metrics.total_value_locked else "   TVL: Not available")
+        print("   24h Volume: ${analysis.demand_metrics.transaction_volume/1_000_000:.1f}M")
+        print("   Institutional Adoption: {'✅ Yes' if analysis.demand_metrics.institutional_adoption else '❌ No'}")
+        print("   Demand Score: {analysis.demand_metrics.demand_score}")
         
         if analysis.recent_news:
-            print(f"\n🗞️ RECENT NEWS IMPACT:")
+            print("\n🗞️ RECENT NEWS IMPACT:")
             for news in analysis.recent_news[:3]:
-                print(f"   • {news.title[:60]}...")
-                print(f"     Sentiment: {news.sentiment} | Impact: {news.impact_level}")
+                print("   • {news.title[:60]}...")
+                print("     Sentiment: {news.sentiment} | Impact: {news.impact_level}")
         
-        print(f"\n💡 ANALYSIS SUMMARY:")
+        print("\n💡 ANALYSIS SUMMARY:")
         if analysis.recommendation == "BUY":
-            print(f"   ✅ Strong fundamentals suggest {analysis.symbol} is a good {analysis.target_timeframe.lower()} hold")
-            print(f"   📈 High demand + controlled supply = positive price potential")
+            print("   ✅ Strong fundamentals suggest {analysis.symbol} is a good {analysis.target_timeframe.lower()} hold")
+            print("   📈 High demand + controlled supply = positive price potential")
         elif analysis.recommendation == "HOLD":
-            print(f"   ⚠️ Mixed signals - monitor closely for {analysis.target_timeframe.lower()}")
+            print("   ⚠️ Mixed signals - monitor closely for {analysis.target_timeframe.lower()}")
         else:
-            print(f"   ❌ Weak fundamentals - consider avoiding or short-term only")
+            print("   ❌ Weak fundamentals - consider avoiding or short-term only")
         
         print("="*80)
 
@@ -630,8 +630,8 @@ async def main():
         except Exception as e:
             logger.error(f"❌ Error analyzing {crypto}: {e}")
     
-    print(f"\n✅ Fundamental analysis complete!")
-    print(f"📊 Results saved to: {analyzer.db_path}")
+    print("\n✅ Fundamental analysis complete!")
+    print("📊 Results saved to: {analyzer.db_path}")
 
 if __name__ == "__main__":
     asyncio.run(main())

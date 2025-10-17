@@ -6,7 +6,7 @@ from datetime import date
 def find_missing_wins():
     """Find the missing winning trades that should contribute to daily PnL"""
     
-    conn = sqlite3.connect('databases/trading_data.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     print("🔍 SEARCHING FOR MISSING WINNING TRADES:")
@@ -26,7 +26,7 @@ def find_missing_wins():
         entry_price = win["entry_price"]
         expected_pnl = win["pnl"]
         
-        print(f"Looking for {symbol} trade @ ${entry_price} (expected PnL: +${expected_pnl})")
+        print("Looking for {symbol} trade @ ${entry_price} (expected PnL: +${expected_pnl})")
         
         # Search for trades close to this entry price
         cursor.execute("""
@@ -40,26 +40,26 @@ def find_missing_wins():
         matches = cursor.fetchall()
         
         if matches:
-            print(f"  Found {len(matches)} {symbol} trades:")
+            print("  Found {len(matches)} {symbol} trades:")
             for match in matches:
                 id_col, sym, status, entry_time, exit_time, realized_pnl, ep, exit_price = match
                 pnl_str = f"${realized_pnl:.2f}" if realized_pnl else "$0.00"
                 exit_date = exit_time[:10] if exit_time else "Not closed"
                 
-                print(f"    Trade {id_col}: {status} - Entry: ${ep:.2f} - PnL: {pnl_str}")
-                print(f"      Entry Date: {entry_time[:10]}")
-                print(f"      Exit Date: {exit_date}")
+                print("    Trade {id_col}: {status} - Entry: ${ep:.2f} - PnL: {pnl_str}")
+                print("      Entry Date: {entry_time[:10]}")
+                print("      Exit Date: {exit_date}")
                 
                 # Check if this matches our expected win
                 if realized_pnl and abs(realized_pnl - expected_pnl) < 0.1:
-                    print(f"      ✅ This matches the expected win!")
+                    print("      ✅ This matches the expected win!")
                     if exit_time and not exit_time.startswith(today):
-                        print(f"      ⚠️  But it was closed on {exit_date}, not today ({today})")
+                        print("      ⚠️  But it was closed on {exit_date}, not today ({today})")
                 elif realized_pnl and realized_pnl > 0:
-                    print(f"      ⚠️  This is a win but PnL doesn't match (expected ${expected_pnl})")
+                    print("      ⚠️  This is a win but PnL doesn't match (expected ${expected_pnl})")
                 print()
         else:
-            print(f"  ❌ No {symbol} trades found near ${entry_price}")
+            print("  ❌ No {symbol} trades found near ${entry_price}")
         
         print()
     
@@ -78,11 +78,11 @@ def find_missing_wins():
     wins = cursor.fetchall()
     
     if wins:
-        print(f"Found {len(wins)} recent winning trades:")
+        print("Found {len(wins)} recent winning trades:")
         for win in wins:
             id_col, symbol, status, entry_time, exit_time, realized_pnl, entry_price, exit_price = win
             exit_date = exit_time[:10] if exit_time else "Not closed"
-            print(f"  Trade {id_col}: {symbol} - ${realized_pnl:.2f} - Closed: {exit_date}")
+            print("  Trade {id_col}: {symbol} - ${realized_pnl:.2f} - Closed: {exit_date}")
     else:
         print("❌ No winning trades found in database!")
     

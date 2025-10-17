@@ -88,11 +88,11 @@ def main():
             # Generate sample OHLCV data
             dates = pd.date_range(start='2024-01-01', periods=100, freq='1H')
             data = pd.DataFrame({
-                'open': np.random.uniform(50000, 52000, 100),
-                'high': np.random.uniform(51000, 53000, 100),
-                'low': np.random.uniform(49000, 51000, 100),
-                'close': np.random.uniform(50000, 52000, 100),
-                'volume': np.random.uniform(100, 1000, 100)
+                'open': np.random.default_rng(42).uniform(50000, 52000, 100),
+                'high': np.random.default_rng(42).uniform(51000, 53000, 100),
+                'low': np.random.default_rng(42).uniform(49000, 51000, 100),
+                'close': np.random.default_rng(42).uniform(50000, 52000, 100),
+                'volume': np.random.default_rng(42).uniform(100, 1000, 100)
             }, index=dates)
             
             # Make high >= max(open, close) and low <= min(open, close)
@@ -147,7 +147,7 @@ def main():
             logger.error(f"❌ Performance tracking test failed: {e}")
             return
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                   ✅ ICT SYSTEM TEST RESULTS ✅                  ║
 ╠══════════════════════════════════════════════════════════════════╣

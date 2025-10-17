@@ -1200,7 +1200,7 @@ if __name__ == "__main__":
         'high': np.random.randn(len(dates)).cumsum() + 50200,
         'low': np.random.randn(len(dates)).cumsum() + 49800,
         'close': np.random.randn(len(dates)).cumsum() + 50000,
-        'volume': np.random.randint(100, 1000, len(dates))
+        'volume': np.random.default_rng(42).integers(100, 1000, len(dates))
     }, index=dates)
     
     # Ensure OHLC relationship
@@ -1212,7 +1212,7 @@ if __name__ == "__main__":
     analysis = analyzer.analyze_market_structure(sample_data, "BTC/USDT", "5T")
     
     # Display results
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                     ICT ANALYSIS RESULTS                        ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -1227,8 +1227,8 @@ if __name__ == "__main__":
     if analysis['ict_signals']:
         print("📈 ICT SIGNALS DETECTED:")
         for i, signal in enumerate(analysis['ict_signals'][:3], 1):
-            print(f"  {i}. {signal.direction} signal - {signal.confidence:.1%} confidence")
-            print(f"     Entry: ${signal.entry_price:.2f}, R:R = {signal.risk_reward_ratio:.1f}")
+            print("  {i}. {signal.direction} signal - {signal.confidence:.1%} confidence")
+            print("     Entry: ${signal.entry_price:.2f}, R:R = {signal.risk_reward_ratio:.1f}")
     else:
         print("🔍 No ICT signals detected in current market conditions")
     

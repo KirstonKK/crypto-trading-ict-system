@@ -6,7 +6,7 @@ from datetime import datetime
 def check_daily_pnl():
     try:
         # Connect to database
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Check today's closed trades
@@ -20,9 +20,9 @@ def check_daily_pnl():
         result = cursor.fetchone()
         closed_count, total_pnl = result
         
-        print(f"📊 Daily PnL Check for {today}:")
-        print(f"   Closed trades: {closed_count}")
-        print(f"   Total PnL: ${total_pnl if total_pnl else 0:.2f}")
+        print("📊 Daily PnL Check for {today}:")
+        print("   Closed trades: {closed_count}")
+        print("   Total PnL: ${total_pnl if total_pnl else 0:.2f}")
         
         # Also check all trades today
         cursor.execute("""
@@ -33,15 +33,15 @@ def check_daily_pnl():
         """, (f'{today}%',))
         
         all_trades = cursor.fetchall()
-        print(f"\n📋 All trades today ({len(all_trades)}):")
+        print("\n📋 All trades today ({len(all_trades)}):")
         for trade in all_trades:
             trade_id, symbol, status, entry_time, exit_time, realized_pnl = trade
-            print(f"   {trade_id}: {symbol} - {status} - PnL: ${realized_pnl if realized_pnl else 0:.2f}")
+            print("   {trade_id}: {symbol} - {status} - PnL: ${realized_pnl if realized_pnl else 0:.2f}")
         
         conn.close()
         
     except Exception as e:
-        print(f"❌ Error checking database: {e}")
+        print("❌ Error checking database: {e}")
 
 if __name__ == "__main__":
     check_daily_pnl()

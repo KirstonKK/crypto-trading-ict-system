@@ -14,7 +14,7 @@ def test_v5_auth():
     api_secret = 'G5H4wmVdDnDah4UMjxm7qZO9nlwfXWTPC0hh'
     
     print("🔍 Testing V5 API Authentication...")
-    print(f"API Key: {api_key}")
+    print("API Key: {api_key}")
     print()
     
     # Test different endpoints in order of complexity
@@ -40,7 +40,7 @@ def test_v5_auth():
     ]
     
     for endpoint in endpoints:
-        print(f"📡 Testing: {endpoint['name']}")
+        print("📡 Testing: {endpoint['name']}")
         
         timestamp = str(int(time.time() * 1000))
         recv_window = '5000'
@@ -71,9 +71,9 @@ def test_v5_auth():
             
             data = response.json()
             
-            print(f"   Status: {response.status_code}")
-            print(f"   RetCode: {data.get('retCode')}")
-            print(f"   Message: {data.get('retMsg')}")
+            print("   Status: {response.status_code}")
+            print("   RetCode: {data.get('retCode')}")
+            print("   Message: {data.get('retMsg')}")
             
             if data.get('retCode') == 0:
                 print("   ✅ SUCCESS!")
@@ -81,14 +81,14 @@ def test_v5_auth():
                 if isinstance(result, dict):
                     for key, value in result.items():
                         if key == 'list' and isinstance(value, list):
-                            print(f"     {key}: {len(value)} items")
+                            print("     {key}: {len(value)} items")
                         else:
-                            print(f"     {key}: {value}")
+                            print("     {key}: {value}")
             else:
                 print("   ❌ FAILED")
                 
         except Exception as e:
-            print(f"   ❌ ERROR: {e}")
+            print("   ❌ ERROR: {e}")
             
         print()
 

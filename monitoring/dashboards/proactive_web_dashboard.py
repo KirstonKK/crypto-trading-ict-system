@@ -156,12 +156,12 @@ class ProactiveCryptoMonitor:
 
     def is_market_hours(self):
         """Check if current time is within active trading hours"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         return self.active_hours['start'] <= current_hour <= self.active_hours['end']
         
     def get_trading_sessions_status(self):
         """Get current status of all trading sessions"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         sessions_status = {}
         
         for session_key, session_info in self.trading_sessions.items():
@@ -668,7 +668,7 @@ class ProactiveCryptoMonitor:
 
     def get_status(self):
         """Get current monitor status"""
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         market_status = "ACTIVE" if self.is_market_hours() else "CLOSED"
         
         return {

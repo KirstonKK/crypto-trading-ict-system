@@ -376,12 +376,12 @@ async def test_real_data_integration():
         # Test CoinGecko data
         print("\n📊 Testing CoinGecko Integration:")
         sol_supply = await integrator.get_real_supply_metrics('SOL')
-        print(f"   SOL Supply Data: {json.dumps(sol_supply, indent=2)}")
+        print("   SOL Supply Data: {json.dumps(sol_supply, indent=2)}")
         
         # Test demand metrics
         print("\n📈 Testing Demand Metrics:")
         sol_demand = await integrator.get_real_demand_metrics('SOL')
-        print(f"   SOL Demand Data: {json.dumps(sol_demand, indent=2)}")
+        print("   SOL Demand Data: {json.dumps(sol_demand, indent=2)}")
         
         # Test news analysis
         print("\n🗞️ Testing News Analysis:")
@@ -389,9 +389,9 @@ async def test_real_data_integration():
         analyzed_news = integrator.analyze_news_sentiment(news_articles[:3])
         
         for article in analyzed_news:
-            print(f"   📰 {article['title'][:50]}...")
-            print(f"      Sentiment: {article['sentiment']} | Impact: {article['impact_level']}")
-            print(f"      Cryptos: {article['crypto_mentioned']}")
+            print("   📰 {article['title'][:50]}...")
+            print("      Sentiment: {article['sentiment']} | Impact: {article['impact_level']}")
+            print("      Cryptos: {article['crypto_mentioned']}")
 
 if __name__ == "__main__":
     asyncio.run(test_real_data_integration())

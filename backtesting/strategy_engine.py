@@ -515,18 +515,18 @@ if __name__ == "__main__":
             'high': np.random.randn(len(dates)).cumsum() + 50100,
             'low': np.random.randn(len(dates)).cumsum() + 49900,
             'close': np.random.randn(len(dates)).cumsum() + 50000,
-            'volume': np.random.randint(100, 1000, len(dates))
+            'volume': np.random.default_rng(42).integers(100, 1000, len(dates))
         })
         sample_data.set_index('timestamp', inplace=True)
         
         # Test signal generation
         signals = engine.simulate_strategy("BTC/USDT", sample_data)
-        print(f"Generated {len(signals)} signals")
+        print("Generated {len(signals)} signals")
         
         # Test backtesting
         if signals:
             results = engine.backtest_signals(signals, sample_data)
-            print(f"Backtest results: {results['win_rate']:.1f}% win rate")
+            print("Backtest results: {results['win_rate']:.1f}% win rate")
         
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error: {e}")

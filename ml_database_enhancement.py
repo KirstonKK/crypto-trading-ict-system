@@ -388,7 +388,7 @@ def demonstrate_ml_data_collection():
     
     # Simulate a scan cycle
     scan_id = ml_db.start_scan('ROUTINE')
-    print(f"📊 Started scan #{scan_id}")
+    print("📊 Started scan #{scan_id}")
     
     symbols = ['BTC/USDT', 'ETH/USDT']
     timeframes = ['5m', '15m', '1h']
@@ -463,16 +463,16 @@ def demonstrate_ml_data_collection():
     # Complete scan
     ml_db.complete_scan(scan_id, signals_generated, 2500, quality_dist, symbols, timeframes)
     
-    print(f"✅ Completed scan with {signals_generated} signals")
-    print(f"📊 Quality distribution: {quality_dist}")
+    print("✅ Completed scan with {signals_generated} signals")
+    print("📊 Quality distribution: {quality_dist}")
     
     # Show data retrieval
     training_data = ml_db.get_ml_training_data(days=1)
     
-    print(f"\n📚 ML TRAINING DATA AVAILABLE:")
-    print(f"   🎯 Features records: {len(training_data['features'])}")
-    print(f"   ✅ Outcomes records: {len(training_data['outcomes'])}")
-    print(f"   🌊 Conditions records: {len(training_data['conditions'])}")
+    print("\n📚 ML TRAINING DATA AVAILABLE:")
+    print("   🎯 Features records: {len(training_data['features'])}")
+    print("   ✅ Outcomes records: {len(training_data['outcomes'])}")
+    print("   🌊 Conditions records: {len(training_data['conditions'])}")
     
     return ml_db
 
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     # Demonstrate the ML data collection
     ml_db = demonstrate_ml_data_collection()
     
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                      DATABASE POPULATED!                        ║
 ╠══════════════════════════════════════════════════════════════════╣

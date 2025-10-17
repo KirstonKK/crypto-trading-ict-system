@@ -1267,7 +1267,7 @@ if __name__ == "__main__":
             'high': [p * (1 + abs(np.random.normal(0, 0.01))) for p in prices[:-1]],
             'low': [p * (1 - abs(np.random.normal(0, 0.01))) for p in prices[:-1]],
             'close': prices[1:],
-            'volume': np.random.uniform(100, 1000, 999)
+            'volume': np.random.default_rng(42).uniform(100, 1000, 999)
         }, index=dates[1:])
         
         # Initialize detector
@@ -1277,7 +1277,7 @@ if __name__ == "__main__":
         liquidity_map = detector.detect_liquidity_zones(df, "BTC/USDT", "1h")
         
         # Print results
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                   LIQUIDITY MAP ANALYSIS                        ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -1302,18 +1302,18 @@ if __name__ == "__main__":
         # Show top liquidity zones
         print("\n🎯 Top Buy Side Liquidity Zones:")
         for i, zone in enumerate(liquidity_map.buy_side_liquidity[:5]):
-            print(f"   {i+1}. ${zone.exact_level:>10,.2f} ({zone.zone_type.value}) - {zone.quality.value} - {zone.state.value}")
+            print("   {i+1}. ${zone.exact_level:>10,.2f} ({zone.zone_type.value}) - {zone.quality.value} - {zone.state.value}")
         
         print("\n🎯 Top Sell Side Liquidity Zones:")
         for i, zone in enumerate(liquidity_map.sell_side_liquidity[:5]):
-            print(f"   {i+1}. ${zone.exact_level:>10,.2f} ({zone.zone_type.value}) - {zone.quality.value} - {zone.state.value}")
+            print("   {i+1}. ${zone.exact_level:>10,.2f} ({zone.zone_type.value}) - {zone.quality.value} - {zone.state.value}")
         
         if liquidity_map.next_target:
-            print(f"\n🎯 Next Liquidity Target: ${liquidity_map.next_target.exact_level:,.2f} ({liquidity_map.next_target.zone_type.value})")
+            print("\n🎯 Next Liquidity Target: ${liquidity_map.next_target.exact_level:,.2f} ({liquidity_map.next_target.zone_type.value})")
         
         # Get summary
         summary = detector.get_liquidity_summary("BTC/USDT", "1h")
-        print(f"\n📊 Liquidity Summary: {summary}")
+        print("\n📊 Liquidity Summary: {summary}")
         
         print("\n✅ Liquidity detector test completed!")
     

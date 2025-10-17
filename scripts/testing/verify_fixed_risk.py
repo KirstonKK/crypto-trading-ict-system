@@ -36,24 +36,24 @@ def verify_fixed_risk_implementation():
     for pattern in fixed_risk_patterns:
         matches = re.findall(pattern, code_content, re.IGNORECASE)
         if matches:
-            print(f"   ✓ Found: {pattern} ({len(matches)} occurrences)")
+            print("   ✓ Found: {pattern} ({len(matches)} occurrences)")
             fixed_found += len(matches)
         else:
-            print(f"   ✗ Missing: {pattern}")
+            print("   ✗ Missing: {pattern}")
     
-    print(f"\n❌ CHECKING FOR DYNAMIC RISK PATTERNS (should be 0):")
+    print("\n❌ CHECKING FOR DYNAMIC RISK PATTERNS (should be 0):")
     dynamic_found = 0
     for pattern in dynamic_risk_patterns:
         matches = re.findall(pattern, code_content, re.IGNORECASE)
         if matches:
-            print(f"   ⚠️ Found: {pattern} ({len(matches)} occurrences)")
+            print("   ⚠️ Found: {pattern} ({len(matches)} occurrences)")
             dynamic_found += len(matches)
         else:
-            print(f"   ✓ Not found: {pattern}")
+            print("   ✓ Not found: {pattern}")
     
-    print(f"\n📊 IMPLEMENTATION STATUS:")
-    print(f"   Fixed Risk Patterns Found: {fixed_found}")
-    print(f"   Dynamic Risk Patterns Found: {dynamic_found}")
+    print("\n📊 IMPLEMENTATION STATUS:")
+    print("   Fixed Risk Patterns Found: {fixed_found}")
+    print("   Dynamic Risk Patterns Found: {dynamic_found}")
     
     if fixed_found > 0 and dynamic_found == 0:
         print("   🎯 STATUS: ✅ SUCCESSFULLY REVERTED TO FIXED RISK")
@@ -63,7 +63,7 @@ def verify_fixed_risk_implementation():
         print("   🎯 STATUS: ⚠️ UNCLEAR - NEED TO VERIFY MANUALLY")
     
     # Check other optimizations are still present
-    print(f"\n🔍 VERIFYING OTHER OPTIMIZATIONS REMAIN:")
+    print("\n🔍 VERIFYING OTHER OPTIMIZATIONS REMAIN:")
     
     other_optimizations = [
         (r'confluence_score.*0\.65', 'High confluence threshold (0.65)'),
@@ -74,15 +74,15 @@ def verify_fixed_risk_implementation():
     for pattern, description in other_optimizations:
         matches = re.findall(pattern, code_content, re.IGNORECASE)
         if matches:
-            print(f"   ✓ {description}: Found ({len(matches)} occurrences)")
+            print("   ✓ {description}: Found ({len(matches)} occurrences)")
         else:
-            print(f"   ✗ {description}: Not found")
+            print("   ✗ {description}: Not found")
     
-    print(f"\n🎯 FINAL VERIFICATION:")
-    print(f"   ✅ Confluence Threshold: HIGH (0.65+)")
-    print(f"   ✅ Trend Filtering: ACTIVE")
-    print(f"   ✅ Risk Management: FIXED 1% PER TRADE")
-    print(f"   🎯 Result: PROFESSIONAL SYSTEMATIC APPROACH")
+    print("\n🎯 FINAL VERIFICATION:")
+    print("   ✅ Confluence Threshold: HIGH (0.65+)")
+    print("   ✅ Trend Filtering: ACTIVE")
+    print("   ✅ Risk Management: FIXED 1% PER TRADE")
+    print("   🎯 Result: PROFESSIONAL SYSTEMATIC APPROACH")
 
 if __name__ == "__main__":
     verify_fixed_risk_implementation()

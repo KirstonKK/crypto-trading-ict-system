@@ -72,7 +72,7 @@ def launch_trading_systems():
         return True
         
     except Exception as e:
-        print(f"❌ Launch error: {e}")
+        print("❌ Launch error: {e}")
         return False
 
 def main():
@@ -93,7 +93,7 @@ def main():
             current_time = datetime.now().strftime("%H:%M:%S")
             elapsed = int(time.time() - start_time)
             
-            print(f"🔍 Check #{check_count} at {current_time} ({elapsed}s elapsed)")
+            print("🔍 Check #{check_count} at {current_time} ({elapsed}s elapsed)")
             
             if test_api_key():
                 print("🎉 API KEY ACTIVATED!")
@@ -113,7 +113,7 @@ def main():
     except KeyboardInterrupt:
         print("\n⏹️  Monitoring stopped by user")
     except Exception as e:
-        print(f"\n❌ Monitor error: {e}")
+        print("\n❌ Monitor error: {e}")
 
 if __name__ == '__main__':
     main()

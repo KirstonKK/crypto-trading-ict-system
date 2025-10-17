@@ -7,7 +7,7 @@ print('🔍 CHECKING CURRENT DATABASE STATE')
 print('=' * 50)
 
 if os.path.exists('trading_data.db'):
-    with sqlite3.connect('databases/trading_data.db') as conn:
+    with sqlite3.connect(DATABASE_PATH) as conn:
         # Check all daily_stats records
         cursor = conn.execute('SELECT date, scan_count, signals_generated, paper_balance FROM daily_stats ORDER BY date')
         rows = cursor.fetchall()

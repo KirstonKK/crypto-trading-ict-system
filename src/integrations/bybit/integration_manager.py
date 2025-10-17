@@ -322,7 +322,7 @@ class BybitIntegrationManager:
                 if self.status.bybit_connected:
                     try:
                         await self.bybit_client.test_connection()
-                    except:
+                    except Exception:
                         self.status.bybit_connected = False
                         logger.warning("⚠️  Bybit connection lost")
                 
@@ -333,7 +333,7 @@ class BybitIntegrationManager:
                 if self.status.ict_monitor_connected:
                     try:
                         await self._test_ict_connection()
-                    except:
+                    except Exception:
                         pass  # Already logged in _test_ict_connection
                 
                 # Monitor trading executor

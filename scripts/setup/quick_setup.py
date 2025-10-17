@@ -42,7 +42,7 @@ def update_env_file(api_key, api_secret):
         return True
         
     except Exception as e:
-        print(f"❌ Error updating .env file: {e}")
+        print("❌ Error updating .env file: {e}")
         return False
 
 async def test_connection_and_setup(api_key, api_secret):
@@ -66,14 +66,14 @@ async def test_connection_and_setup(api_key, api_secret):
         
         # Check account info
         account_info = await client.get_account_info()
-        print(f"📋 Account Type: {account_info.get('accountType', 'Unknown')}")
+        print("📋 Account Type: {account_info.get('accountType', 'Unknown')}")
         
         # Check balance
         balance_info = await client.get_balance()
         usdt_balance = balance_info.get('USDT', 0)
         
         if usdt_balance > 0:
-            print(f"💰 Demo Balance: ${usdt_balance:,.2f} USDT")
+            print("💰 Demo Balance: ${usdt_balance:,.2f} USDT")
             print("🎉 Demo account ready for trading!")
         else:
             print("⏳ No demo funds yet - they may take a few minutes to appear")
@@ -83,7 +83,7 @@ async def test_connection_and_setup(api_key, api_secret):
         return True
         
     except Exception as e:
-        print(f"❌ Connection test failed: {e}")
+        print("❌ Connection test failed: {e}")
         return False
 
 def start_trading_systems():
@@ -102,8 +102,8 @@ def start_trading_systems():
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         print("✅ Both systems started!")
-        print(f"📊 ICT Monitor PID: {ict_process.pid}")
-        print(f"🏪 Demo Trading PID: {demo_process.pid}")
+        print("📊 ICT Monitor PID: {ict_process.pid}")
+        print("🏪 Demo Trading PID: {demo_process.pid}")
         print()
         print("🔗 MONITORING LINKS:")
         print("• ICT Monitor: http://localhost:5001")
@@ -112,7 +112,7 @@ def start_trading_systems():
         return True
         
     except Exception as e:
-        print(f"❌ Error starting systems: {e}")
+        print("❌ Error starting systems: {e}")
         return False
 
 async def main():

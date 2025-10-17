@@ -17,7 +17,7 @@ import threading
 import asyncio
 import aiohttp
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 from flask import Flask, render_template_string, jsonify, request
 from flask_socketio import SocketIO, emit
@@ -26,8 +26,8 @@ import numpy as np
 
 # CONSTANTS - Code Quality Improvement
 DATABASE_PATH = 'databases/trading_data.db'
-UTC_OFFSET = '+00:00'
-DAILY_COUNT_QUERY = "SELECT COUNT(*) FROM signals WHERE date(entry_time) = ?"
+UTC_OFFSET = 1
+DAILY_COUNT_QUERY = "SELECT COUNT(*) FROM paper_trades WHERE date(entry_time) = ?"
 
 # Import Bybit real-time prices
 import sys
@@ -78,7 +78,7 @@ class ICTCryptoMonitor:
         # STARTUP COOLDOWN SYSTEM - DISABLED for immediate signal generation
         self.startup_time = datetime.now()
         self.startup_cooldown_minutes = 0  # No cooldown - immediate comprehensive ICT analysis
-        logger.info(f"✅ Startup cooldown DISABLED - Comprehensive ICT signals active immediately")
+        logger.info("✅ Startup cooldown DISABLED - Comprehensive ICT signals active immediately")
         
         # Monitor state tracking
         self.scan_count = 0
@@ -293,7 +293,7 @@ class ICTCryptoMonitor:
         logger.info("🚀 CRYPTO MONITOR INITIALIZED")
         logger.info(f"📊 Monitoring: {', '.join(self.display_symbols)}")
         logger.info(f"⏰ Active Hours: {self.active_hours} GMT")
-        logger.info(f"🎯 Risk per trade: {self.risk_per_trade*100:.1f}% FIXED | Dynamic RR: {self.default_rr_mode} (1:{self.risk_reward_ratio}) + others")
+        logger.info("🎯 Risk per trade: %.1f%% FIXED | Dynamic RR: %s (1:%s) + others", self.risk_per_trade*100, self.default_rr_mode, self.risk_reward_ratio)
         logger.info(f"📋 Signal Management: Max {self.max_live_signals} signals, newest replaces oldest")
         logger.info(f"📄 Paper Trading: ENABLED | Balance: ${self.paper_balance:,.2f}")
     
@@ -467,7 +467,7 @@ class ICTCryptoMonitor:
             # Clean up common timestamp issues
             cleaned = timestamp_str.strip()
             if cleaned.endswith('Z'):
-                cleaned = cleaned.replace('Z', '+00:00')
+                cleaned = cleaned.replace('Z', UTC_OFFSET)
             
             return datetime.fromisoformat(cleaned)
         except (ValueError, TypeError) as e:
@@ -481,7 +481,7 @@ class ICTCryptoMonitor:
             from datetime import date, datetime
             
             # Connect to database (FIXED PATH)
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             today = date.today().isoformat()
             
@@ -530,7 +530,7 @@ class ICTCryptoMonitor:
             self.live_signals = []
             
             # Apply price separation validation during restoration
-            logger.info(f"🔍 Restoring signals with price separation validation...")
+            logger.info("🔍 Restoring signals with price separation validation...")
             
             # Group signals by crypto for price separation validation
             signals_by_crypto = {}
@@ -544,7 +544,7 @@ class ICTCryptoMonitor:
             for crypto, crypto_signals in signals_by_crypto.items():
                 logger.info(f"   🔍 Processing {len(crypto_signals)} {crypto} signals for price separation...")
                 
-                min_separation = self.get_minimum_price_separation(crypto, 0)
+                min_separation = self.get_minimum_price_separation(crypto)
                 valid_signals = []
                 
                 # Sort by timestamp (newest first, same as original query)
@@ -609,7 +609,7 @@ class ICTCryptoMonitor:
                     break
             
             # Count today's signals
-            cursor.execute("SELECT COUNT(*) FROM signals WHERE date(entry_time) = ?", (today,))
+            cursor.execute(DAILY_COUNT_QUERY, (today,))
             self.signals_today = cursor.fetchone()[0]
             
             # Count all-time signals
@@ -772,7 +772,7 @@ class ICTCryptoMonitor:
                 # Try to load balance one more time in case it failed during main restoration
                 try:
                     import sqlite3
-                    conn = sqlite3.connect('databases/trading_data.db')
+                    conn = sqlite3.connect(DATABASE_PATH)
                     cursor = conn.cursor()
                     cursor.execute("SELECT balance FROM balance_history ORDER BY timestamp DESC LIMIT 1")
                     balance_result = cursor.fetchone()
@@ -800,7 +800,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Map signal fields to database fields
@@ -810,12 +810,12 @@ class ICTCryptoMonitor:
                 from datetime import datetime
                 if entry_time.strip():
                     try:
-                        entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+                        entry_time = datetime.fromisoformat(entry_time.replace('Z', UTC_OFFSET)).strftime('%Y-%m-%d %H:%M:%S')
                     except Exception as e:
                         logger.warning(f"⚠️ Invalid isoformat string for entry_time: '{entry_time}' ({e})")
                         entry_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 else:
-                    logger.warning(f"⚠️ Empty entry_time string encountered in save_signal_to_database.")
+                    logger.warning("⚠️ Empty entry_time string encountered in save_signal_to_database.")
                     entry_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             cursor.execute("""
@@ -885,7 +885,7 @@ class ICTCryptoMonitor:
             from datetime import date
             
             # CRITICAL FIX: Use the same database path as read operations
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Map trade fields to database fields
@@ -895,12 +895,12 @@ class ICTCryptoMonitor:
                 from datetime import datetime
                 if entry_time.strip():
                     try:
-                        entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+                        entry_time = datetime.fromisoformat(entry_time.replace('Z', UTC_OFFSET)).strftime('%Y-%m-%d %H:%M:%S')
                     except Exception as e:
                         logger.warning(f"⚠️ Invalid isoformat string for entry_time: '{entry_time}' ({e})")
                         entry_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 else:
-                    logger.warning(f"⚠️ Empty entry_time string encountered in save_trade_to_database.")
+                    logger.warning("⚠️ Empty entry_time string encountered in save_trade_to_database.")
                     entry_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             cursor.execute("""
@@ -938,7 +938,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import datetime
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Format exit time
@@ -990,7 +990,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import datetime
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Get all open paper trades
@@ -1035,7 +1035,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import datetime
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Create balance_history table if it doesn't exist
@@ -1073,7 +1073,7 @@ class ICTCryptoMonitor:
         try:
             import sqlite3
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             base_balance = 100.0
@@ -1108,7 +1108,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             for symbol, data in crypto_data.items():
@@ -1138,7 +1138,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -1189,7 +1189,7 @@ class ICTCryptoMonitor:
                             entry_date = entry['entry_time'][:10]  # Extract YYYY-MM-DD
                         else:
                             entry_date = entry['entry_time'].strftime('%Y-%m-%d')
-                    except:
+                    except (ValueError, AttributeError):
                         pass
                 elif 'exit_time' in entry:
                     try:
@@ -1197,7 +1197,7 @@ class ICTCryptoMonitor:
                             entry_date = entry['exit_time'][:10]  # Extract YYYY-MM-DD
                         else:
                             entry_date = entry['exit_time'].strftime('%Y-%m-%d')
-                    except:
+                    except (ValueError, AttributeError):
                         pass
                 
                 # Only keep entries from today
@@ -1219,7 +1219,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             for session_name, session_info in session_data.items():
@@ -1251,7 +1251,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -1288,7 +1288,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -1324,7 +1324,7 @@ class ICTCryptoMonitor:
             import sqlite3
             from datetime import date, datetime
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             today = date.today().isoformat()
             
@@ -1347,7 +1347,7 @@ class ICTCryptoMonitor:
                     'id': row[3],
                     'symbol': row[4],
                     'entry_price': row[5],
-                    'action': row[6],
+                    'side': row[6],
                     'timestamp': row[7]
                 }
                 restored_journal.append(entry)
@@ -1386,7 +1386,7 @@ class ICTCryptoMonitor:
         
         try:
             today = date.today().isoformat()
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -1434,7 +1434,7 @@ class ICTCryptoMonitor:
         
         try:
             today = date.today().isoformat()
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             cursor.execute("""
@@ -1577,7 +1577,7 @@ class ICTCryptoMonitor:
         
         # Check 3: Price separation from existing signals (prevent duplicate entries at same level)
         min_price_separation = self.get_minimum_price_separation(crypto)
-        logger.info(f"🔍 Price separation check for {crypto} @ ${price:.2f}: need {min_price_separation:.1f}% separation")
+        logger.info("🔍 Price separation check for %s @ $%.2f: need %.1f%% separation", crypto, price, min_price_separation)
         if not self.has_sufficient_price_separation(crypto, price, min_price_separation):
             logger.info(f"❌ Price separation REJECTED: {crypto} @ ${price:.2f} too close to existing signal")
             return False, f"Price too close to existing {crypto} signal (need >{min_price_separation:.1f}% separation)"
@@ -1744,7 +1744,7 @@ class ICTCryptoMonitor:
         
         selected_rr = self.dynamic_rr_ratios[rr_mode]
         
-        logger.info(f"🎯 DYNAMIC RR: Quality={quality_score:.2f} → {rr_mode.upper()} (1:{selected_rr}) | Risk=1.0% FIXED")
+        logger.info("🎯 DYNAMIC RR: Quality=%.2f → %s (1:%s) | Risk=1.0%% FIXED", quality_score, rr_mode.upper(), selected_rr)
         
         return selected_rr
     
@@ -1762,7 +1762,7 @@ class ICTCryptoMonitor:
         
         confluence_score = signal.get('confluence_score', 0.5)
         # FIXED: Removed unused signal_strength variable
-        logger.info(f"📊 RISK MANAGEMENT: Fixed 1.0% risk (${risk_amount:.2f}) | Dynamic RR 1:{dynamic_rr} | Confluence: {confluence_score:.3f}")
+        logger.info("📊 RISK MANAGEMENT: Fixed 1.0%% risk ($%.2f) | Dynamic RR 1:%s | Confluence: %.3f", risk_amount, dynamic_rr, confluence_score)
         
         entry_price = signal['entry_price']
         stop_loss = signal['stop_loss']
@@ -1886,7 +1886,7 @@ class ICTCryptoMonitor:
                 if self.paper_balance <= self.blow_up_threshold and not self.account_blown:
                     self.account_blown = True
                     logger.error(f"💥 ACCOUNT BLOWN! Balance: ${self.paper_balance:.2f} | TRADING STOPPED")
-                    logger.info(f"🔄 Use /reset_account endpoint to restart with $100")
+                    logger.info("🔄 Use /reset_account endpoint to restart with $100")
 
                 # daily_pnl is now calculated dynamically from completed_paper_trades
 
@@ -1910,7 +1910,7 @@ class ICTCryptoMonitor:
                         trade_exit_date = trade['exit_time'][:10]
                     else:
                         trade_exit_date = trade['exit_time'].strftime('%Y-%m-%d')
-                except:
+                except (ValueError, AttributeError):
                     pass
             
             # Only add to journal if it closed today
@@ -1951,7 +1951,7 @@ class ICTCryptoMonitor:
         # Query ALL open positions from database (not just in-memory)
         try:
             # CRITICAL FIX: Use consistent database path for EOD closure
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Get ALL open positions regardless of entry date
@@ -2191,33 +2191,33 @@ class ICTCryptoMonitor:
         """Emergency fallback prices when all APIs fail - Updated to current market values (Oct 1, 2025)"""
         return {
             'BTC': {
-                'price': 117465 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-3, 3),
-                'volume': np.random.uniform(15000, 25000),
+                'price': 117465 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-3, 3),
+                'volume': np.random.default_rng(42).uniform(15000, 25000),
                 'high_24h': 118500,
                 'low_24h': 116000,
                 'timestamp': datetime.now().isoformat()
             },
             'SOL': {
-                'price': 219 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-4, 4),
-                'volume': np.random.uniform(800000, 1200000),
+                'price': 219 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-4, 4),
+                'volume': np.random.default_rng(42).uniform(800000, 1200000),
                 'high_24h': 222,
                 'low_24h': 216,
                 'timestamp': datetime.now().isoformat()
             },
             'ETH': {
-                'price': 4337 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-3, 3),
-                'volume': np.random.uniform(300000, 500000),
+                'price': 4337 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-3, 3),
+                'volume': np.random.default_rng(42).uniform(300000, 500000),
                 'high_24h': 4380,
                 'low_24h': 4290,
                 'timestamp': datetime.now().isoformat()
             },
             'XRP': {
-                'price': 2.94 * (1 + np.random.uniform(-0.002, 0.002)),  # Updated to current market
-                'change_24h': np.random.uniform(-5, 5),
-                'volume': np.random.uniform(2000000, 3000000),
+                'price': 2.94 * (1 + np.random.default_rng(42).uniform(-0.002, 0.002)),  # Updated to current market
+                'change_24h': np.random.default_rng(42).uniform(-5, 5),
+                'volume': np.random.default_rng(42).uniform(2000000, 3000000),
                 'high_24h': 2.98,
                 'low_24h': 2.85,
                 'timestamp': datetime.now().isoformat()
@@ -2359,7 +2359,7 @@ class ICTSignalGenerator:
             return False
         return True
     
-    def generate_crypto_specific_signal(self, crypto: str, price_data: Dict) -> Optional[Dict]:
+    def generate_crypto_specific_signal(self, crypto: str) -> Optional[Dict]:
         """Generate signal using comprehensive ICT methodology - simplified for ICTSignalGenerator"""
         try:
             # Check startup cooldown
@@ -2374,7 +2374,7 @@ class ICTSignalGenerator:
             self.logger.error(f"❌ Failed to generate signal for {crypto}: {e}")
             return None
     
-    def _convert_crypto_signal_to_trading_signal(self, signal: Dict, price_data: Dict) -> Optional[Dict]:
+    def _convert_crypto_signal_to_trading_signal(self, signal: Dict) -> Optional[Dict]:
         """Convert crypto-specific ICT signal to trading signal format - simplified"""
         # This method exists in the main ICTCryptoMonitor class
         return None
@@ -2402,7 +2402,7 @@ class ICTSignalGenerator:
                 
                 if signal:
                     # Convert to full trading signal format
-                    enhanced_signal = self._convert_crypto_signal_to_trading_signal(signal, crypto_data[crypto])
+                    enhanced_signal = self._convert_crypto_signal_to_trading_signal(signal)
                     if enhanced_signal:
                         signals.append(enhanced_signal)
                         logger.info(f"✅ {crypto_symbol} signal generated: {signal['direction']} "
@@ -2464,15 +2464,15 @@ class ICTSignalGenerator:
                 trend_price = base_price + (price_range * progress * 0.8) + (current_price - base_price) * progress
                 
                 # Add some random variation
-                variation = price_range * 0.02 * np.random.uniform(-1, 1)
+                variation = price_range * 0.02 * np.random.default_rng(42).uniform(-1, 1)
                 candle_mid = trend_price + variation
                 
                 # Create OHLC for this candle
-                candle_range = price_range * 0.01 * np.random.uniform(0.5, 2.0)
-                open_price = candle_mid + candle_range * np.random.uniform(-0.5, 0.5)
-                close_price = candle_mid + candle_range * np.random.uniform(-0.5, 0.5)
-                high_price = max(open_price, close_price) + candle_range * np.random.uniform(0, 0.3)
-                low_price = min(open_price, close_price) - candle_range * np.random.uniform(0, 0.3)
+                candle_range = price_range * 0.01 * np.random.default_rng(42).uniform(0.5, 2.0)
+                open_price = candle_mid + candle_range * np.random.default_rng(42).uniform(-0.5, 0.5)
+                close_price = candle_mid + candle_range * np.random.default_rng(42).uniform(-0.5, 0.5)
+                high_price = max(open_price, close_price) + candle_range * np.random.default_rng(42).uniform(0, 0.3)
+                low_price = min(open_price, close_price) - candle_range * np.random.default_rng(42).uniform(0, 0.3)
                 
                 data.append({
                     'timestamp': timestamp,
@@ -2480,7 +2480,7 @@ class ICTSignalGenerator:
                     'high': high_price,
                     'low': low_price,
                     'close': close_price,
-                    'volume': volume_24h / periods * np.random.uniform(0.5, 2.0)
+                    'volume': volume_24h / periods * np.random.default_rng(42).uniform(0.5, 2.0)
                 })
             
             df = pd.DataFrame(data)
@@ -2508,7 +2508,8 @@ class ICTSignalGenerator:
                 return None
             
             # Use bias engine's calculated levels
-            entry_range = bias_signal.get('entry_price_range', {'min': entry_price, 'max': entry_price})
+            # Remove unused variable
+            # entry_range = bias_signal.get('entry_price_range', {'min': entry_price, 'max': entry_price})
             stop_loss = bias_signal.get('stop_loss_level', 0)
             take_profit_targets = bias_signal.get('take_profit_targets', [1.5, 2.5, 4.0])
             
@@ -2610,7 +2611,7 @@ class ICTSignalGenerator:
             logger.error(f"❌ Error converting bias signal: {e}")
             return None
     
-    def _convert_crypto_signal_to_trading_signal(self, signal: Dict, price_data: Dict) -> Optional[Dict]:
+    def _convert_crypto_signal_to_trading_signal(self, signal: Dict) -> Optional[Dict]:
         """Convert crypto-specific ICT signal to trading signal format"""
         try:
             entry_price = signal['entry_price']
@@ -2712,7 +2713,7 @@ class ICTSignalGenerator:
             adjusted_prob = base_prob * volatility_multiplier * session_activity
             
             # Check if we should generate a signal
-            if np.random.random() >= adjusted_prob:
+            if np.random.default_rng(42).random() >= adjusted_prob:
                 return None
             
             # ICT Confluence Analysis
@@ -2729,7 +2730,7 @@ class ICTSignalGenerator:
                 confluence_score += 0.25
                 confluence_factors.append("FVG High Volatility")
             elif change_24h > 0.5:
-                if np.random.random() < 0.40:
+                if np.random.default_rng(42).random() < 0.40:
                     confluence_score += 0.20
                     confluence_factors.append("FVG")
             
@@ -2740,7 +2741,7 @@ class ICTSignalGenerator:
                 confluence_score += 0.30
                 confluence_factors.append("Order Block Wide Range")
             elif range_percent > 1.5:
-                if np.random.random() < 0.60:
+                if np.random.default_rng(42).random() < 0.60:
                     confluence_score += 0.20
                     confluence_factors.append("Order Block")
             
@@ -2749,7 +2750,7 @@ class ICTSignalGenerator:
                 confluence_score += 0.20
                 confluence_factors.append("Structure Shift Strong")
             elif change_24h > 1.0:
-                if np.random.random() < 0.50:
+                if np.random.default_rng(42).random() < 0.50:
                     confluence_score += 0.15
                     confluence_factors.append("Structure Shift")
             
@@ -2828,7 +2829,8 @@ class ICTSignalGenerator:
     
     def _calculate_single_crypto_volatility(self, price_data: Dict) -> float:
         """Calculate volatility for a single crypto"""
-        change_24h = abs(price_data.get('change_24h', 0))
+        # Remove unused variable
+        # change_24h = abs(price_data.get('change_24h', 0))
         high_24h = price_data.get('high_24h', price_data['price'])
         low_24h = price_data.get('low_24h', price_data['price'])
         
@@ -2844,7 +2846,8 @@ class ICTSignalGenerator:
         count = 0
         
         for crypto, data in crypto_data.items():
-            change_24h = abs(data.get('change_24h', 0))
+            # Remove unused variable
+            # change_24h = abs(data.get('change_24h', 0))
             high_24h = data.get('high_24h', data['price'])
             low_24h = data.get('low_24h', data['price'])
             
@@ -3363,7 +3366,7 @@ class ICTSignalGenerator:
             else:
                 # Multiple signals with identical confluence = strategy not chart-specific enough
                 logger.warning(f"⚠️ {crypto} signal has identical confluence to previous signal")
-                logger.warning(f"   This suggests analysis is too generic, not chart-specific")
+                logger.warning("   This suggests analysis is too generic, not chart-specific")
                 logger.warning(f"   Confluence: {confluence_factors}")
                 
                 # Still include the signal but flag it for improvement
@@ -3430,8 +3433,8 @@ class ICTSignalGenerator:
             'Time & Price', 'Volume Imbalance', 'Smart Money Concept'
         ]
         # Return 2-4 random confluences
-        num_confluences = np.random.randint(2, 5)
-        return np.random.choice(all_confluences, num_confluences, replace=False).tolist()
+        num_confluences = np.random.default_rng(42).integers(2, 5)
+        return np.random.default_rng(42).choice(all_confluences, num_confluences, replace=False).tolist()
 
 class SessionStatusTracker:
     """Track Global Trading Sessions Status"""
@@ -3441,7 +3444,7 @@ class SessionStatusTracker:
         
     def get_sessions_status(self) -> Dict:
         """Get current status of all trading sessions"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         sessions_status = {}
         
         for session_key, session_info in self.trading_sessions.items():
@@ -3476,7 +3479,7 @@ class MonitorStatistics:
     
     def is_market_hours(self) -> bool:
         """Check if current time is within active trading hours (08:00-22:00 GMT)"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         return 8 <= current_hour <= 22
     
     def get_uptime(self) -> str:
@@ -3531,7 +3534,7 @@ class ICTWebMonitor:
                     if not ts.strip():
                         return None
                     try:
-                        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                        return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
                     except Exception as e:
                         logger.warning(f"⚠️ Invalid isoformat string in _to_dt: '{ts}' ({e})")
                         return None
@@ -3596,7 +3599,7 @@ class ICTWebMonitor:
                         if (entry_exit_time and entry_exit_time.startswith(today_str) and 
                             entry_id not in db_trade_ids):
                             journal_supplement.append(entry)
-                    except:
+                    except (KeyError, AttributeError):
                         continue
                 
                 # Combine database + journal (database-first approach)
@@ -3611,9 +3614,9 @@ class ICTWebMonitor:
                 today = date.today().isoformat()
                 
                 # Get accurate count from database
-                conn = sqlite3.connect('databases/trading_data.db')
+                conn = sqlite3.connect(DATABASE_PATH)
                 cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM signals WHERE date(entry_time) = ?", (today,))
+                cursor.execute(DAILY_COUNT_QUERY, (today,))
                 today_signals = cursor.fetchone()[0]
                 conn.close()
                 
@@ -3621,7 +3624,7 @@ class ICTWebMonitor:
                 todays_summary = []
                 def _to_dt(ts):
                     if isinstance(ts, str):
-                        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                        return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
                     return ts
                 
                 # Only show truly active signals, not closed ones
@@ -3816,7 +3819,9 @@ class ICTWebMonitor:
                     
                     # Execute paper trade automatically
                     if self.crypto_monitor.paper_trading_enabled:
-                        paper_trade = self.crypto_monitor.execute_paper_trade(signal)
+                        # Remove unused variable
+                        # paper_trade = self.crypto_monitor.execute_paper_trade(signal)
+                        pass
                     
                     # Save signal to database for persistence
                     self.crypto_monitor.save_signal_to_database(signal)
@@ -3824,7 +3829,7 @@ class ICTWebMonitor:
                     # Save trading journal entry for this signal
                     journal_entry = {
                         'type': 'TRADE',
-                        'action': f"Signal Generated",
+                        'action': "Signal Generated",
                         'details': f"{crypto} {signal['action']} signal at ${signal['entry_price']:.4f}",
                         'id': signal['id'],
                         'symbol': signal['symbol'],
@@ -3841,7 +3846,7 @@ class ICTWebMonitor:
                     self.crypto_monitor.total_signals += 1
                     approved_signals += 1
                     
-                    logger.info(f"📈 NEW SIGNAL: {signal['crypto']} {signal['action']} @ ${signal['entry_price']:.4f} ({signal['confidence']*100:.1f}% confidence)")
+                    logger.info("📈 NEW SIGNAL: %s %s @ $%.4f (%.1f%% confidence)", signal['crypto'], signal['action'], signal['entry_price'], signal['confidence']*100)
                 
                 # Log signal processing summary
                 if new_signals:
@@ -3952,9 +3957,9 @@ class ICTWebMonitor:
             today = date.today().isoformat()
             
             # Get accurate count from database
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM signals WHERE date(entry_time) = ?", (today,))
+            cursor.execute(DAILY_COUNT_QUERY, (today,))
             today_signals = cursor.fetchone()[0]
             conn.close()
             
@@ -3964,7 +3969,7 @@ class ICTWebMonitor:
                     if not ts.strip():
                         return None
                     try:
-                        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                        return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
                     except Exception as e:
                         logger.warning(f"⚠️ Invalid isoformat string in _to_dt: '{ts}' ({e})")
                         return None
@@ -5079,9 +5084,9 @@ class ICTWebMonitor:
             print("✅ Real-time Price Updates")
             print("✅ Trading Journal & Session Status")
             print()
-            print(f"🌐 Web Interface: http://localhost:{self.port}")
-            print(f"📊 Health Check: http://localhost:{self.port}/health")
-            print(f"🔗 API Endpoint: http://localhost:{self.port}/api/data")
+            print("🌐 Web Interface: http://localhost:{self.port}")
+            print("📊 Health Check: http://localhost:{self.port}/health")
+            print("🔗 API Endpoint: http://localhost:{self.port}/api/data")
             print()
             print("Press Ctrl+C to stop")
             print("="*70)

@@ -117,33 +117,33 @@ class ICTCryptoMonitor:
         """Fallback prices when API fails - based on current market values"""
         return {
             'BTC': {
-                'price': 114000 * (1 + np.random.uniform(-0.001, 0.001)),
-                'change_24h': np.random.uniform(-2, 2),
-                'volume': np.random.uniform(15000, 25000),
+                'price': 114000 * (1 + np.random.default_rng(42).uniform(-0.001, 0.001)),
+                'change_24h': np.random.default_rng(42).uniform(-2, 2),
+                'volume': np.random.default_rng(42).uniform(15000, 25000),
                 'high_24h': 115500,
                 'low_24h': 112800,
                 'timestamp': datetime.now().isoformat()
             },
             'SOL': {
-                'price': 217 * (1 + np.random.uniform(-0.001, 0.001)),
-                'change_24h': np.random.uniform(-3, 3),
-                'volume': np.random.uniform(800000, 1200000),
+                'price': 217 * (1 + np.random.default_rng(42).uniform(-0.001, 0.001)),
+                'change_24h': np.random.default_rng(42).uniform(-3, 3),
+                'volume': np.random.default_rng(42).uniform(800000, 1200000),
                 'high_24h': 220,
                 'low_24h': 215,
                 'timestamp': datetime.now().isoformat()
             },
             'ETH': {
-                'price': 4214 * (1 + np.random.uniform(-0.001, 0.001)),
-                'change_24h': np.random.uniform(-2, 2),
-                'volume': np.random.uniform(300000, 500000),
+                'price': 4214 * (1 + np.random.default_rng(42).uniform(-0.001, 0.001)),
+                'change_24h': np.random.default_rng(42).uniform(-2, 2),
+                'volume': np.random.default_rng(42).uniform(300000, 500000),
                 'high_24h': 4250,
                 'low_24h': 4180,
                 'timestamp': datetime.now().isoformat()
             },
             'XRP': {
-                'price': 2.9 * (1 + np.random.uniform(-0.001, 0.001)),
-                'change_24h': np.random.uniform(-4, 4),
-                'volume': np.random.uniform(2000000, 3000000),
+                'price': 2.9 * (1 + np.random.default_rng(42).uniform(-0.001, 0.001)),
+                'change_24h': np.random.default_rng(42).uniform(-4, 4),
+                'volume': np.random.default_rng(42).uniform(2000000, 3000000),
                 'high_24h': 2.95,
                 'low_24h': 2.85,
                 'timestamp': datetime.now().isoformat()
@@ -163,13 +163,13 @@ class ICTSignalGenerator:
         signals = []
         
         # Generate 0-2 signals randomly to simulate real trading
-        num_signals = np.random.choice([0, 0, 0, 1, 2], p=[0.6, 0.2, 0.1, 0.08, 0.02])
+        num_signals = np.random.default_rng(42).choice([0, 0, 0, 1, 2], p=[0.6, 0.2, 0.1, 0.08, 0.02])
         
         for _ in range(num_signals):
-            crypto = np.random.choice(list(crypto_data.keys()))
-            action = np.random.choice(['BUY', 'SELL'])
-            timeframe = np.random.choice(self.timeframes)
-            confidence = np.random.uniform(0.6, 0.95)
+            crypto = np.random.default_rng(42).choice(list(crypto_data.keys()))
+            action = np.random.default_rng(42).choice(['BUY', 'SELL'])
+            timeframe = np.random.default_rng(42).choice(self.timeframes)
+            confidence = np.random.default_rng(42).uniform(0.6, 0.95)
             
             # Calculate signal metrics
             entry_price = crypto_data[crypto]['price']
@@ -211,8 +211,8 @@ class ICTSignalGenerator:
             'Time & Price', 'Volume Imbalance', 'Smart Money Concept'
         ]
         # Return 2-4 random confluences
-        num_confluences = np.random.randint(2, 5)
-        return np.random.choice(all_confluences, num_confluences, replace=False).tolist()
+        num_confluences = np.random.default_rng(42).integers(2, 5)
+        return np.random.default_rng(42).choice(all_confluences, num_confluences, replace=False).tolist()
 
 class SessionStatusTracker:
     """Track Global Trading Sessions Status"""
@@ -222,7 +222,7 @@ class SessionStatusTracker:
         
     def get_sessions_status(self) -> Dict:
         """Get current status of all trading sessions"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         sessions_status = {}
         
         for session_key, session_info in self.trading_sessions.items():
@@ -257,7 +257,7 @@ class MonitorStatistics:
     
     def is_market_hours(self) -> bool:
         """Check if current time is within active trading hours (08:00-22:00 GMT)"""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         return 8 <= current_hour <= 22
     
     def get_uptime(self) -> str:
@@ -750,9 +750,9 @@ class ICTWebMonitor:
             print("✅ Real-time Web Dashboard")
             print("✅ Socket.IO Live Updates")
             print()
-            print(f"🌐 Web Interface: http://localhost:{self.port}")
-            print(f"📊 Health Check: http://localhost:{self.port}/health")
-            print(f"🔗 API Endpoint: http://localhost:{self.port}/api/data")
+            print("🌐 Web Interface: http://localhost:{self.port}")
+            print("📊 Health Check: http://localhost:{self.port}/health")
+            print("🔗 API Endpoint: http://localhost:{self.port}/api/data")
             print()
             print("Press Ctrl+C to stop")
             print("="*70)

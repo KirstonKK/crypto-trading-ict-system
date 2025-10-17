@@ -933,7 +933,7 @@ if __name__ == "__main__":
         print("📊 Analyzing BTC/USDT hierarchy...")
         analysis = await hierarchy.analyze_symbol_hierarchy("BTC/USDT")
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                  ICT HIERARCHY ANALYSIS RESULTS                 ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -952,19 +952,19 @@ if __name__ == "__main__":
         
         # Show individual timeframe results
         print("🕐 Individual Timeframe Analysis:")
-        print(f"  4H Bias:      {analysis.bias_analysis.trend_direction.value} ({analysis.bias_analysis.trend_strength:.2f})")
-        print(f"  5M Setup:     {len(analysis.setup_analysis.order_blocks)} OBs, {analysis.setup_analysis.signal_count} signals")
-        print(f"  1M Execution: {analysis.execution_analysis.confluence_score:.2f} timing score")
+        print("  4H Bias:      {analysis.bias_analysis.trend_direction.value} ({analysis.bias_analysis.trend_strength:.2f})")
+        print("  5M Setup:     {len(analysis.setup_analysis.order_blocks)} OBs, {analysis.setup_analysis.signal_count} signals")
+        print("  1M Execution: {analysis.execution_analysis.confluence_score:.2f} timing score")
         
         if analysis.execution_signals:
-            print(f"\n📡 Execution Signals:")
+            print("\n📡 Execution Signals:")
             for i, signal in enumerate(analysis.execution_signals[:3], 1):
-                print(f"  {i}. {signal.direction} - {signal.confidence:.1%} confidence")
-                print(f"     Entry: ${signal.entry_price:.2f}, R:R = {signal.risk_reward_ratio:.1f}")
+                print("  {i}. {signal.direction} - {signal.confidence:.1%} confidence")
+                print("     Entry: ${signal.entry_price:.2f}, R:R = {signal.risk_reward_ratio:.1f}")
         
         # Get trading summary
         summary = await hierarchy.get_trading_summary("BTC/USDT")
-        print(f"\n🎯 Trading Recommendation: {summary['trading_recommendation']}")
+        print("\n🎯 Trading Recommendation: {summary['trading_recommendation']}")
         
         print("✅ ICT Hierarchy test completed!")
     

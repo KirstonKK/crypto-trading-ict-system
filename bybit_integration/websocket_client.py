@@ -124,7 +124,7 @@ class BybitWebSocketClient:
         self.max_reconnect_attempts = 10
         self.ping_interval = 20
         
-        logger.info(f"📡 Bybit WebSocket client initialized - {'Testnet' if testnet else 'Mainnet'}")
+        logger.info("📡 Bybit WebSocket client initialized - {'Testnet' if testnet else 'Mainnet'}")
 
     def _generate_auth_signature(self, expires: str) -> str:
         """Generate authentication signature"""
@@ -440,7 +440,7 @@ class BybitWebSocketClient:
                 "args": public_subs
             }
             await websocket.send(json.dumps(subscribe_message))
-            logger.info(f"📡 Subscribed to public topics: {public_subs}")
+            logger.info("📡 Subscribed to public topics: {public_subs}")
 
     async def _send_private_subscriptions(self, websocket):
         """Send private subscription requests"""
@@ -457,7 +457,7 @@ class BybitWebSocketClient:
                 "args": private_subs
             }
             await websocket.send(json.dumps(subscribe_message))
-            logger.info(f"🔒 Subscribed to private topics: {private_subs}")
+            logger.info("🔒 Subscribed to private topics: {private_subs}")
 
     # Public API Methods
     def subscribe_ticker(self, symbol: str, callback: Callable = None):
@@ -468,7 +468,7 @@ class BybitWebSocketClient:
         if callback:
             self.callbacks[SubscriptionType.TICKER].append(callback)
             
-        logger.info(f"📊 Subscribed to ticker: {symbol}")
+        logger.info("📊 Subscribed to ticker: {symbol}")
 
     def subscribe_trades(self, symbol: str, callback: Callable = None):
         """Subscribe to public trades for a symbol"""
@@ -478,7 +478,7 @@ class BybitWebSocketClient:
         if callback:
             self.callbacks[SubscriptionType.TRADE].append(callback)
             
-        logger.info(f"💱 Subscribed to trades: {symbol}")
+        logger.info("💱 Subscribed to trades: {symbol}")
 
     def subscribe_orders(self, callback: Callable = None):
         """Subscribe to order updates"""

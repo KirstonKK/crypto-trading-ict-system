@@ -637,7 +637,7 @@ class LiveTradingEngine:
             for order_id in position.orders:
                 try:
                     self.exchange.cancel_order(order_id, position.symbol)
-                except:
+                except Exception:
                     pass
             
             # Create emergency close order
@@ -786,7 +786,7 @@ if __name__ == "__main__":
             print("Trading engine initialized successfully")
             
         except Exception as e:
-            print(f"Error: {e}")
+            print("Error: {e}")
     
     # Run test
     asyncio.run(main())

@@ -965,7 +965,7 @@ if __name__ == "__main__":
                 close1 = current_price - 100
                 high1 = open1 + 20
                 low1 = close1 - 30
-                vol1 = np.random.randint(800, 1200)
+                vol1 = np.random.default_rng(42).integers(800, 1200)
                 
                 price_data.append({
                     'open': open1, 'high': high1, 'low': low1, 'close': close1, 'volume': vol1
@@ -977,7 +977,7 @@ if __name__ == "__main__":
                     close2 = open2 + 200  # Strong bullish
                     high2 = close2 + 50
                     low2 = open2 - 20
-                    vol2 = np.random.randint(2000, 4000)  # High volume
+                    vol2 = np.random.default_rng(42).integers(2000, 4000)  # High volume
                     
                     price_data.append({
                         'open': open2, 'high': high2, 'low': low2, 'close': close2, 'volume': vol2
@@ -990,7 +990,7 @@ if __name__ == "__main__":
                         close3 = open3 + 100
                         high3 = close3 + 30
                         low3 = open3 - 10
-                        vol3 = np.random.randint(1200, 1800)
+                        vol3 = np.random.default_rng(42).integers(1200, 1800)
                         
                         price_data.append({
                             'open': open3, 'high': high3, 'low': low3, 'close': close3, 'volume': vol3
@@ -1008,7 +1008,7 @@ if __name__ == "__main__":
             close_price = current_price + np.random.randn() * 50
             high_price = max(open_price, close_price) + abs(np.random.randn()) * 25
             low_price = min(open_price, close_price) - abs(np.random.randn()) * 25
-            volume = np.random.randint(600, 1400)
+            volume = np.random.default_rng(42).integers(600, 1400)
             
             price_data.append({
                 'open': open_price,
@@ -1038,7 +1038,7 @@ if __name__ == "__main__":
         # Get summary
         summary = detector.get_fvg_summary(fair_value_gaps)
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                 FAIR VALUE GAP DETECTION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -1060,11 +1060,11 @@ if __name__ == "__main__":
             print("🎯 TOP FAIR VALUE GAPS:")
             for i, fvg in enumerate(fair_value_gaps[:3], 1):
                 fvg_direction = "BULLISH" if fvg.fvg_type == FVGType.BULLISH_FVG else "BEARISH"
-                print(f"  {i}. {fvg_direction} FVG - {fvg.quality.value} quality ({fvg.strength_score:.2f})")
-                print(f"     Gap: ${fvg.gap_low:.2f} - ${fvg.gap_high:.2f} ({fvg.gap_percentage*100:.3f}%)")
-                print(f"     State: {fvg.state.value}, Fill: {fvg.fill_percentage:.1f}%")
-                print(f"     Entry: ${fvg.optimal_entry:.2f}, R:R = {fvg.risk_reward_ratio:.1f}")
-                print(f"     Confluence: {', '.join(fvg.confluence_factors[:2])}")
+                print("  {i}. {fvg_direction} FVG - {fvg.quality.value} quality ({fvg.strength_score:.2f})")
+                print("     Gap: ${fvg.gap_low:.2f} - ${fvg.gap_high:.2f} ({fvg.gap_percentage*100:.3f}%)")
+                print("     State: {fvg.state.value}, Fill: {fvg.fill_percentage:.1f}%")
+                print("     Entry: ${fvg.optimal_entry:.2f}, R:R = {fvg.risk_reward_ratio:.1f}")
+                print("     Confluence: {', '.join(fvg.confluence_factors[:2])}")
                 print()
         
         print("✅ Fair Value Gap Detection test completed!")

@@ -15,13 +15,13 @@ def test_eod_closure():
     print("=" * 60)
     
     # Check current open positions
-    conn = sqlite3.connect('databases/trading_data.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT COUNT(*) FROM paper_trades WHERE status = 'OPEN'")
     open_count = cursor.fetchone()[0]
     
-    print(f"📊 Current Open Positions: {open_count}")
+    print("📊 Current Open Positions: {open_count}")
     
     if open_count == 0:
         print("✅ No open positions to close")
@@ -34,11 +34,11 @@ def test_eod_closure():
         data = response.json()
         current_balance = data.get('paper_balance', 0)
         
-        print(f"💰 Current Balance: ${current_balance:.2f}")
-        print(f"📈 Today's PnL: ${data.get('daily_pnl', 0):.2f}")
+        print("💰 Current Balance: ${current_balance:.2f}")
+        print("📈 Today's PnL: ${data.get('daily_pnl', 0):.2f}")
         
     except Exception as e:
-        print(f"❌ Could not get current balance: {e}")
+        print("❌ Could not get current balance: {e}")
         current_balance = 0
     
     # Get current prices from Bybit (REAL PRICES - NO MORE FICTIONAL DATA!)
@@ -55,9 +55,9 @@ def test_eod_closure():
             price_data = bybit_prices.get_price(symbol)
             if price_data and price_data.get('price', 0) > 0:
                 real_prices[crypto] = {'price': float(price_data['price'])}
-                print(f"📡 Real {crypto} price: ${price_data['price']}")
+                print("📡 Real {crypto} price: ${price_data['price']}")
             else:
-                print(f"⚠️ Could not get real price for {crypto}")
+                print("⚠️ Could not get real price for {crypto}")
         
         if len(real_prices) > 0:
             mock_prices = real_prices
@@ -66,7 +66,7 @@ def test_eod_closure():
             raise Exception("No real prices available")
             
     except Exception as e:
-        print(f"⚠️ Could not get real prices ({e}), using safer mock prices")
+        print("⚠️ Could not get real prices ({e}), using safer mock prices")
         # Use more realistic mock prices that won't create massive losses
         mock_prices = {
             'BTC': {'price': 110000.0},  # Realistic BTC price 
@@ -75,7 +75,7 @@ def test_eod_closure():
             'XRP': {'price': 0.70}       # Realistic XRP price
         }
     
-    print(f"\n🌙 SIMULATING EOD CLOSURE...")
+    print("\n🌙 SIMULATING EOD CLOSURE...")
     print("-" * 60)
     
     # Get all open positions
@@ -96,7 +96,7 @@ def test_eod_closure():
         crypto = symbol.replace('USDT', '')
         
         if crypto not in mock_prices:
-            print(f"⚠️ No price for {crypto}, skipping")
+            print("⚠️ No price for {crypto}, skipping")
             continue
             
         current_price = mock_prices[crypto]['price']
@@ -113,21 +113,21 @@ def test_eod_closure():
         # Show the closure
         entry_date = entry_time[:10]
         pnl_color = "🟢" if pnl > 0 else "🔴"
-        print(f"{pnl_color} {crypto:4} {direction:4} | Entry: ${entry_price:8.2f} | Exit: ${current_price:8.2f} | PnL: ${pnl:+8.2f} | From: {entry_date}")
+        print("{pnl_color} {crypto:4} {direction:4} | Entry: ${entry_price:8.2f} | Exit: ${current_price:8.2f} | PnL: ${pnl:+8.2f} | From: {entry_date}")
     
     print("-" * 60)
-    print(f"💰 Total EOD PnL: ${total_pnl:.2f}")
-    print(f"📊 Positions to Close: {closed_count}")
-    print(f"🎯 New Balance: ${current_balance + total_pnl:.2f}")
+    print("💰 Total EOD PnL: ${total_pnl:.2f}")
+    print("📊 Positions to Close: {closed_count}")
+    print("🎯 New Balance: ${current_balance + total_pnl:.2f}")
     
     # Ask user if they want to actually close them
-    print(f"\n❓ Do you want to ACTUALLY close these {closed_count} positions?")
+    print("\n❓ Do you want to ACTUALLY close these {closed_count} positions?")
     print("   This will update the database and close all open trades.")
     
     choice = input("Type 'YES' to proceed: ").strip().upper()
     
     if choice == 'YES':
-        print(f"\n🔄 CLOSING {closed_count} POSITIONS...")
+        print("\n🔄 CLOSING {closed_count} POSITIONS...")
         
         # Update all open positions to EOD_CLOSE
         now = datetime.now().isoformat()
@@ -163,11 +163,11 @@ def test_eod_closure():
         cursor.execute("SELECT COUNT(*) FROM paper_trades WHERE status = 'EOD_CLOSE'")
         eod_closed = cursor.fetchone()[0]
         
-        print(f"✅ EOD CLOSURE COMPLETE!")
-        print(f"   - Closed: {closed_count} positions")
-        print(f"   - Remaining Open: {remaining_open}")
-        print(f"   - Total EOD Closures: {eod_closed}")
-        print(f"   - Total PnL Impact: ${total_pnl:.2f}")
+        print("✅ EOD CLOSURE COMPLETE!")
+        print("   - Closed: {closed_count} positions")
+        print("   - Remaining Open: {remaining_open}")
+        print("   - Total EOD Closures: {eod_closed}")
+        print("   - Total PnL Impact: ${total_pnl:.2f}")
         
     else:
         print("❌ EOD closure cancelled")

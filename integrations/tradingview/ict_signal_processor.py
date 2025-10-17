@@ -1153,15 +1153,15 @@ if __name__ == "__main__":
     
     async def test_ict_signal_handler(signal: ICTProcessedSignal):
         """Test ICT signal handler."""
-        print(f"📡 ICT Signal Received:")
-        print(f"   Type: {signal.signal_type}")
-        print(f"   Direction: {signal.direction}")
-        print(f"   Setup: {signal.ict_setup_type}")
-        print(f"   Confluence: {signal.overall_confluence:.1%}")
-        print(f"   Entry: ${signal.ict_entry_price:.2f}")
-        print(f"   Stop: ${signal.ict_stop_loss:.2f}")
-        print(f"   Target: ${signal.ict_take_profit:.2f}")
-        print(f"   Urgency: {signal.execution_urgency}")
+        print("📡 ICT Signal Received:")
+        print("   Type: {signal.signal_type}")
+        print("   Direction: {signal.direction}")
+        print("   Setup: {signal.ict_setup_type}")
+        print("   Confluence: {signal.overall_confluence:.1%}")
+        print("   Entry: ${signal.ict_entry_price:.2f}")
+        print("   Stop: ${signal.ict_stop_loss:.2f}")
+        print("   Target: ${signal.ict_take_profit:.2f}")
+        print("   Urgency: {signal.execution_urgency}")
         print("─" * 50)
     
     async def test_ict_processor():
@@ -1186,19 +1186,19 @@ if __name__ == "__main__":
             signature_valid=True
         )
         
-        print(f"Processing test alert: {test_alert.action} {test_alert.symbol}")
+        print("Processing test alert: {test_alert.action} {test_alert.symbol}")
         
         # Process alert with ICT methodology
         ict_result = await processor.process_alert_with_ict(test_alert)
         
         if ict_result:
-            print(f"✅ ICT Signal Generated: {ict_result.validation_status}")
+            print("✅ ICT Signal Generated: {ict_result.validation_status}")
         else:
             print("❌ No ICT signal generated")
         
         # Print statistics
         stats = processor.get_ict_statistics()
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                   ICT PROCESSOR STATISTICS                      ║
 ╠══════════════════════════════════════════════════════════════════╣

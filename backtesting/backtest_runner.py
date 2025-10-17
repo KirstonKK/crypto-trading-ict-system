@@ -458,7 +458,7 @@ if __name__ == "__main__":
             end_date="2024-01-07"
         )
         
-        print(f"Backtest completed: {result['summary']['total_return']:.2f}% return")
+        print("Backtest completed: {result['summary']['total_return']:.2f}% return")
         
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error: {e}")

@@ -256,7 +256,7 @@ def create_env_template(filename: str = ".env.template"):
     with open(filename, 'w') as f:
         f.write(ENV_TEMPLATE.strip())
     
-    print(f"✅ Environment template created: {filename}")
+    print("✅ Environment template created: {filename}")
     print("📝 Copy this to .env and update with your API credentials")
 
 if __name__ == "__main__":
@@ -273,7 +273,7 @@ if __name__ == "__main__":
         else:
             print("❌ Configuration errors:")
             for error in errors:
-                print(f"   - {error}")
+                print("   - {error}")
                 
     except Exception as e:
-        print(f"❌ Error loading configuration: {e}")
+        print("❌ Error loading configuration: {e}")

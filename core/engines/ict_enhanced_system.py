@@ -66,7 +66,7 @@ class ICTEnhancedSystemLauncher:
         try:
             logger.info("🚀 Starting ICT Enhanced System with EOBs...")
             
-            print(f"""
+            print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║               🎯 ICT ENHANCED SYSTEM LAUNCHER 🎯                 ║
 ║                                                                  ║
