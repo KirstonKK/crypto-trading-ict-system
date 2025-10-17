@@ -259,6 +259,66 @@ class BybitRealTimePrices:
             logger.error(f"❌ Error handling WebSocket message: {e}")
             logger.error(f"❌ Message content: {message[:500]}...")
 
+    def _handle_snapshot_message(self, ticker_data, symbol):
+        """Handle snapshot message type"""
+        price_data = self._parse_ws_ticker_data(ticker_data, symbol)
+        old_price = self.prices.get(symbol, {}).get('price', 0)
+        self.prices[symbol] = price_data
+        return price_data, old_price
+    
+    def _handle_delta_message(self, ticker_data, symbol):
+        """Handle delta message type"""
+        if symbol in self.prices:
+            price_data = self._update_ticker_delta(ticker_data, symbol)
+            old_price = self.prices.get(symbol, {}).get('price', 0)
+            self.prices[symbol] = price_data
+            return price_data, old_price
+        else:
+            # No existing data to update, skip delta
+            if symbol not in self.delta_skip_count:
+                self.delta_skip_count[symbol] = 0
+            self.delta_skip_count[symbol] += 1
+            
+            if self.delta_skip_count[symbol] <= 3:
+                logger.debug(f"🔄 Building {symbol} baseline data (delta #{self.delta_skip_count[symbol]})")
+            elif self.delta_skip_count[symbol] == 10:
+                logger.info(f"📊 {symbol} baseline initialization in progress...")
+            return None, None
+    
+    def _update_price_history(self, symbol, price_data):
+        """Update price history for symbol"""
+        if symbol not in self.price_history:
+            self.price_history[symbol] = []
+        
+        self.price_history[symbol].append({
+            'price': price_data['price'],
+            'timestamp': price_data['timestamp']
+        })
+        
+        if len(self.price_history[symbol]) > 100:
+            self.price_history[symbol] = self.price_history[symbol][-100:]
+    
+    def _log_price_change(self, symbol, price_data, old_price):
+        """Log significant price changes"""
+        if old_price <= 0 or price_data['price'] <= 0:
+            return
+        
+        price_change = ((price_data['price'] - old_price) / old_price) * 100
+        
+        if abs(price_change) > 0.1:  # 0.1% or more
+            direction = "📈" if price_change > 0 else "📉"
+            logger.debug(f"{direction} {symbol}: ${price_data['price']:,.4f} ({price_change:+.2f}%)")
+        
+        return price_change
+    
+    async def _notify_callbacks(self, symbol, price_data, price_change):
+        """Notify registered callbacks of price update"""
+        for callback in self.callbacks:
+            try:
+                await callback(symbol, price_data, price_change)
+            except Exception as e:
+                logger.error(f"❌ Price callback error: {e}")
+    
     async def _process_ticker_update(self, data: Dict):
         """Process ticker update from WebSocket"""
         try:
@@ -266,82 +326,36 @@ class BybitRealTimePrices:
             ticker_data = data.get("data", {})
             message_type = data.get("type", "unknown")
             
-            # Debug: Log the raw ticker data
             logger.debug(f"🔍 Raw WebSocket data for topic {topic}, type: {message_type}")
             logger.debug(f"🔍 Ticker data keys: {list(ticker_data.keys()) if ticker_data else 'None'}")
             if ticker_data and 'lastPrice' in ticker_data:
                 logger.debug(f"🔍 lastPrice value: '{ticker_data['lastPrice']}' (type: {type(ticker_data['lastPrice'])})")
             
-            # Extract symbol from topic (e.g., "tickers.BTCUSDT" -> "BTCUSDT")
             symbol = topic.split(".")[-1] if "." in topic else ""
             
-            if symbol and ticker_data:
-                # Handle different message types
-                if message_type == "snapshot":
-                    # For snapshot messages, parse complete ticker data
-                    price_data = self._parse_ws_ticker_data(ticker_data, symbol)
-                    old_price = self.prices.get(symbol, {}).get('price', 0)
-                    self.prices[symbol] = price_data
-                elif message_type == "delta":
-                    # For delta messages, update existing data only
-                    if symbol in self.prices:
-                        price_data = self._update_ticker_delta(ticker_data, symbol)
-                        old_price = self.prices.get(symbol, {}).get('price', 0)
-                        self.prices[symbol] = price_data
-                    else:
-                        # No existing data to update, skip delta (normal during startup)
-                        if symbol not in self.delta_skip_count:
-                            self.delta_skip_count[symbol] = 0
-                        self.delta_skip_count[symbol] += 1
-                        
-                        # Only log first few skips to reduce noise
-                        if self.delta_skip_count[symbol] <= 3:
-                            logger.debug(f"🔄 Building {symbol} baseline data (delta #{self.delta_skip_count[symbol]})")
-                        elif self.delta_skip_count[symbol] == 10:  # Log summary after 10
-                            logger.info("📊 {symbol} baseline initialization in progress...")
-                        return
-                else:
-                    # Fallback to snapshot parsing for unknown types
-                    logger.warning(f"⚠️ Unknown message type '{message_type}' for {symbol}, treating as snapshot")
-                    price_data = self._parse_ws_ticker_data(ticker_data, symbol)
-                    old_price = self.prices.get(symbol, {}).get('price', 0)
-                    self.prices[symbol] = price_data
-                
-                # Track price history
-                if symbol not in self.price_history:
-                    self.price_history[symbol] = []
-                
-                self.price_history[symbol].append({
-                    'price': price_data['price'],
-                    'timestamp': price_data['timestamp']
-                })
-                
-                # Keep only last 100 price points
-                if len(self.price_history[symbol]) > 100:
-                    self.price_history[symbol] = self.price_history[symbol][-100:]
-                
-                # Update statistics
-                self.update_count += 1
-                self.last_update[symbol] = datetime.now()
-                
-                # Calculate price change
-                price_change = 0
-                if old_price > 0 and price_data['price'] > 0:
-                    price_change = ((price_data['price'] - old_price) / old_price) * 100
-                
-                # Log significant price changes (only for valid prices)
-                if price_data['price'] > 0 and abs(price_change) > 0.1:  # 0.1% or more
-                    direction = "📈" if price_change > 0 else "📉"
-                    logger.debug(f"{direction} {symbol}: ${price_data['price']:,.4f} ({price_change:+.2f}%)")
-                
-                # Call registered callbacks
-                for callback in self.callbacks:
-                    try:
-                        await callback(symbol, price_data, price_change)
-                    except Exception as e:
-                        logger.error(f"❌ Price callback error: {e}")
+            if not symbol or not ticker_data:
+                return
+            
+            # Handle different message types
+            if message_type == "snapshot":
+                price_data, old_price = self._handle_snapshot_message(ticker_data, symbol)
+            elif message_type == "delta":
+                result = self._handle_delta_message(ticker_data, symbol)
+                if result[0] is None:  # Skip delta
+                    return
+                price_data, old_price = result
             else:
-                logger.warning(f"⚠️ Missing data - Symbol: {symbol}, Ticker Data: {bool(ticker_data)}")
+                logger.warning(f"⚠️ Unknown message type '{message_type}' for {symbol}, treating as snapshot")
+                price_data, old_price = self._handle_snapshot_message(ticker_data, symbol)
+            
+            # Update tracking
+            self._update_price_history(symbol, price_data)
+            self.update_count += 1
+            self.last_update[symbol] = datetime.now()
+            
+            # Log and notify
+            price_change = self._log_price_change(symbol, price_data, old_price)
+            await self._notify_callbacks(symbol, price_data, price_change)
                         
         except Exception as e:
             logger.error(f"❌ Error processing ticker update: {e}")
