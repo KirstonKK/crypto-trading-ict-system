@@ -2075,10 +2075,13 @@ class ICTCryptoMonitor:
         try:
             if self.bybit_prices:
                 # Get prices from Bybit real-time price monitor
-                btc_data = self.bybit_prices.get_price('BTCUSDT')
-                eth_data = self.bybit_prices.get_price('ETHUSDT')
-                sol_data = self.bybit_prices.get_price('SOLUSDT')
-                xrp_data = self.bybit_prices.get_price('XRPUSDT')
+                # FIXED: Removed unused variables - prices are available via get_mock_prices() fallback
+                # The following lines were fetching data but not using it:
+                # btc_data = self.bybit_prices.get_price('BTCUSDT') 
+                # eth_data = self.bybit_prices.get_price('ETHUSDT')
+                # sol_data = self.bybit_prices.get_price('SOLUSDT')
+                # xrp_data = self.bybit_prices.get_price('XRPUSDT')
+                # Use fallback mock prices below
                 
                 prices = {}
                 for symbol, crypto_name in [('BTCUSDT', 'BTC'), ('ETHUSDT', 'ETH'), ('SOLUSDT', 'SOL'), ('XRPUSDT', 'XRP')]:
@@ -2234,7 +2237,7 @@ class ICTSignalGenerator:
         # STARTUP COOLDOWN SYSTEM for ICTSignalGenerator - DISABLED
         self.startup_time = datetime.now()
         self.startup_cooldown_minutes = 0  # No cooldown - immediate comprehensive ICT analysis
-        logger.info(f"✅ ICTSignalGenerator startup cooldown DISABLED - Comprehensive analysis active immediately")
+        logger.info("✅ ICTSignalGenerator startup cooldown DISABLED - Comprehensive analysis active immediately")
         
         # Directional Bias Engine - DISABLED (Only comprehensive ICT methodology)
         self.directional_bias_engine = None
