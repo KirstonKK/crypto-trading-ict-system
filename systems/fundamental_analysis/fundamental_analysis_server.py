@@ -614,6 +614,40 @@ class FundamentalAnalysisServer:
         
         return cryptos if cryptos else ['GENERAL']
     
+    def _calculate_weighted_sentiment(self, relevant_articles):
+        """Calculate weighted sentiment score from articles"""
+        sentiment_score = 0
+        total_weight = 0
+        
+        for article in relevant_articles:
+            # Weight based on impact level
+            weight = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}.get(article.get('impact_level', 'LOW'), 1)
+            
+            # Sentiment score
+            sentiment = article.get('sentiment', 'NEUTRAL')
+            if sentiment == 'POSITIVE':
+                sentiment_score += weight
+            elif sentiment == 'NEGATIVE':
+                sentiment_score -= weight
+            # NEUTRAL adds 0
+            
+            total_weight += weight
+        
+        return sentiment_score, total_weight
+    
+    def _determine_overall_sentiment(self, sentiment_score, total_weight):
+        """Determine overall sentiment category from weighted score"""
+        if total_weight > 0:
+            avg_sentiment = sentiment_score / total_weight
+            if avg_sentiment > 0.3:
+                return 'POSITIVE'
+            elif avg_sentiment < -0.3:
+                return 'NEGATIVE'
+            else:
+                return 'NEUTRAL'
+        else:
+            return 'NEUTRAL'
+
     def _calculate_crypto_sentiment(self, news_data):
         """Calculate overall sentiment for each crypto from news articles"""
         crypto_sentiment = {}
@@ -627,34 +661,10 @@ class FundamentalAnalysisServer:
                 continue
             
             # Calculate weighted sentiment based on impact level
-            sentiment_score = 0
-            total_weight = 0
-            
-            for article in relevant_articles:
-                # Weight based on impact level
-                weight = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}.get(article.get('impact_level', 'LOW'), 1)
-                
-                # Sentiment score
-                sentiment = article.get('sentiment', 'NEUTRAL')
-                if sentiment == 'POSITIVE':
-                    sentiment_score += weight
-                elif sentiment == 'NEGATIVE':
-                    sentiment_score -= weight
-                # NEUTRAL adds 0
-                
-                total_weight += weight
+            sentiment_score, total_weight = self._calculate_weighted_sentiment(relevant_articles)
             
             # Calculate overall sentiment
-            if total_weight > 0:
-                avg_sentiment = sentiment_score / total_weight
-                if avg_sentiment > 0.3:
-                    crypto_sentiment[crypto] = 'POSITIVE'
-                elif avg_sentiment < -0.3:
-                    crypto_sentiment[crypto] = 'NEGATIVE'
-                else:
-                    crypto_sentiment[crypto] = 'NEUTRAL'
-            else:
-                crypto_sentiment[crypto] = 'NEUTRAL'
+            crypto_sentiment[crypto] = self._determine_overall_sentiment(sentiment_score, total_weight)
         
         logger.info(f"📰 Multi-source news sentiment: {crypto_sentiment}")
         return crypto_sentiment
@@ -924,14 +934,15 @@ class FundamentalAnalysisServer:
         conn.commit()
         conn.close()
     
-    def setup_routes(self):
-        """Setup Flask routes"""
-        
+    def _setup_dashboard_route(self):
+        """Setup main dashboard route"""
         @self.app.route('/')
         def dashboard():
             """Main dashboard"""
             return render_template_string(self.get_dashboard_html())
-        
+    
+    def _setup_analysis_routes(self):
+        """Setup analysis data routes"""
         @self.app.route('/api/analysis')
         def get_analysis():
             """Get all fundamental analysis data"""
@@ -950,7 +961,9 @@ class FundamentalAnalysisServer:
                 return jsonify(self.analysis_data[symbol])
             else:
                 return jsonify({'error': f'Analysis not found for {symbol}'}), 404
-        
+    
+    def _setup_recommendations_route(self):
+        """Setup recommendations route"""
         @self.app.route('/api/recommendations')
         def get_recommendations():
             """Get investment recommendations"""
@@ -970,7 +983,9 @@ class FundamentalAnalysisServer:
             # Sort by score descending
             recommendations.sort(key=lambda x: x['score'], reverse=True)
             return jsonify({'recommendations': recommendations})
-        
+    
+    def _setup_news_route(self):
+        """Setup news analysis route"""
         @self.app.route('/api/news')
         def get_news_analysis():
             """Get latest news analysis from multiple crypto news sources"""
@@ -999,7 +1014,9 @@ class FundamentalAnalysisServer:
                 # Return enhanced fallback news
                 fallback_news = self._get_enhanced_fallback_news()
                 return jsonify({'news': fallback_news, 'source': 'Enhanced Fallback'})
-        
+    
+    def _setup_health_route(self):
+        """Setup health check route"""
         @self.app.route('/api/health')
         def health_check():
             """Health check endpoint"""
@@ -1010,6 +1027,14 @@ class FundamentalAnalysisServer:
                 'uptime': str(datetime.now() - self.last_update),
                 'last_analysis_update': self.last_update.isoformat()
             })
+
+    def setup_routes(self):
+        """Setup Flask routes"""
+        self._setup_dashboard_route()
+        self._setup_analysis_routes()
+        self._setup_recommendations_route()
+        self._setup_news_route()
+        self._setup_health_route()
     
     def setup_socketio(self):
         """Setup SocketIO handlers"""
