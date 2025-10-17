@@ -65,9 +65,9 @@ logging.basicConfig(
 logger = logging.getLogger('FundamentalAnalysis')
 
 # Constants for duplicate strings
-DEFAULT_TITLE = DEFAULT_TITLE
-SOURCE_DEMO_NEWS = SOURCE_DEMO_NEWS
-SOURCE_MARKET_ANALYSIS = SOURCE_MARKET_ANALYSIS
+DEFAULT_TITLE = 'No title'
+SOURCE_DEMO_NEWS = 'Demo News'
+SOURCE_MARKET_ANALYSIS = 'Market Analysis'
 
 class FundamentalAnalysisServer:
     """Standalone Crypto Fundamental Analysis Server"""
