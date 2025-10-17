@@ -24,8 +24,8 @@ def test_daily_pnl():
         else:
             print("⚠️  Expected -$2.80, got ${daily_pnl:.2f}")
             
-    except Exception as e:
-        print("❌ Error testing daily_pnl: {e}")
+    except Exception:
+        print("❌ Error checking daily PnL")
 
 if __name__ == "__main__":
     test_daily_pnl()

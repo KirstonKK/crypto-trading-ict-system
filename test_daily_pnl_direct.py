@@ -7,6 +7,8 @@ sys.path.append('/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm')
 import sqlite3
 from datetime import datetime
 
+DATABASE_PATH = 'databases/trading_data.db'
+
 def test_daily_pnl_calculation():
     """Test the daily PnL calculation logic"""
     try:
@@ -15,8 +17,7 @@ def test_daily_pnl_calculation():
         cursor = conn.cursor()
         
         # Get today's date
-        today = datetime.now().strftime('%Y-%m-%d')
-        print("Testing daily PnL calculation for {today}")
+        print("Testing daily PnL calculation")
         
         # Query exactly like the monitor does
         cursor.execute("""
@@ -64,7 +65,7 @@ def test_daily_pnl_calculation():
         
         conn.close()
         
-    except Exception as e:
+    except Exception:
         print("Error: {e}")
 
 if __name__ == "__main__":

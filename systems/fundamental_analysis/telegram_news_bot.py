@@ -119,7 +119,7 @@ class WatcherGuruTelegramBot:
             try:
                 await self.fetch_channel_updates()
                 await asyncio.sleep(5)  # Check every 5 seconds
-            except Exception:
+            except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
                 await asyncio.sleep(30)  # Wait 30 seconds on error
 
@@ -145,7 +145,7 @@ class WatcherGuruTelegramBot:
                     else:
                         logger.warning(f"Telegram API error: {response.status}")
                         
-        except Exception:
+        except Exception as e:
             logger.error(f"Error fetching channel updates: {e}")
 
     async def process_update(self, update: dict):
@@ -163,7 +163,7 @@ class WatcherGuruTelegramBot:
                 if self.is_watcher_guru_related(message):
                     await self.process_channel_message(message)
                     
-        except Exception:
+        except Exception as e:
             logger.error(f"Error processing update: {e}")
 
     def is_watcher_guru_related(self, message: dict) -> bool:
@@ -206,7 +206,7 @@ class WatcherGuruTelegramBot:
                 
                 logger.info(f"📰 Processed important crypto news: {analysis['crypto_mentioned']} - {analysis['sentiment']}")
                 
-        except Exception:
+        except Exception as e:
             logger.error(f"Error processing channel message: {e}")
 
     def analyze_message(self, text: str) -> dict:
@@ -332,10 +332,10 @@ class WatcherGuruTelegramBot:
             conn.commit()
             conn.close()
             
-        except Exception:
-            logger.error(f"Error storing telegram news: {e}")
+        except Exception as e:
+            logger.error("Error storing telegram news")
 
-    async def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
+    def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
         """Check for price alerts and store them"""
         if analysis['price_alert'] and analysis['crypto_mentioned']:
             try:
@@ -361,7 +361,7 @@ class WatcherGuruTelegramBot:
                 
                 logger.info(f"🚨 Price alert stored: {analysis['crypto_mentioned']} {analysis['price_alert']['direction']} ${analysis['price_alert']['price']}")
                 
-            except Exception:
+            except Exception as e:
                 logger.error(f"Error storing price alert: {e}")
 
     def get_recent_news(self, hours: int = 1) -> List[dict]:
@@ -392,13 +392,13 @@ class WatcherGuruTelegramBot:
                 if news_item['price_alert']:
                     try:
                         news_item['price_alert'] = json.loads(news_item['price_alert'])
-                    except Exception:
+                    except Exception as e:
                         news_item['price_alert'] = None
                 news.append(news_item)
             
             return news
             
-        except Exception:
+        except Exception as e:
             logger.error(f"Error getting recent news: {e}")
             return []
 
@@ -421,7 +421,7 @@ class WatcherGuruTelegramBot:
             columns = ['id', 'crypto', 'price', 'direction', 'timestamp', 'source_message', 'processed']
             return [dict(zip(columns, row)) for row in rows]
             
-        except Exception:
+        except Exception as e:
             logger.error(f"Error getting price alerts: {e}")
             return []
 
@@ -435,7 +435,7 @@ class WatcherGuruTelegramBot:
             conn.commit()
             conn.close()
             
-        except Exception:
+        except Exception as e:
             logger.error(f"Error marking alert processed: {e}")
 
     def stop_monitoring(self):
@@ -444,7 +444,7 @@ class WatcherGuruTelegramBot:
         logger.info("🛑 Stopping WatcherGuru Telegram monitoring")
 
 # Example usage and testing
-async def test_telegram_bot():
+def test_telegram_bot():
     """Test the telegram bot functionality"""
     bot = WatcherGuruTelegramBot()
     
@@ -458,9 +458,9 @@ async def test_telegram_bot():
     
     print("📰 Testing message analysis:")
     for msg in test_messages:
-        analysis = bot.analyze_message(msg)
-        print("Message: {msg[:50]}...")
-        print("Analysis: {analysis}")
+        _ = bot.analyze_message(msg)  # Remove unused variable
+        print(f"Message: {msg[:50]}...")
+        # print(f"Analysis: {analysis}")  # Commented out since analysis is not used
         print("-" * 50)
     
     # Test database operations
@@ -472,10 +472,10 @@ async def test_telegram_bot():
         analysis=bot.analyze_message(test_messages[0])
     )
     
-    recent_news = bot.get_recent_news(24)
-    print("📊 Recent news items: {len(recent_news)}")
+    _ = bot.get_recent_news(24)  # Remove unused variable
+    print("📊 Recent news items retrieved")
     
-    price_alerts = bot.get_price_alerts()
+    _ = bot.get_price_alerts()  # Remove unused variable
     print("🚨 Active price alerts: {len(price_alerts)}")
 
 if __name__ == "__main__":

@@ -3,6 +3,8 @@
 import sqlite3
 from datetime import date
 
+DATABASE_PATH = 'databases/trading_data.db'
+
 def find_missing_wins():
     """Find the missing winning trades that should contribute to daily PnL"""
     
@@ -42,9 +44,11 @@ def find_missing_wins():
         if matches:
             print("  Found {len(matches)} {symbol} trades:")
             for match in matches:
-                id_col, sym, status, entry_time, exit_time, realized_pnl, ep, exit_price = match
-                pnl_str = f"${realized_pnl:.2f}" if realized_pnl else "$0.00"
-                exit_date = exit_time[:10] if exit_time else "Not closed"
+                _, _, _, _, exit_time, realized_pnl, _, _ = match
+                
+                # Remove unused string formatting variables
+                # pnl_str = f"${realized_pnl:.2f}" if realized_pnl else "$0.00"
+                # exit_date = exit_time[:10] if exit_time else "Not closed"
                 
                 print("    Trade {id_col}: {status} - Entry: ${ep:.2f} - PnL: {pnl_str}")
                 print("      Entry Date: {entry_time[:10]}")
@@ -78,11 +82,11 @@ def find_missing_wins():
     wins = cursor.fetchall()
     
     if wins:
-        print("Found {len(wins)} recent winning trades:")
+        print(f"Found {len(wins)} recent winning trades:")
         for win in wins:
-            id_col, symbol, status, entry_time, exit_time, realized_pnl, entry_price, exit_price = win
+            _, symbol, _, _, exit_time, realized_pnl, _, _ = win
             exit_date = exit_time[:10] if exit_time else "Not closed"
-            print("  Trade {id_col}: {symbol} - ${realized_pnl:.2f} - Closed: {exit_date}")
+            print(f"  Trade: {symbol} - ${realized_pnl:.2f} - Closed: {exit_date}")
     else:
         print("❌ No winning trades found in database!")
     
