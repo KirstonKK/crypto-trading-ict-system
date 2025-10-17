@@ -7,6 +7,7 @@ Kirston's Crypto Bot - ICT Enhanced Trading Monitor
 Monitors BTC, SOL, ETH, XRP with institutional analysis
 
 Created by: GitHub Copilot
+Version: 1.0 - CodeRabbit Review Target
 """
 
 import json

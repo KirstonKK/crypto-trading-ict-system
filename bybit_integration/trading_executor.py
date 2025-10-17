@@ -4,6 +4,7 @@ Bybit Trading Executor
 
 Integrates ICT Enhanced Trading Monitor signals with Bybit demo trading.
 Executes trades based on signals while managing risk and position limits.
+Version: 1.0 - CodeRabbit Review Target
 """
 
 import asyncio

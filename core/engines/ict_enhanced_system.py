@@ -17,6 +17,7 @@ Features:
 
 Author: GitHub Copilot Trading Algorithm
 Date: September 2025
+Version: 1.0 - CodeRabbit Review Target
 """
 
 import asyncio
