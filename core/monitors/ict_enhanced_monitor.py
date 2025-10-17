@@ -24,6 +24,11 @@ from flask_socketio import SocketIO, emit
 import pandas as pd
 import numpy as np
 
+# CONSTANTS - Code Quality Improvement
+DATABASE_PATH = 'databases/trading_data.db'
+UTC_OFFSET = '+00:00'
+DAILY_COUNT_QUERY = "SELECT COUNT(*) FROM signals WHERE date(entry_time) = ?"
+
 # Import Bybit real-time prices
 import sys
 import os
@@ -297,7 +302,7 @@ class ICTCryptoMonitor:
         try:
             import sqlite3
             
-            conn = sqlite3.connect('databases/trading_data.db')
+            conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
             
             # Create signals table if it doesn't exist
@@ -1176,8 +1181,8 @@ class ICTCryptoMonitor:
                             entry_date = entry['timestamp'][:10]  # Extract YYYY-MM-DD
                         else:
                             entry_date = entry['timestamp'].strftime('%Y-%m-%d')
-                    except:
-                        pass
+                    except (KeyError, AttributeError, ValueError) as e:
+                        logger.debug(f"Error parsing timestamp in cleanup: {e}")
                 elif 'entry_time' in entry:
                     try:
                         if isinstance(entry['entry_time'], str):
@@ -1571,7 +1576,7 @@ class ICTCryptoMonitor:
             return False, f"Max positions reached: {active_positions}/{self.max_positions_per_symbol} for {crypto}"
         
         # Check 3: Price separation from existing signals (prevent duplicate entries at same level)
-        min_price_separation = self.get_minimum_price_separation(crypto, price)
+        min_price_separation = self.get_minimum_price_separation(crypto)
         logger.info(f"🔍 Price separation check for {crypto} @ ${price:.2f}: need {min_price_separation:.1f}% separation")
         if not self.has_sufficient_price_separation(crypto, price, min_price_separation):
             logger.info(f"❌ Price separation REJECTED: {crypto} @ ${price:.2f} too close to existing signal")
@@ -1615,8 +1620,9 @@ class ICTCryptoMonitor:
         else:
             return 'expiring'  # 4-5 minutes: Expiring (orange)
     
-    def get_minimum_price_separation(self, crypto: str, current_price: float) -> float:
+    def get_minimum_price_separation(self, crypto: str) -> float:
         """Get minimum price separation percentage based on crypto volatility"""
+        # FIXED: Removed unused current_price parameter
         # Different separation requirements based on typical volatility
         separations = {
             'BTC': 2.0,   # 2% separation for BTC
@@ -1666,8 +1672,8 @@ class ICTCryptoMonitor:
         """Manage signal lifecycle with 5-minute expiry and 3-signal limit"""
         current_time = datetime.now()
         
-        # Separate fresh and expired signals
-        fresh_signals = []
+        # Separate fresh and expired signals  
+        # FIXED: Removed unused fresh_signals variable
         expired_signals = []
         
         # Update age information for all signals
