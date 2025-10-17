@@ -7,7 +7,7 @@ Create a .env file in your project root with these settings.
 """
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 @dataclass
@@ -56,7 +56,7 @@ class ICTConfig:
     
     # Signal filtering
     min_confluence_factors: int = 2
-    required_sessions: list = None
+    required_sessions: Optional[list] = None
     
     def __post_init__(self):
         if self.required_sessions is None:

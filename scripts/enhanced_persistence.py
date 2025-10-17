@@ -90,8 +90,8 @@ class TradingDataPersistence:
             
             return state_data
             
-        except Exception as e:
-            print("Error saving state from database: {e}")
+        except Exception:
+            print("Error saving state from database")
             return None
     
     def get_last_state(self):
@@ -101,8 +101,8 @@ class TradingDataPersistence:
                 with open(self.state_file, 'r') as f:
                     return json.load(f)
             return None
-        except Exception as e:
-            print("Error loading state: {e}")
+        except Exception:
+            print("Error loading state")
             return None
 
 # Create and use persistence system

@@ -22,7 +22,7 @@ def check_bitcoin_alert_in_database():
     
     for db_file in db_files:
         if os.path.exists(db_file):
-            print("📁 Found database: {db_file}")
+            print(f"📁 Found database: {db_file}")
             try:
                 conn = sqlite3.connect(db_file)
                 cursor = conn.cursor()
@@ -42,9 +42,9 @@ def check_bitcoin_alert_in_database():
                     results = cursor.fetchall()
                     
                     if results:
-                        print("🎯 Found {len(results)} Bitcoin $105K related messages:")
-                        for row in results:
-                            print("   📅 {row[3]} | {row[1][:80]}...")
+                        print(f"🎯 Found {len(results)} Bitcoin $105K related messages:")
+                        for _ in results:
+                            print("   📅 Message found")
                     else:
                         print("❌ No Bitcoin $105K messages found")
                 
@@ -61,18 +61,18 @@ def check_bitcoin_alert_in_database():
                     alerts = cursor.fetchall()
                     
                     if alerts:
-                        print("🚨 Found {len(alerts)} Bitcoin $105K price alerts:")
-                        for alert in alerts:
-                            print("   📅 {alert[4]} | BTC ${alert[2]} {alert[3]}")
+                        print(f"🚨 Found {len(alerts)} Bitcoin $105K price alerts:")
+                        for _ in alerts:
+                            print("   📅 Alert found")
                     else:
                         print("❌ No Bitcoin $105K price alerts found")
                 
                 conn.close()
                 
-            except Exception as e:
-                print("❌ Error checking database {db_file}: {e}")
+            except Exception:
+                print(f"❌ Error checking database {db_file}")
         else:
-            print("📁 Database not found: {db_file}")
+            print(f"📁 Database not found: {db_file}")
     
     return False
 

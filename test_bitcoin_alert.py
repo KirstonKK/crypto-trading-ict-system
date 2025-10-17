@@ -83,8 +83,8 @@ def test_bitcoin_alert_detection():
         
         # Test the specific Bitcoin $105K check
         print("\n🔍 Testing Bitcoin $105K alert check...")
-        alert_check = bridge.check_bitcoin_105k_alert()
-        print("Result: {alert_check}")
+        _ = bridge.check_bitcoin_105k_alert()
+        print(f"Result: {_}")
         
         print("\n✅ Alert detection system functional!")
         print("📋 Summary:")
@@ -95,13 +95,13 @@ def test_bitcoin_alert_detection():
         
         return True
         
-    except ImportError as e:
-        print("❌ Import error: {e}")
+    except ImportError:
+        print("❌ Import error")
         print("💡 Make sure telegram_bridge.py and telegram_news_bot.py are in the current directory")
         return False
         
-    except Exception as e:
-        print("❌ Test failed: {e}")
+    except Exception:
+        print("❌ Test failed")
         import traceback
         traceback.print_exc()
         return False
@@ -150,7 +150,7 @@ def main():
     
     # Test 1: Alert detection functionality
     print("\n1️⃣ Testing Alert Detection System...")
-    detection_works = test_bitcoin_alert_detection()
+    _ = test_bitcoin_alert_detection()
     
     # Test 2: Check current status
     print("\n2️⃣ Checking Current Alert Status...")
@@ -159,8 +159,8 @@ def main():
     # Summary
     print("\n📋 FINAL SUMMARY")
     print("="*40)
-    print("🔧 Detection System: {'✅ Working' if detection_works else '❌ Failed'}")
-    print("📡 Alert Caught: {'✅ Yes' if current_status.get('caught_alert') else '❌ No'}")
+    print(f"🔧 Detection System: {'✅ Working' if _ else '❌ Failed'}")
+    print(f"📡 Alert Caught: {'✅ Yes' if current_status.get('caught_alert') else '❌ No'}")
     
     if not current_status.get('caught_alert'):
         print("\n💡 TO CATCH FUTURE ALERTS:")

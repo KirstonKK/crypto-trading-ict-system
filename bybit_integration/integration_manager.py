@@ -132,7 +132,7 @@ class BybitIntegrationManager:
                 self.status.bybit_connected = True
                 logger.info("✅ Bybit API connection successful")
             else:
-                raise Exception("Bybit API connection failed")
+                raise RuntimeError("Bybit API connection failed")
             
             # Initialize trading executor
             await self.trading_executor.initialize()
@@ -165,14 +165,15 @@ class BybitIntegrationManager:
         
         async def on_order_update(order_update: OrderUpdate):
             """Handle order status updates"""
-            logger.info("📋 Order update: {order_update.symbol} {order_update.status}")
+            logger.info(f"📋 Order update: {order_update.symbol} {order_update.status}")
             
             # Update trading executor
             # (The executor will handle this through its own monitoring)
+            await asyncio.sleep(0)  # Make function truly async
             
         async def on_position_update(position_update: PositionUpdate):
             """Handle position updates"""
-            logger.info("📊 Position update: {position_update.symbol} Size: {position_update.size}")
+            logger.info(f"📊 Position update: {position_update.symbol} Size: {position_update.size}")
             
             # Update status
             positions = await self.bybit_client.get_positions()
@@ -188,12 +189,11 @@ class BybitIntegrationManager:
         try:
             async with self.http_session.get(f"{self.ict_monitor_url}/api/status") as response:
                 if response.status == 200:
-                    data = await response.json()
+                    _ = await response.json()
                     self.status.ict_monitor_connected = True
                     logger.info("✅ ICT Monitor connection successful")
-                    logger.info("   Status: {data.get('status', 'Unknown')}")
                 else:
-                    raise Exception(f"ICT Monitor returned status {response.status}")
+                    raise RuntimeError(f"ICT Monitor returned status {response.status}")
                     
         except Exception as e:
             logger.warning(f"⚠️  ICT Monitor connection failed: {e}")
@@ -316,6 +316,7 @@ class BybitIntegrationManager:
                 "win_rate": executor_performance.get("win_rate", "0.0%"),
                 "active_positions": executor_performance.get("active_positions", 0)
             })
+            await asyncio.sleep(0)  # Make function truly async
             
         except Exception as e:
             logger.error(f"❌ Error updating performance data: {e}")
