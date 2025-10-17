@@ -218,7 +218,7 @@ class ICTProactiveCryptoMonitor:
                 
                 # 2. Find Order Blocks on setup timeframe
                 enhanced_order_blocks = self.enhanced_order_block_detector.detect_enhanced_order_blocks(setup_data, symbol, self.setup_timeframe)
-                if not order_blocks:
+                if not enhanced_order_blocks:
                     return None  # No institutional accumulation zones
                 
                 # 3. Detect Fair Value Gaps
@@ -235,14 +235,14 @@ class ICTProactiveCryptoMonitor:
                 
                 # 7. Calculate ICT Confluence Score
                 confluence_score = self._calculate_ict_confluence(
-                    bias_analysis, order_blocks, fair_value_gaps, 
+                    bias_analysis, enhanced_order_blocks, fair_value_gaps, 
                     liquidity_zones, fibonacci_analysis, market_structure
                 )
                 
                 # 8. Generate Signal if Confluence Threshold Met
                 if confluence_score >= self.min_confluence_score:
                     return self._generate_ict_signal(
-                        symbol, bias_analysis, order_blocks, fair_value_gaps,
+                        symbol, bias_analysis, enhanced_order_blocks, fair_value_gaps,
                         liquidity_zones, fibonacci_analysis, market_structure,
                         confluence_score, setup_data
                     )

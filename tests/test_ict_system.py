@@ -233,7 +233,7 @@ class ICTCoreAnalysisTests(unittest.TestCase):
     def setUp(self):
         """Set up test components."""
         self.ict_analyzer = ICTAnalyzer()
-        self.order_block_detector = OrderBlockDetector()
+        self.order_block_detector = EnhancedOrderBlockDetector()
         self.fvg_detector = FVGDetector()
         self.liquidity_detector = LiquidityDetector()
         self.fibonacci_analyzer = ICTFibonacciAnalyzer()
@@ -456,7 +456,7 @@ class ICTPerformanceTests(unittest.TestCase):
     def setUp(self):
         """Set up performance test components."""
         self.ict_analyzer = ICTAnalyzer()
-        self.order_block_detector = OrderBlockDetector()
+        self.order_block_detector = EnhancedOrderBlockDetector()
         self.fvg_detector = FVGDetector()
         logger.info("ICT Performance Tests - Setup completed")
     
