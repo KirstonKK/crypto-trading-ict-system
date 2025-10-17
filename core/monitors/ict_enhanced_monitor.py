@@ -3773,6 +3773,111 @@ class ICTWebMonitor:
         def handle_update_request():
             self.broadcast_update()
     
+    def _serialize_trade(self, trade):
+        """Serialize a single trade for JSON transmission"""
+        trade_copy = trade.copy()
+        if 'entry_time' in trade_copy and trade_copy['entry_time']:
+            if hasattr(trade_copy['entry_time'], 'isoformat'):
+                trade_copy['entry_time'] = trade_copy['entry_time'].isoformat()
+        if 'exit_time' in trade_copy and trade_copy['exit_time']:
+            if hasattr(trade_copy['exit_time'], 'isoformat'):
+                trade_copy['exit_time'] = trade_copy['exit_time'].isoformat()
+        return trade_copy
+    
+    def _serialize_signal(self, signal):
+        """Serialize a single signal for JSON transmission"""
+        signal_copy = signal.copy()
+        if 'timestamp' in signal_copy and signal_copy['timestamp']:
+            if hasattr(signal_copy['timestamp'], 'isoformat'):
+                signal_copy['timestamp'] = signal_copy['timestamp'].isoformat()
+        return signal_copy
+    
+    def _get_todays_signal_count(self):
+        """Get today's signal count from database"""
+        from datetime import date
+        import sqlite3
+        today = date.today().isoformat()
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute(DAILY_COUNT_QUERY, (today,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+    
+    def _build_todays_summary(self):
+        """Build today's signal summary from live and archived signals"""
+        from datetime import date
+        
+        def _to_dt(ts):
+            if isinstance(ts, str):
+                if not ts.strip():
+                    return None
+                try:
+                    return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
+                except Exception as e:
+                    logger.warning(f"⚠️ Invalid isoformat string in _to_dt: '{ts}' ({e})")
+                    return None
+            return ts
+        
+        todays_summary = []
+        for s in (self.crypto_monitor.live_signals + self.crypto_monitor.archived_signals):
+            ts = s.get('timestamp')
+            if not ts:
+                continue
+            try:
+                if _to_dt(ts).date() == date.today():
+                    cp = self._serialize_signal(s)
+                    todays_summary.append(cp)
+            except Exception:
+                continue
+        
+        # Sort newest first and cap at 50
+        todays_summary.sort(key=lambda s: _to_dt(s.get('timestamp', datetime.now())), reverse=True)
+        return todays_summary[:50]
+    
+    def _build_update_data(self):
+        """Build the complete update data payload"""
+        # Serialize trades and signals
+        serialized_completed_trades = [self._serialize_trade(t) for t in self.crypto_monitor.completed_paper_trades]
+        serialized_active_trades = [self._serialize_trade(t) for t in self.crypto_monitor.active_paper_trades]
+        serialized_live_signals = [self._serialize_signal(s) for s in self.crypto_monitor.live_signals]
+        
+        # Get today's data
+        today_signals = self._get_todays_signal_count()
+        todays_summary = self._build_todays_summary()
+        
+        return {
+            'prices': self.current_prices,
+            'scan_count': self.crypto_monitor.scan_count,
+            'signals_today': today_signals,
+            'total_signals': self.crypto_monitor.total_signals,
+            'daily_pnl': self.crypto_monitor.daily_pnl,
+            'paper_balance': self.crypto_monitor.paper_balance,
+            'total_paper_pnl': self.crypto_monitor.total_paper_pnl,
+            'active_paper_trades': len(self.crypto_monitor.active_paper_trades),
+            'completed_paper_trades': serialized_completed_trades,
+            'active_hours': self.crypto_monitor.active_hours,
+            'live_signals': serialized_live_signals,
+            'total_live_signals': len(self.crypto_monitor.live_signals),
+            'total_archived_signals': len(self.crypto_monitor.archived_signals),
+            'paper_trades': serialized_active_trades,
+            'trading_journal': self.serialize_datetime_objects(self.crypto_monitor.trading_journal[-10:]),
+            'signals_summary': todays_summary,
+            'session_status': self.session_tracker.get_sessions_status(),
+            'market_hours': self.statistics.is_market_hours(),
+            'uptime': self.statistics.get_uptime(),
+            'scan_signal_ratio': self.statistics.calculate_scan_signal_ratio(
+                self.crypto_monitor.scan_count, 
+                self.crypto_monitor.total_signals
+            ),
+            'ml_model_status': {
+                'loaded': self.signal_generator.ml_model is not None,
+                'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+    
     def run_analysis_cycle(self):
         """Main analysis cycle matching previous monitor functionality"""
         loop = asyncio.new_event_loop()
@@ -3930,107 +4035,7 @@ class ICTWebMonitor:
     def broadcast_update(self):
         """Broadcast real-time updates to all connected clients"""
         try:
-            # Serialize completed paper trades for JSON
-            serialized_completed_trades = []
-            for trade in self.crypto_monitor.completed_paper_trades:
-                trade_copy = trade.copy()
-                if 'entry_time' in trade_copy and trade_copy['entry_time']:
-                    if hasattr(trade_copy['entry_time'], 'isoformat'):
-                        trade_copy['entry_time'] = trade_copy['entry_time'].isoformat()
-                if 'exit_time' in trade_copy and trade_copy['exit_time']:
-                    if hasattr(trade_copy['exit_time'], 'isoformat'):
-                        trade_copy['exit_time'] = trade_copy['exit_time'].isoformat()
-                serialized_completed_trades.append(trade_copy)
-
-            # Serialize active paper trades
-            serialized_active_trades = []
-            for trade in self.crypto_monitor.active_paper_trades:
-                trade_copy = trade.copy()
-                if 'entry_time' in trade_copy and trade_copy['entry_time']:
-                    if hasattr(trade_copy['entry_time'], 'isoformat'):
-                        trade_copy['entry_time'] = trade_copy['entry_time'].isoformat()
-                serialized_active_trades.append(trade_copy)
-
-            # Serialize live signals 
-            serialized_live_signals = []
-            for signal in self.crypto_monitor.live_signals:
-                signal_copy = signal.copy()
-                if 'timestamp' in signal_copy and signal_copy['timestamp']:
-                    if hasattr(signal_copy['timestamp'], 'isoformat'):
-                        signal_copy['timestamp'] = signal_copy['timestamp'].isoformat()
-                serialized_live_signals.append(signal_copy)
-
-            # Calculate today's signals from database (consistent with API)
-            from datetime import date
-            import sqlite3
-            today = date.today().isoformat()
-            
-            # Get accurate count from database
-            conn = sqlite3.connect(DATABASE_PATH)
-            cursor = conn.cursor()
-            cursor.execute(DAILY_COUNT_QUERY, (today,))
-            today_signals = cursor.fetchone()[0]
-            conn.close()
-            
-            # Build today's summary from live + archived signals for display
-            def _to_dt(ts):
-                if isinstance(ts, str):
-                    if not ts.strip():
-                        return None
-                    try:
-                        return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
-                    except Exception as e:
-                        logger.warning(f"⚠️ Invalid isoformat string in _to_dt: '{ts}' ({e})")
-                        return None
-                return ts
-            
-            todays_summary = []
-            for s in (self.crypto_monitor.live_signals + self.crypto_monitor.archived_signals):
-                ts = s.get('timestamp')
-                if not ts:
-                    continue
-                try:
-                    if _to_dt(ts).date() == date.today():
-                        cp = s.copy()
-                        if hasattr(cp.get('timestamp'), 'isoformat'):
-                            cp['timestamp'] = cp['timestamp'].isoformat()
-                        todays_summary.append(cp)
-                except Exception:
-                    continue
-            # Sort newest first and cap
-            todays_summary.sort(key=lambda s: _to_dt(s.get('timestamp', datetime.now())), reverse=True)
-            todays_summary = todays_summary[:50]
-
-            update_data = {
-                'prices': self.current_prices,
-                'scan_count': self.crypto_monitor.scan_count,
-                'signals_today': today_signals,  # Derived from today's journal entries
-                'total_signals': self.crypto_monitor.total_signals,
-                'daily_pnl': self.crypto_monitor.daily_pnl,  # Now calculated from paper trades
-                'paper_balance': self.crypto_monitor.paper_balance,
-                'total_paper_pnl': self.crypto_monitor.total_paper_pnl,
-                'active_paper_trades': len(self.crypto_monitor.active_paper_trades),
-                'completed_paper_trades': serialized_completed_trades,  # Send full trade data
-                'active_hours': self.crypto_monitor.active_hours,
-                'live_signals': serialized_live_signals,  # Serialized signals with age info
-                'total_live_signals': len(self.crypto_monitor.live_signals),
-                'total_archived_signals': len(self.crypto_monitor.archived_signals),
-                'paper_trades': serialized_active_trades,  # Serialized active trades
-                'trading_journal': self.serialize_datetime_objects(self.crypto_monitor.trading_journal[-10:]),  # Last 10 for journal
-                'signals_summary': todays_summary,  # Use today's journal entries for summary
-                'session_status': self.session_tracker.get_sessions_status(),
-                'market_hours': self.statistics.is_market_hours(),
-                'uptime': self.statistics.get_uptime(),
-                'scan_signal_ratio': self.statistics.calculate_scan_signal_ratio(
-                    self.crypto_monitor.scan_count, 
-                    self.crypto_monitor.total_signals
-                ),
-                'ml_model_status': {
-                    'loaded': self.signal_generator.ml_model is not None,
-                    'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
-                },
-                'timestamp': datetime.now().isoformat()
-            }
+            update_data = self._build_update_data()
             self.socketio.emit('status_update', update_data)
         except Exception as e:
             logger.error(f"❌ Error broadcasting update: {e}")
