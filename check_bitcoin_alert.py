@@ -8,9 +8,81 @@ import sys
 from datetime import datetime
 import sqlite3
 
+def _check_telegram_news_table(cursor):
+    """Check telegram_news table for Bitcoin $105K messages"""
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telegram_news'")
+    if not cursor.fetchone():
+        return False
+    
+    print("✅ Found telegram_news table")
+    
+    # Look for Bitcoin $105K related messages
+    cursor.execute("""
+        SELECT * FROM telegram_news 
+        WHERE (text LIKE '%105%' OR text LIKE '%105k%' OR text LIKE '%105,000%')
+        AND text LIKE '%bitcoin%' OR text LIKE '%btc%'
+        ORDER BY timestamp DESC
+    """)
+    results = cursor.fetchall()
+    
+    if results:
+        print(f"🎯 Found {len(results)} Bitcoin $105K related messages:")
+        for _ in results:
+            print("   📅 Message found")
+        return True
+    else:
+        print("❌ No Bitcoin $105K messages found")
+        return False
+
+def _check_price_alerts_table(cursor):
+    """Check price_alerts table for Bitcoin $105K alerts"""
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='price_alerts'")
+    if not cursor.fetchone():
+        return False
+    
+    print("✅ Found price_alerts table")
+    
+    cursor.execute("""
+        SELECT * FROM price_alerts
+        WHERE symbol = 'BTC' AND price = 105000
+        ORDER BY timestamp DESC
+    """)
+    alerts = cursor.fetchall()
+    
+    if alerts:
+        print(f"🚨 Found {len(alerts)} Bitcoin $105K price alerts:")
+        for _ in alerts:
+            print("   📅 Alert found")
+        return True
+    else:
+        print("❌ No Bitcoin $105K price alerts found")
+        return False
+
+def _check_single_database(db_file):
+    """Check a single database file for Bitcoin alerts"""
+    if not os.path.exists(db_file):
+        print(f"📁 Database not found: {db_file}")
+        return False
+    
+    print(f"📁 Found database: {db_file}")
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        
+        # Check both tables
+        found_in_news = _check_telegram_news_table(cursor)
+        found_in_alerts = _check_price_alerts_table(cursor)
+        
+        conn.close()
+        return found_in_news or found_in_alerts
+        
+    except Exception as e:
+        print(f"❌ Error checking database {db_file}: {e}")
+        return False
+
 def check_bitcoin_alert_in_database():
     """Check if Bitcoin $105K alert was captured in database"""
-    print("🔍 CHECKING DATABASE FOR BITCOIN $105K ALERT")
+    print("� CHECKING DATABASE FOR BITCOIN $105K ALERT")
     print("="*50)
     
     db_files = [
@@ -20,61 +92,12 @@ def check_bitcoin_alert_in_database():
         'systems/fundamental_analysis/fundamental_analysis.db'
     ]
     
+    found_any = False
     for db_file in db_files:
-        if os.path.exists(db_file):
-            print(f"📁 Found database: {db_file}")
-            try:
-                conn = sqlite3.connect(db_file)
-                cursor = conn.cursor()
-                
-                # Check for telegram_news table
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telegram_news'")
-                if cursor.fetchone():
-                    print("✅ Found telegram_news table")
-                    
-                    # Look for Bitcoin $105K related messages
-                    cursor.execute("""
-                        SELECT * FROM telegram_news 
-                        WHERE (text LIKE '%105%' OR text LIKE '%105k%' OR text LIKE '%105,000%')
-                        AND text LIKE '%bitcoin%' OR text LIKE '%btc%'
-                        ORDER BY timestamp DESC
-                    """)
-                    results = cursor.fetchall()
-                    
-                    if results:
-                        print(f"🎯 Found {len(results)} Bitcoin $105K related messages:")
-                        for _ in results:
-                            print("   📅 Message found")
-                    else:
-                        print("❌ No Bitcoin $105K messages found")
-                
-                # Check for price_alerts table
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='price_alerts'")
-                if cursor.fetchone():
-                    print("✅ Found price_alerts table")
-                    
-                    cursor.execute("""
-                        SELECT * FROM price_alerts
-                        WHERE symbol = 'BTC' AND price = 105000
-                        ORDER BY timestamp DESC
-                    """)
-                    alerts = cursor.fetchall()
-                    
-                    if alerts:
-                        print(f"🚨 Found {len(alerts)} Bitcoin $105K price alerts:")
-                        for _ in alerts:
-                            print("   📅 Alert found")
-                    else:
-                        print("❌ No Bitcoin $105K price alerts found")
-                
-                conn.close()
-                
-            except Exception:
-                print(f"❌ Error checking database {db_file}")
-        else:
-            print(f"📁 Database not found: {db_file}")
+        if _check_single_database(db_file):
+            found_any = True
     
-    return False
+    return found_any
 
 def test_alert_detection_capability():
     """Test if our system CAN detect Bitcoin $105K alerts"""
@@ -100,7 +123,7 @@ def test_alert_detection_capability():
     
     for i, message in enumerate(test_messages, 1):
         print("\n--- Test {i} ---")
-        print("Message: {message}")
+        print(f"Message: {message}")
         
         # Check if message contains Bitcoin + $105K + downward movement
         has_bitcoin = bool(re.search(bitcoin_pattern, message, re.IGNORECASE))
@@ -111,9 +134,9 @@ def test_alert_detection_capability():
             print("✅ BITCOIN $105K ALERT DETECTED!")
             detected_count += 1
         else:
-            print("❌ Not detected (Bitcoin: {has_bitcoin}, Price: {has_price}, Direction: {has_direction})")
+            print(f"❌ Not detected (Bitcoin: {has_bitcoin}, Price: {has_price}, Direction: {has_direction})")
     
-    print("\n📊 Detection Results: {detected_count}/{len(test_messages)} alerts detected")
+    print(f"\n📊 Detection Results: {detected_count}/{len(test_messages)} alerts detected")
     
     return detected_count > 0
 
@@ -164,7 +187,7 @@ def answer_user_question():
     
     for log_file in log_files:
         if os.path.exists(log_file):
-            print("📁 Found log: {log_file}")
+            print(f"📁 Found log: {log_file}")
             # Could check if server was running at 9:57, but for now just note the file exists
         
     return not caught_in_db  # Return True if we missed it
