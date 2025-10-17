@@ -481,7 +481,7 @@ class BybitRealTimePrices:
         price = price_data.get('price', 0.0)
         
         # Debug logging to see what's happening
-        if price == 0.0:
+        if price < 0.001:  # Effectively zero for crypto prices
             logger.debug(f"🔍 GET_PRICE {symbol}: returning 0.0 - stored data: {price_data}")
         else:
             logger.debug(f"✅ GET_PRICE {symbol}: returning ${price}")

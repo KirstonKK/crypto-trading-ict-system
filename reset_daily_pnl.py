@@ -8,6 +8,8 @@ Reset today's PnL to give a clean start for proper trading
 import sqlite3
 from datetime import date, datetime
 
+DATABASE_PATH = 'databases/trading_data.db'
+
 def reset_daily_pnl():
     print("🔄 DAILY PNL RESET TOOL")
     print("=" * 60)
@@ -24,7 +26,7 @@ def reset_daily_pnl():
         WHERE date(exit_time) = ? AND status = 'EOD_CLOSE'
     """, (today,))
     
-    eod_count, eod_pnl = cursor.fetchone()
+    eod_result = cursor.fetchone()
     
     cursor.execute("""
         SELECT COALESCE(SUM(realized_pnl), 0)
@@ -37,9 +39,9 @@ def reset_daily_pnl():
     current_balance = 100 + total_pnl
     
     print("📊 CURRENT SITUATION:")
-    print("   EOD Closures Today: {eod_count} trades")
-    print("   EOD PnL Impact: ${eod_pnl:.2f}")
-    print("   Current Balance: ${current_balance:.2f}")
+    print(f"   EOD Closures Today: {eod_result[0]} trades")
+    print(f"   EOD PnL Impact: ${eod_result[1]:.2f}")
+    print(f"   Current Balance: ${current_balance:.2f}")
     
     print("\n🎯 RESET OPTIONS:")
     print("1. Mark EOD closures as 'CLEANUP' (exclude from PnL)")
@@ -50,7 +52,7 @@ def reset_daily_pnl():
     choice = input("\nSelect option (1-4): ").strip()
     
     if choice == "1":
-        print("\n🏷️ MARKING {eod_count} EOD CLOSURES AS CLEANUP...")
+        print(f"\n🏷️ MARKING {eod_result[0]} EOD CLOSURES AS CLEANUP...")
         
         # Change EOD_CLOSE to CLEANUP status
         cursor.execute("""
@@ -70,11 +72,10 @@ def reset_daily_pnl():
         """)
         
         new_total_pnl = cursor.fetchone()[0]
-        new_balance = 100 + new_total_pnl
         
         print("✅ CLEANUP COMPLETE!")
-        print("   - {eod_count} trades marked as CLEANUP")
-        print("   - New balance: ${new_balance:.2f}")
+        print(f"   - {eod_result[0]} trades marked as CLEANUP")
+        print(f"   - New balance: ${100 + new_total_pnl:.2f}")
         print("   - Daily PnL calculation will exclude cleanup trades")
         
     elif choice == "2":

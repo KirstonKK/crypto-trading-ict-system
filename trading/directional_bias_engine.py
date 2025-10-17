@@ -520,9 +520,9 @@ class DirectionalBiasEngine:
             self.pending_retests = high_quality_retests
             
             if high_quality_retests:
-                self.logger.info("🎯 Retest Opportunities: {len(high_quality_retests)}")
-                for retest in high_quality_retests:
-                    self.logger.info("   {retest.retest_type} at {retest.retest_level:.4f} (Quality: {retest.retest_quality})")
+                self.logger.info(f"🎯 Retest Opportunities: {len(high_quality_retests)}")
+                for _ in high_quality_retests:
+                    self.logger.info("   Retest opportunity found")
             
             return high_quality_retests
             
@@ -531,7 +531,7 @@ class DirectionalBiasEngine:
             return []
     
     def calculate_fibonacci_elliott_confluence(self, 
-                                             setup_data: Dict,
+                                             _setup_data: Dict,
                                              price_data: pd.DataFrame) -> Dict[str, float]:
         """
         Calculate Fibonacci retracement confluence with Elliott Wave theory.
@@ -709,7 +709,7 @@ class DirectionalBiasEngine:
     
     def _create_fvg(self, fvg_type: FVGType, high: float, low: float, gap_size: float,
                    formation_candle: pd.Series, formation_time: datetime, 
-                   current_time: datetime) -> Optional[FairValueGap]:
+                   _current_time: datetime) -> Optional[FairValueGap]:
         """Create FVG with confluence analysis."""
         try:
             # Determine formation session
@@ -717,7 +717,6 @@ class DirectionalBiasEngine:
             
             # Analyze volume context
             volume_on_formation = formation_candle.get('volume', 0)
-            avg_volume = formation_candle.get('volume', volume_on_formation) * 0.8  # Approximation
             
             # Calculate confluence factors
             fibonacci_alignment = self._check_fibonacci_alignment(high, low)
@@ -854,7 +853,7 @@ class DirectionalBiasEngine:
     
     def _create_enhanced_order_block(self, ob_type: OrderBlockType, candle: pd.Series,
                                    formation_time: datetime, data: pd.DataFrame, 
-                                   index: int, current_time: datetime) -> Optional[EnhancedOrderBlock]:
+                                   index: int, _current_time: datetime) -> Optional[EnhancedOrderBlock]:
         """Create Enhanced Order Block with full analysis."""
         try:
             # Basic OHLC data
@@ -908,13 +907,13 @@ class DirectionalBiasEngine:
             self.logger.error(f"❌ Error creating Enhanced Order Block: {e}")
             return None
     
-    def _check_fibonacci_alignment(self, high: float, low: float) -> float:
+    def _check_fibonacci_alignment(self, _high: float, _low: float) -> float:
         """Check alignment with key Fibonacci levels."""
         # Simplified Fibonacci alignment check
         # In practice, would check against established swing levels
         return 0.5  # Placeholder
     
-    def _check_smart_money_correlation(self, high: float, low: float) -> float:
+    def _check_smart_money_correlation(self, _high: float, _low: float) -> float:
         """Check correlation with smart money areas."""
         # Would check against identified smart money zones
         return 0.4  # Placeholder
@@ -1001,7 +1000,7 @@ class DirectionalBiasEngine:
                 return None
             
             # Generate comprehensive signal with quality metrics
-            logger.info(f"✅ HIGH-QUALITY ICT SIGNAL GENERATED:")
+            logger.info("✅ HIGH-QUALITY ICT SIGNAL GENERATED:")
             logger.info(f"   Bias Strength: {ny_bias.bias_strength:.3f} (≥0.6 required)")
             logger.info(f"   Total Confluence: {total_confluence_score:.3f} (≥0.7 required)")
             logger.info(f"   FVG Count: {fvg_confluence} | Order Blocks: {ob_confluence}")
@@ -1074,12 +1073,12 @@ class DirectionalBiasEngine:
             return 0.0
     
     # Helper methods (implementation details)
-    def _get_session_data(self, price_data: pd.DataFrame, start_time: datetime, end_time: datetime) -> pd.DataFrame:
+    def _get_session_data(self, price_data: pd.DataFrame, _start_time: datetime, _end_time: datetime) -> pd.DataFrame:
         """Get price data for specific session timeframe."""
         # Implementation would filter price_data by time range
         return price_data.tail(30)  # Placeholder
     
-    def _calculate_directional_bias(self, session_data, session_high, session_low, open_price, current_price):
+    def _calculate_directional_bias(self, _session_data, session_high, session_low, open_price, current_price):
         """Calculate directional bias based on price action."""
         range_position = (current_price - session_low) / (session_high - session_low)
         price_change_pct = (current_price - open_price) / open_price
@@ -1102,7 +1101,7 @@ class DirectionalBiasEngine:
             'confirmation_level': confirmation_level
         }
     
-    def _analyze_elliott_wave_context(self, session_data, full_data):
+    def _analyze_elliott_wave_context(self, _session_data, _full_data):
         """Analyze Elliott Wave pattern context."""
         # Simplified Elliott Wave detection
         return {
@@ -1118,20 +1117,20 @@ class DirectionalBiasEngine:
             'large_block_trades': 3
         }
     
-    def _detect_institutional_flow(self, session_data, volume_profile):
+    def _detect_institutional_flow(self, _session_data, _volume_profile):
         """Detect institutional money flow."""
         return 'BUYING'  # Simplified
     
-    def _get_previous_session_context(self, price_data):
+    def _get_previous_session_context(self, _price_data):
         """Get context from previous trading session."""
         return {'previous_bias': 'BULLISH', 'session_range': 0.02}
     
-    def _analyze_session_smart_money(self, price_data, session, current_area_type):
+    def _analyze_session_smart_money(self, _price_data, _session, _current_area_type):
         """Analyze smart money areas for specific session."""
         # Placeholder implementation
         return []
     
-    def _find_fibonacci_clusters(self, area, daily_high, daily_low):
+    def _find_fibonacci_clusters(self, _area, _daily_high, _daily_low):
         """Find Fibonacci level clusters in area."""
         return [0.618, 0.79]  # Placeholder
     
