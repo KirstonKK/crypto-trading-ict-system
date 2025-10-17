@@ -81,7 +81,7 @@ class ICTEnhancedSystemLauncher:
 """)
             
             # Initialize and run the main controller in webhook mode
-            from main import TradingAlgorithmController
+            from src.core.main import TradingAlgorithmController
             
             controller = TradingAlgorithmController()
             self.components['controller'] = controller

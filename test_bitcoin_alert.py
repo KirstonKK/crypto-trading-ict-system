@@ -19,7 +19,7 @@ def test_bitcoin_alert_detection():
     
     try:
         # Import the telegram bridge
-        from telegram_bridge import TelegramNewsBridge
+        from systems.fundamental_analysis.telegram_bridge import TelegramNewsBridge
         
         # Create a mock fundamental analysis system
         class MockFundamentalSystem:
