@@ -30,7 +30,7 @@ def analyze_trading_performance():
             print("\n📊 Analyzing database: {db_path}")
             try:
                 results[db_path] = analyze_database(db_path, today)
-            except Exception as e:
+            except Exception:
                 print("❌ Error analyzing {db_path}: {e}")
         else:
             print("⚠️  Database not found: {db_path}")
@@ -56,7 +56,8 @@ def analyze_database(db_path, today):
             print("\n🔎 Analyzing table: {table}")
             try:
                 # Get table schema
-                schema = pd.read_sql_query(f"PRAGMA table_info({table})", conn)
+                # Schema check - comment out unused variable
+                # schema = pd.read_sql_query(f"PRAGMA table_info({table})", conn)
                 print("Columns: {list(schema['name'])}")
                 
                 # Get today's data
@@ -67,7 +68,7 @@ def analyze_database(db_path, today):
                         analysis_results[table] = analyze_table_data(data, table)
                     else:
                         print("   No data found for today in {table}")
-                except Exception as e:
+                except Exception:
                     # Try alternative date column names
                     for date_col in ['date', 'time', 'scan_time', 'entry_time']:
                         try:
@@ -81,13 +82,13 @@ def analyze_database(db_path, today):
                     else:
                         print("   Could not find date column for {table}: {e}")
                         
-            except Exception as e:
+            except Exception:
                 print("   ❌ Error analyzing {table}: {e}")
     
     conn.close()
     return analysis_results
 
-def analyze_table_data(data, table_name):
+def analyze_table_data(data, _table_name):
     """Analyze specific table data for patterns"""
     
     print("   📈 Found {len(data)} records in {table_name}")
@@ -130,7 +131,7 @@ def analyze_table_data(data, table_name):
                         'max_loss': max_loss if losing_trades > 0 else 0
                     }
                     
-                except Exception as e:
+                except Exception:
                     print("      Error analyzing PnL: {e}")
             
             elif col in ['result', 'outcome', 'status']:
@@ -197,7 +198,8 @@ def identify_patterns_and_lessons(analysis_results):
     print("   Total Trades Today: {total_trades}")
     print("   Total Losses: {total_losses}")
     if total_trades > 0:
-        win_rate = ((total_trades - total_losses) / total_trades) * 100
+        # Calculate win rate - unused variable
+        # win_rate = ((total_trades - total_losses) / total_trades) * 100
         print("   Win Rate: {win_rate:.1f}%")
     
     # Pattern Analysis

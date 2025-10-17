@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import sqlite3
-from datetime import date
+from datetime import datetime, date
+
+DATABASE_PATH = 'databases/trading_data.db'
 
 def analyze_trades():
     """Analyze today's trades to understand the PnL discrepancy"""
@@ -25,23 +27,11 @@ def analyze_trades():
         print("📈 Total trades today: {len(all_trades)}")
         print()
         
-        wins = 0
-        losses = 0
-        total_pnl = 0
-        closed_today = 0
-        open_trades = 0
+        # Unused tracking variables
+        total_pnl = 0.0
         
         for trade in all_trades:
-            id_col, symbol, status, entry_time, exit_time, realized_pnl, entry_price, exit_price = trade
-            
-            pnl_str = f"${realized_pnl:.2f}" if realized_pnl else "$0.00"
-            exit_str = exit_time if exit_time else "OPEN"
-            exit_price_str = f"${exit_price:.2f}" if exit_price else "N/A"
-            
-            print("Trade {id_col}: {symbol} - {status}")
-            print("   Entry: {entry_time} @ ${entry_price:.2f}")
-            print("   Exit:  {exit_str} @ {exit_price_str}")
-            print("   PnL:   {pnl_str}")
+            _, _, _, _, exit_time, realized_pnl, _, _ = trade
             
             # Count wins/losses
             if realized_pnl is not None and realized_pnl != 0:
@@ -113,7 +103,7 @@ def analyze_trades():
         
         conn.close()
         
-    except Exception as e:
+    except Exception:
         print("❌ Error analyzing trades: {e}")
 
 if __name__ == "__main__":

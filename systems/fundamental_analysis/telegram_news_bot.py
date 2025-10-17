@@ -119,7 +119,7 @@ class WatcherGuruTelegramBot:
             try:
                 await self.fetch_channel_updates()
                 await asyncio.sleep(5)  # Check every 5 seconds
-            except Exception as e:
+            except Exception:
                 logger.error(f"Error in monitoring loop: {e}")
                 await asyncio.sleep(30)  # Wait 30 seconds on error
 
@@ -145,7 +145,7 @@ class WatcherGuruTelegramBot:
                     else:
                         logger.warning(f"Telegram API error: {response.status}")
                         
-        except Exception as e:
+        except Exception:
             logger.error(f"Error fetching channel updates: {e}")
 
     async def process_update(self, update: dict):
@@ -163,7 +163,7 @@ class WatcherGuruTelegramBot:
                 if self.is_watcher_guru_related(message):
                     await self.process_channel_message(message)
                     
-        except Exception as e:
+        except Exception:
             logger.error(f"Error processing update: {e}")
 
     def is_watcher_guru_related(self, message: dict) -> bool:
@@ -206,7 +206,7 @@ class WatcherGuruTelegramBot:
                 
                 logger.info(f"📰 Processed important crypto news: {analysis['crypto_mentioned']} - {analysis['sentiment']}")
                 
-        except Exception as e:
+        except Exception:
             logger.error(f"Error processing channel message: {e}")
 
     def analyze_message(self, text: str) -> dict:
@@ -332,7 +332,7 @@ class WatcherGuruTelegramBot:
             conn.commit()
             conn.close()
             
-        except Exception as e:
+        except Exception:
             logger.error(f"Error storing telegram news: {e}")
 
     async def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
@@ -361,7 +361,7 @@ class WatcherGuruTelegramBot:
                 
                 logger.info(f"🚨 Price alert stored: {analysis['crypto_mentioned']} {analysis['price_alert']['direction']} ${analysis['price_alert']['price']}")
                 
-            except Exception as e:
+            except Exception:
                 logger.error(f"Error storing price alert: {e}")
 
     def get_recent_news(self, hours: int = 1) -> List[dict]:
@@ -398,7 +398,7 @@ class WatcherGuruTelegramBot:
             
             return news
             
-        except Exception as e:
+        except Exception:
             logger.error(f"Error getting recent news: {e}")
             return []
 
@@ -421,7 +421,7 @@ class WatcherGuruTelegramBot:
             columns = ['id', 'crypto', 'price', 'direction', 'timestamp', 'source_message', 'processed']
             return [dict(zip(columns, row)) for row in rows]
             
-        except Exception as e:
+        except Exception:
             logger.error(f"Error getting price alerts: {e}")
             return []
 
@@ -435,7 +435,7 @@ class WatcherGuruTelegramBot:
             conn.commit()
             conn.close()
             
-        except Exception as e:
+        except Exception:
             logger.error(f"Error marking alert processed: {e}")
 
     def stop_monitoring(self):
