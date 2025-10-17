@@ -189,6 +189,38 @@ class TelegramNewsBridge:
         except Exception as e:
             logger.error(f"Error updating fundamental analysis: {e}")
     
+    def _analyze_news_by_crypto(self, recent_news):
+        """Analyze news items by cryptocurrency"""
+        crypto_summary = {}
+        
+        for news in recent_news:
+            if news['crypto_mentioned']:
+                for crypto in news['crypto_mentioned'].split(','):
+                    if crypto not in crypto_summary:
+                        crypto_summary[crypto] = {
+                            'news_count': 0,
+                            'sentiment_distribution': {'BULLISH': 0, 'BEARISH': 0, 'NEUTRAL': 0},
+                            'avg_importance': 0,
+                            'recent_alerts': []
+                        }
+                    
+                    crypto_summary[crypto]['news_count'] += 1
+                    crypto_summary[crypto]['sentiment_distribution'][news['sentiment']] += 1
+                    crypto_summary[crypto]['avg_importance'] += news['importance_score']
+        
+        return crypto_summary
+    
+    def _add_price_alerts(self, crypto_summary, price_alerts):
+        """Add price alerts to crypto summary"""
+        for alert in price_alerts[-10:]:  # Last 10 alerts
+            crypto = alert['crypto']
+            if crypto in crypto_summary:
+                crypto_summary[crypto]['recent_alerts'].append({
+                    'price': alert['price'],
+                    'direction': alert['direction'],
+                    'timestamp': alert['timestamp']
+                })
+
     def get_telegram_news_summary(self, hours: int = 24) -> dict:
         """Get a summary of recent Telegram news"""
         try:
@@ -196,21 +228,7 @@ class TelegramNewsBridge:
             price_alerts = self.telegram_bot.get_price_alerts(processed=True)
             
             # Analyze by crypto
-            crypto_summary = {}
-            for news in recent_news:
-                if news['crypto_mentioned']:
-                    for crypto in news['crypto_mentioned'].split(','):
-                        if crypto not in crypto_summary:
-                            crypto_summary[crypto] = {
-                                'news_count': 0,
-                                'sentiment_distribution': {'BULLISH': 0, 'BEARISH': 0, 'NEUTRAL': 0},
-                                'avg_importance': 0,
-                                'recent_alerts': []
-                            }
-                        
-                        crypto_summary[crypto]['news_count'] += 1
-                        crypto_summary[crypto]['sentiment_distribution'][news['sentiment']] += 1
-                        crypto_summary[crypto]['avg_importance'] += news['importance_score']
+            crypto_summary = self._analyze_news_by_crypto(recent_news)
             
             # Calculate averages
             for crypto in crypto_summary:
@@ -219,14 +237,7 @@ class TelegramNewsBridge:
                     crypto_summary[crypto]['avg_importance'] /= count
             
             # Add price alerts
-            for alert in price_alerts[-10:]:  # Last 10 alerts
-                crypto = alert['crypto']
-                if crypto in crypto_summary:
-                    crypto_summary[crypto]['recent_alerts'].append({
-                        'price': alert['price'],
-                        'direction': alert['direction'],
-                        'timestamp': alert['timestamp']
-                    })
+            self._add_price_alerts(crypto_summary, price_alerts)
             
             return {
                 'summary_period_hours': hours,
