@@ -266,7 +266,7 @@ class TradingDatabase:
                     VALUES (?, 0, 0, 0, 0, ?, ?)
                 ''', (today, prev_paper_balance, prev_live_balance))
                 
-                self.logger.info("🗓️ NEW DAY: Reset counters to 0, PRESERVED balance ${prev_paper_balance:.2f} from previous trading")
+                self.logger.info(f"🗓️ NEW DAY: Reset counters to 0, PRESERVED balance ${prev_paper_balance:.2f} from previous trading")
                 conn.commit()
 
     def get_daily_stats(self) -> Dict[str, Any]:
@@ -392,7 +392,7 @@ class TradingDatabase:
                 f"PnL: ${perf.get('pnl', 0):.2f}"
             )
             
-            self.logger.info("✅ Migrated {perf.get('signals_generated', 0)} signals and trading data")
+            self.logger.info(f"✅ Migrated {perf.get('signals_generated', 0)} signals and trading data")
             
         except Exception as e:
             self.logger.error(f"❌ Migration failed: {e}")

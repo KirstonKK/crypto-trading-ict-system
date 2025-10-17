@@ -1044,11 +1044,11 @@ if __name__ == "__main__":
             print("🎯 TOP ENHANCED ORDER BLOCKS:")
             for i, eob in enumerate(enhanced_order_blocks[:3], 1):
                 direction = "BULLISH" if eob.block_type == 'BULLISH_EOB' else "BEARISH"
-                print("  {i}. {direction} EOB - {eob.quality.value} quality ({eob.institutional_quality_score:.1f}/100)")
-                print("     Zone: ${eob.low:.2f} - ${eob.high:.2f}")
-                print("     Entry: ${eob.optimal_entry_zone[0]:.2f}-${eob.optimal_entry_zone[1]:.2f}")
-                print("     Smart Money: {eob.smart_money_signature:.1%} | Volume: {eob.volume_confirmation:.1%}")
-                print("     Confluence: {', '.join(eob.confluence_factors[:2])}")
+                print(f"  {i}. {direction} EOB - {eob.quality.value} quality ({eob.institutional_quality_score:.1f}/100)")
+                print(f"     Zone: ${eob.low:.2f} - ${eob.high:.2f}")
+                print(f"     Entry: ${eob.optimal_entry_zone[0]:.2f}-${eob.optimal_entry_zone[1]:.2f}")
+                print(f"     Smart Money: {eob.smart_money_signature:.1%} | Volume: {eob.volume_confirmation:.1%}")
+                print(f"     Confluence: {', '.join(eob.confluence_factors[:2])}")
                 print()
         
         print("✅ Enhanced Order Block Detection test completed!")

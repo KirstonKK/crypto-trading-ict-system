@@ -999,7 +999,7 @@ if __name__ == "__main__":
         print("\n📐 Top Fibonacci Zones:")
         for i, zone in enumerate(fib_zones[:10]):
             level_pct = zone.fibonacci_level * 100
-            print("   {i+1}. {level_pct:>5.1f}% Level: ${zone.zone_mid:>10,.2f} - {zone.quality.value} ({zone.confluence_score:.1%})")
+            print(f"   {i+1}. {level_pct:>5.1f}% Level: ${zone.zone_mid:>10,.2f} - {zone.quality.value} ({zone.confluence_score:.1%})")
         
         # Get OTE analysis
         ote_analysis = analyzer.get_optimal_trade_entry_analysis("BTC/USDT", "1h")

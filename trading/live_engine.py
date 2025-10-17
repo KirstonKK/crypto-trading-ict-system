@@ -786,7 +786,7 @@ if __name__ == "__main__":
             print("Trading engine initialized successfully")
             
         except Exception as e:
-            print("Error: {e}")
+            print(f"Error: {e}")
     
     # Run test
     asyncio.run(main())

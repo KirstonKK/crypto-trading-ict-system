@@ -53,7 +53,7 @@ try:
     from monitoring.dashboards.ict_proactive_monitor import ICTProactiveCryptoMonitor
     from dashboard.ict_dashboard import ICTTradingDashboard
 except ImportError as e:
-    print("Import error: {e}")
+    print(f"Import error: {e}")
     print("Please ensure all modules are properly configured")
     sys.exit(1)
 
@@ -523,8 +523,8 @@ class TradingAlgorithmController:
                 avg_confluence = np.mean(stats['confluence_scores'])
                 min_confluence = min(stats['confluence_scores'])
                 max_confluence = max(stats['confluence_scores'])
-                print("║     Average Confluence: {avg_confluence:.1%}                           ║")
-                print("║     Confluence Range: {min_confluence:.1%} - {max_confluence:.1%}                     ║")
+                print(f"║     Average Confluence: {avg_confluence:.1%}                           ║")
+                print(f"║     Confluence Range: {min_confluence:.1%} - {max_confluence:.1%}                     ║")
             
             print("""
 ║                                                                  ║
@@ -639,13 +639,13 @@ class TradingAlgorithmController:
     async def _handle_webhook_alert_standalone(self, alert) -> None:
         """Handle webhook alert in standalone mode (testing)."""
         print("📡 Webhook Alert Received:")
-        print("   Symbol: {alert.symbol}")
-        print("   Action: {alert.action}")
-        print("   Price: ${alert.price:,.2f}")
-        print("   Market Phase: {alert.market_phase}")
-        print("   Confidence: {alert.confidence:.2%}")
-        print("   Source IP: {alert.source_ip}")
-        print("   Signature Valid: {alert.signature_valid}")
+        print(f"   Symbol: {alert.symbol}")
+        print(f"   Action: {alert.action}")
+        print(f"   Price: ${alert.price:,.2f}")
+        print(f"   Market Phase: {alert.market_phase}")
+        print(f"   Confidence: {alert.confidence:.2%}")
+        print(f"   Source IP: {alert.source_ip}")
+        print(f"   Signature Valid: {alert.signature_valid}")
         print("─" * 50)
     
     async def _handle_processed_signal(self, signal) -> None:

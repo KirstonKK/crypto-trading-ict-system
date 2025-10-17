@@ -84,6 +84,6 @@ if __name__ == "__main__":
     
     print("=" * 50)
     print("✅ RESTORATION COMPLETE")
-    print("📊 Today's Scans: {scan_count}")
-    print("📈 Today's Signals: {signal_count}")
-    print("📋 Ratio: {signal_count}/{scan_count}")
+    print(f"📊 Today's Scans: {scan_count}")
+    print(f"📈 Today's Signals: {signal_count}")
+    print(f"📋 Ratio: {signal_count}/{scan_count}")

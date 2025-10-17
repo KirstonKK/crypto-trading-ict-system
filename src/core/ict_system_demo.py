@@ -358,7 +358,7 @@ class ICTSystemDemo:
         
         for suite_name, suite_results in results['test_results'].items():
             status = "✅ PASS" if suite_results['passed'] else "❌ FAIL"
-            print("   {suite_name:<20} {status}")
+            print(f"   {suite_name:<20} {status}")
         
         print("""
 🎯 Validation Summary:

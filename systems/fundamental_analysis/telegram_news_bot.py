@@ -335,7 +335,7 @@ class WatcherGuruTelegramBot:
         except Exception:
             logger.error("Error storing telegram news")
 
-    def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
+    async def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
         """Check for price alerts and store them"""
         if analysis['price_alert'] and analysis['crypto_mentioned']:
             try:
@@ -444,7 +444,7 @@ class WatcherGuruTelegramBot:
         logger.info("🛑 Stopping WatcherGuru Telegram monitoring")
 
 # Example usage and testing
-def test_telegram_bot():
+async def test_telegram_bot():
     """Test the telegram bot functionality"""
     bot = WatcherGuruTelegramBot()
     
