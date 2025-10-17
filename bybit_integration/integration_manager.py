@@ -228,6 +228,59 @@ class BybitIntegrationManager:
                 logger.error(f"❌ Error monitoring ICT signals: {e}")
                 await asyncio.sleep(5)  # Wait longer on error
 
+    async def _execute_signal_callbacks(self, signal_data):
+        """Execute all signal callbacks"""
+        for callback in self.signal_callbacks:
+            try:
+                await callback("new_signal", signal_data)
+            except Exception as e:
+                logger.error(f"❌ Signal callback error: {e}")
+    
+    async def _execute_trade_callbacks(self, execution):
+        """Execute all trade callbacks"""
+        for callback in self.trade_callbacks:
+            try:
+                await callback("trade_executed", asdict(execution))
+            except Exception as e:
+                logger.error(f"❌ Trade callback error: {e}")
+    
+    async def _execute_auto_trade(self, signal_data):
+        """Execute auto-trading for a signal"""
+        if not self.auto_trading:
+            logger.info("📊 Signal logged (auto-trading disabled)")
+            return
+        
+        execution = await self.trading_executor.process_ict_signal(signal_data)
+        
+        if execution:
+            self.status.total_trades_executed += 1
+            self.status.last_trade_time = datetime.now()
+            
+            # Call trade callbacks
+            await self._execute_trade_callbacks(execution)
+            
+            logger.info(f"✅ Trade executed: {execution.symbol} {execution.side}")
+        else:
+            logger.info("🚫 Signal not executed (validation failed)")
+    
+    async def _process_single_signal(self, signal_data):
+        """Process a single signal from the queue"""
+        logger.info(f"🔄 Processing signal: {signal_data.get('symbol')} {signal_data.get('action')}")
+        
+        # Validate signal format
+        if not self._validate_signal_format(signal_data):
+            logger.warning("⚠️  Invalid signal format, skipping")
+            return
+        
+        # Call signal callbacks
+        await self._execute_signal_callbacks(signal_data)
+        
+        # Execute trade if auto-trading is enabled
+        await self._execute_auto_trade(signal_data)
+        
+        # Update performance data
+        await self._update_performance_data()
+    
     async def _process_signals(self):
         """Process signals from the queue"""
         while self.running:
@@ -238,43 +291,7 @@ class BybitIntegrationManager:
                 except asyncio.TimeoutError:
                     continue
                 
-                logger.info("🔄 Processing signal: {signal_data.get('symbol')} {signal_data.get('action')}")
-                
-                # Validate signal format
-                if not self._validate_signal_format(signal_data):
-                    logger.warning("⚠️  Invalid signal format, skipping")
-                    continue
-                
-                # Call signal callbacks
-                for callback in self.signal_callbacks:
-                    try:
-                        await callback("new_signal", signal_data)
-                    except Exception as e:
-                        logger.error(f"❌ Signal callback error: {e}")
-                
-                # Execute trade if auto-trading is enabled
-                if self.auto_trading:
-                    execution = await self.trading_executor.process_ict_signal(signal_data)
-                    
-                    if execution:
-                        self.status.total_trades_executed += 1
-                        self.status.last_trade_time = datetime.now()
-                        
-                        # Call trade callbacks
-                        for callback in self.trade_callbacks:
-                            try:
-                                await callback("trade_executed", asdict(execution))
-                            except Exception as e:
-                                logger.error(f"❌ Trade callback error: {e}")
-                        
-                        logger.info("✅ Trade executed: {execution.symbol} {execution.side}")
-                    else:
-                        logger.info("🚫 Signal not executed (validation failed)")
-                else:
-                    logger.info("📊 Signal logged (auto-trading disabled)")
-                
-                # Update performance data
-                await self._update_performance_data()
+                await self._process_single_signal(signal_data)
                 
             except Exception as e:
                 logger.error(f"❌ Error processing signal: {e}")
