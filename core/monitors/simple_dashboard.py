@@ -214,4 +214,5 @@ if __name__ == '__main__':
     print("🚀 Starting Simple ICT Dashboard on port 5002")
     print("🌐 Dashboard: http://localhost:5002")
     print("📡 Connecting to ICT Monitor: http://localhost:5001")
-    app.run(host='0.0.0.0', port=5002, debug=False)
+    # SECURITY FIX: Changed from 0.0.0.0 to localhost only
+    app.run(host='127.0.0.1', port=5002, debug=False)

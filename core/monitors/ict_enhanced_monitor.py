@@ -16,6 +16,7 @@ import logging
 import threading
 import asyncio
 import aiohttp
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from flask import Flask, render_template_string, jsonify, request
@@ -761,7 +762,8 @@ class ICTCryptoMonitor:
             self.signals_today = 0
             self.total_signals = 0
             # PRESERVE BALANCE if it was successfully loaded! Only reset if it's still at default
-            if not hasattr(self, 'paper_balance') or self.paper_balance == 100.0:
+            # TRADING FIX: Use range comparison instead of exact float equality
+            if not hasattr(self, 'paper_balance') or abs(self.paper_balance - 100.0) < 0.01:
                 # Try to load balance one more time in case it failed during main restoration
                 try:
                     import sqlite3
@@ -1600,7 +1602,8 @@ class ICTCryptoMonitor:
             else:
                 signal_time = signal_timestamp
             return (datetime.now() - signal_time).total_seconds() / 60
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(f"Error calculating signal age for timestamp {signal_timestamp}: {e}")
             return 999  # Return large number for invalid timestamps
     
     def get_signal_age_category(self, age_minutes):
@@ -1752,7 +1755,7 @@ class ICTCryptoMonitor:
         dynamic_rr = self.select_dynamic_rr_ratio(signal)
         
         confluence_score = signal.get('confluence_score', 0.5)
-        signal_strength = signal.get('signal_strength', 'Medium')
+        # FIXED: Removed unused signal_strength variable
         logger.info(f"📊 RISK MANAGEMENT: Fixed 1.0% risk (${risk_amount:.2f}) | Dynamic RR 1:{dynamic_rr} | Confluence: {confluence_score:.3f}")
         
         entry_price = signal['entry_price']
@@ -3480,7 +3483,11 @@ class ICTWebMonitor:
     def __init__(self, port=5001):
         self.port = port
         self.app = Flask(__name__)
-        self.app.config['SECRET_KEY'] = 'ict_enhanced_monitor_2025'
+        # SECURITY FIX: Use environment variable for Flask secret key
+        secret_key = os.getenv('FLASK_SECRET_KEY')
+        if not secret_key:
+            raise ValueError("FLASK_SECRET_KEY environment variable is required for secure session management!")
+        self.app.config['SECRET_KEY'] = secret_key
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         
         # Initialize components

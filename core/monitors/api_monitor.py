@@ -13,13 +13,18 @@ import json
 import time
 import hmac
 import hashlib
+import os
 from datetime import datetime
 
 class APIKeyMonitor:
     def __init__(self):
-        self.api_key = 'Iohh3GFMrEIVhEcFHP'
-        self.api_secret = 'G5H4wmVdDnDah4UMjxm7qZO9nlwfXWTPC0hh'
+        # SECURITY FIX: Load API credentials from environment variables
+        self.api_key = os.getenv('BYBIT_API_KEY')
+        self.api_secret = os.getenv('BYBIT_API_SECRET')
         self.creation_time = '2025-10-02 14:48:01'
+        
+        if not self.api_key or not self.api_secret:
+            raise ValueError("API credentials not found! Set BYBIT_API_KEY and BYBIT_API_SECRET environment variables.")
         
     async def test_api_key(self):
         """Test if API key is active"""

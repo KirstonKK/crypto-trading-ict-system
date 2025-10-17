@@ -48,7 +48,7 @@ class TradingSignal:
     position_size: Optional[float] = None
     
     # Signal metadata
-    signal_id: str = None
+    signal_id: Optional[str] = None  # FIXED: Use Optional[str] instead of str = None
     session_multiplier: float = 1.0
     market_session: str = "Unknown"
 
