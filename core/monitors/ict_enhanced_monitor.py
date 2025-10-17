@@ -2260,6 +2260,62 @@ class ICTSignalGenerator:
         # This method exists in the main ICTCryptoMonitor class
         return None
         
+    def _process_single_crypto_analysis(self, crypto_symbol, crypto_price_data):
+        """Process ICT analysis for a single cryptocurrency"""
+        logger.info(f"🔍 Analyzing {crypto_symbol} with comprehensive ICT methodology")
+        
+        # Use new crypto-specific signal generation
+        signal = self.generate_crypto_specific_signal(crypto_symbol, crypto_price_data)
+        
+        if signal:
+            # Convert to full trading signal format
+            enhanced_signal = self._convert_crypto_signal_to_trading_signal(signal)
+            if enhanced_signal:
+                logger.info(f"✅ {crypto_symbol} signal generated: {signal['direction']} "
+                          f"(Confluence: {signal['confluence_score']:.2f}, "
+                          f"Timeframe: {signal['timeframe']}, "
+                          f"Session: {signal['session_preference']})")
+                return enhanced_signal
+        else:
+            logger.debug(f"❌ {crypto_symbol} - No signal: Insufficient confluence or timing")
+        return None
+    
+    def _process_all_crypto_analysis(self, crypto_data):
+        """Process ICT analysis for all cryptocurrencies"""
+        signals = []
+        for crypto in crypto_data.keys():
+            try:
+                crypto_symbol = crypto.replace('USDT', '')
+                enhanced_signal = self._process_single_crypto_analysis(crypto_symbol, crypto_data[crypto])
+                if enhanced_signal:
+                    signals.append(enhanced_signal)
+                
+                # Add small delay between crypto analysis to prevent system overload
+                time.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"❌ Comprehensive ICT analysis failed for {crypto}: {e}")
+                logger.info(f"�� No fallback for {crypto} - Only comprehensive ICT signals generated")
+        return signals
+    
+    def _filter_unique_crypto_signals(self, signals):
+        """Filter out duplicate signals based on confluence and timeframe"""
+        if len(signals) <= 1:
+            return signals
+            
+        unique_signals = []
+        used_confluences = set()
+        
+        for signal in signals:
+            confluence_key = f"{signal['confluence_score']:.3f}_{signal['timeframe']}"
+            if confluence_key not in used_confluences:
+                unique_signals.append(signal)
+                used_confluences.add(confluence_key)
+            else:
+                logger.info(f"🔍 Filtered duplicate confluence signal for {signal['crypto']}")
+        
+        return unique_signals
+        
     def generate_trading_signals(self, crypto_data: Dict) -> List[Dict]:
         """Generate trading signals using comprehensive ICT methodology with crypto-specific analysis"""
         signals = []
@@ -2273,33 +2329,7 @@ class ICTSignalGenerator:
             return signals
         
         # Process each crypto with individual analysis
-        for crypto in crypto_data.keys():
-            try:
-                crypto_symbol = crypto.replace('USDT', '')
-                logger.info(f"🔍 Analyzing {crypto_symbol} with comprehensive ICT methodology")
-                
-                # Use new crypto-specific signal generation
-                signal = self.generate_crypto_specific_signal(crypto_symbol, crypto_data[crypto])
-                
-                if signal:
-                    # Convert to full trading signal format
-                    enhanced_signal = self._convert_crypto_signal_to_trading_signal(signal)
-                    if enhanced_signal:
-                        signals.append(enhanced_signal)
-                        logger.info(f"✅ {crypto_symbol} signal generated: {signal['direction']} "
-                                  f"(Confluence: {signal['confluence_score']:.2f}, "
-                                  f"Timeframe: {signal['timeframe']}, "
-                                  f"Session: {signal['session_preference']})")
-                else:
-                    logger.debug(f"❌ {crypto_symbol} - No signal: Insufficient confluence or timing")
-                
-                # Add small delay between crypto analysis to prevent system overload
-                time.sleep(0.1)
-                
-            except Exception as e:
-                logger.error(f"❌ Comprehensive ICT analysis failed for {crypto}: {e}")
-                # NO FALLBACK - Only comprehensive ICT methodology allowed
-                logger.info(f"🚫 No fallback for {crypto} - Only comprehensive ICT signals generated")
+        signals = self._process_all_crypto_analysis(crypto_data)
         
         # Prevent identical signals at same time (your main concern)
         if len(signals) > 1:
@@ -2468,135 +2498,181 @@ class ICTSignalGenerator:
             logger.error(f"❌ Error converting crypto-specific signal: {e}")
             return None
     
+    def _calculate_traditional_signal_probability(self, price_data):
+        """Calculate if signal should be generated based on market conditions"""
+        market_volatility = self._calculate_single_crypto_volatility(price_data)
+        session_activity = self._get_session_multiplier()
+        
+        base_prob = 0.035  # 3.5% base chance per scan
+        volatility_multiplier = max(0.5, min(3.0, market_volatility))
+        adjusted_prob = base_prob * volatility_multiplier * session_activity
+        
+        return np.random.default_rng(42).random() < adjusted_prob
+    
+    def _calculate_ict_confluence(self, price_data):
+        """Calculate ICT confluence score and factors"""
+        confluence_score = 0.05
+        confluence_factors = []
+        
+        change_24h = abs(price_data.get('change_24h', 0))
+        high_24h = price_data.get('high_24h', price_data['price'])
+        low_24h = price_data.get('low_24h', price_data['price'])
+        current_price = price_data['price']
+        range_24h = high_24h - low_24h
+        
+        # Fair Value Gap Analysis
+        if change_24h > 1.5:
+            confluence_score += 0.25
+            confluence_factors.append("FVG High Volatility")
+        elif change_24h > 0.5 and np.random.default_rng(42).random() < 0.40:
+            confluence_score += 0.20
+            confluence_factors.append("FVG")
+        
+        # Order Block Analysis
+        range_percent = (range_24h / current_price) * 100
+        if range_percent > 3:
+            confluence_score += 0.30
+            confluence_factors.append("Order Block Wide Range")
+        elif range_percent > 1.5 and np.random.default_rng(42).random() < 0.60:
+            confluence_score += 0.20
+            confluence_factors.append("Order Block")
+        
+        # Market Structure Shift
+        if change_24h > 2.5:
+            confluence_score += 0.20
+            confluence_factors.append("Structure Shift Strong")
+        elif change_24h > 1.0 and np.random.default_rng(42).random() < 0.50:
+            confluence_score += 0.15
+            confluence_factors.append("Structure Shift")
+        
+        return confluence_score, confluence_factors, range_24h
+    
+    def _determine_premium_discount_action(self, price_data, range_24h):
+        """Determine preferred action based on premium/discount zones"""
+        current_price = price_data['price']
+        low_24h = price_data.get('low_24h', current_price)
+        change_24h = price_data.get('change_24h', 0)
+        
+        price_position = (current_price - low_24h) / range_24h if range_24h > 0 else 0.5
+        confluence_add = 0
+        zone_factor = None
+        
+        if price_position < 0.25:
+            confluence_add = 0.15
+            zone_factor = "Deep Discount"
+            preferred_action = "BUY"
+        elif price_position < 0.35:
+            confluence_add = 0.10
+            zone_factor = "Discount Zone"
+            preferred_action = "BUY"
+        elif price_position > 0.75:
+            confluence_add = 0.15
+            zone_factor = "Deep Premium"
+            preferred_action = "SELL"
+        elif price_position > 0.65:
+            confluence_add = 0.10
+            zone_factor = "Premium Zone"
+            preferred_action = "SELL"
+        else:
+            preferred_action = "BUY" if change_24h > 0 else "SELL"
+        
+        return preferred_action, confluence_add, zone_factor
+    
+    def _build_traditional_signal(self, crypto, price_data, action, confluence_score, confluence_factors):
+        """Build the traditional ICT signal object"""
+        entry_price = price_data['price']
+        
+        # Calculate stop loss and take profit
+        if action == "BUY":
+            stop_loss = entry_price * 0.985  # 1.5% stop
+            take_profit = entry_price * 1.045  # 4.5% target (3:1 ratio)
+        else:
+            stop_loss = entry_price * 1.015  # 1.5% stop
+            take_profit = entry_price * 0.955  # 4.5% target (3:1 ratio)
+        
+        risk_amount = 1.0
+        stop_distance = abs(entry_price - stop_loss)
+        position_size = risk_amount / stop_distance if stop_distance > 0 else 0
+        
+        return {
+            'id': f"{crypto}_ICT_{int(time.time())}",
+            'symbol': f"{crypto}USDT",
+            'crypto': crypto,
+            'action': action,
+            'entry_price': entry_price,
+            'stop_loss': stop_loss,
+            'take_profit': take_profit,
+            'timeframe': 'M15',
+            'confidence': min(0.35 + (confluence_score * 0.55), 0.90),
+            'ict_confidence': confluence_score,
+            'ml_boost': 0.0,
+            'risk_amount': risk_amount,
+            'position_size': position_size,
+            'stop_distance': stop_distance,
+            'risk_reward_ratio': 3.0,
+            'confluences': confluence_factors,
+            'confluence_score': confluence_score,
+            'signal_strength': 'High' if confluence_score >= 0.8 else 'Medium-High',
+            'timestamp': datetime.now().isoformat(),
+            'status': 'PENDING',
+            'pnl': 0.0,
+            'bias_methodology': 'TRADITIONAL_ANALYSIS'
+        }
+    
     def _generate_traditional_ict_signal(self, crypto: str, price_data: Dict) -> Optional[Dict]:
         """Generate traditional ICT signal as fallback"""
         try:
-            # Market-driven signal generation - adapts to current conditions
-            market_volatility = self._calculate_single_crypto_volatility(price_data)
-            session_activity = self._get_session_multiplier()
-            
-            # Base probability adjusted by market conditions
-            base_prob = 0.035  # 3.5% base chance per scan
-            volatility_multiplier = max(0.5, min(3.0, market_volatility))
-            adjusted_prob = base_prob * volatility_multiplier * session_activity
-            
-            # Check if we should generate a signal
-            if np.random.default_rng(42).random() >= adjusted_prob:
+            # Check if we should generate a signal based on market conditions
+            if not self._calculate_traditional_signal_probability(price_data):
                 return None
             
-            # ICT Confluence Analysis
-            confluence_score = 0.05
-            confluence_factors = []
+            # Calculate ICT confluence
+            confluence_score, confluence_factors, range_24h = self._calculate_ict_confluence(price_data)
             
-            change_24h = abs(price_data.get('change_24h', 0))
-            high_24h = price_data.get('high_24h', price_data['price'])
-            low_24h = price_data.get('low_24h', price_data['price'])
-            current_price = price_data['price']
-            
-            # Fair Value Gap Analysis
-            if change_24h > 1.5:
-                confluence_score += 0.25
-                confluence_factors.append("FVG High Volatility")
-            elif change_24h > 0.5 and np.random.default_rng(42).random() < 0.40:
-                confluence_score += 0.20
-                confluence_factors.append("FVG")
-            
-            # Order Block Analysis
-            range_24h = high_24h - low_24h
-            range_percent = (range_24h / current_price) * 100
-            if range_percent > 3:
-                confluence_score += 0.30
-                confluence_factors.append("Order Block Wide Range")
-            elif range_percent > 1.5:
-                if np.random.default_rng(42).random() < 0.60:
-                    confluence_score += 0.20
-                    confluence_factors.append("Order Block")
-            
-            # Market Structure Shift
-            if change_24h > 2.5:
-                confluence_score += 0.20
-                confluence_factors.append("Structure Shift Strong")
-            elif change_24h > 1.0 and np.random.default_rng(42).random() < 0.50:
-                confluence_score += 0.15
-                confluence_factors.append("Structure Shift")
-            
-            # Premium/Discount Analysis
-            price_position = (current_price - low_24h) / range_24h if range_24h > 0 else 0.5
-            
-            if price_position < 0.25:
-                confluence_score += 0.15
-                confluence_factors.append("Deep Discount")
-                preferred_action = "BUY"
-            elif price_position < 0.35:
-                confluence_score += 0.10
-                confluence_factors.append("Discount Zone")
-                preferred_action = "BUY"
-            elif price_position > 0.75:
-                confluence_score += 0.15
-                confluence_factors.append("Deep Premium")
-                preferred_action = "SELL"
-            elif price_position > 0.65:
-                confluence_score += 0.10
-                confluence_factors.append("Premium Zone")
-                preferred_action = "SELL"
-            else:
-                preferred_action = "BUY" if change_24h > 0 else "SELL"
+            # Determine action based on premium/discount zones
+            preferred_action, zone_confluence, zone_factor = self._determine_premium_discount_action(price_data, range_24h)
+            confluence_score += zone_confluence
+            if zone_factor:
+                confluence_factors.append(zone_factor)
             
             # Check confluence threshold
             if confluence_score < 0.65:
                 return None
             
-            # Generate signal
-            entry_price = current_price
-            action = preferred_action
-            
-            # Calculate stop loss and take profit
-            if action == "BUY":
-                stop_loss = entry_price * 0.985  # 1.5% stop
-                take_profit = entry_price * 1.045  # 4.5% target (3:1 ratio)
-            else:
-                stop_loss = entry_price * 1.015  # 1.5% stop
-                take_profit = entry_price * 0.955  # 4.5% target (3:1 ratio)
-            
-            risk_amount = 1.0
-            stop_distance = abs(entry_price - stop_loss)
-            position_size = risk_amount / stop_distance if stop_distance > 0 else 0
-            
-            signal = {
-                'id': f"{crypto}_ICT_{int(time.time())}",
-                'symbol': f"{crypto}USDT",
-                'crypto': crypto,
-                'action': action,
-                'entry_price': entry_price,
-                'stop_loss': stop_loss,
-                'take_profit': take_profit,
-                'timeframe': 'M15',
-                'confidence': min(0.35 + (confluence_score * 0.55), 0.90),
-                'ict_confidence': confluence_score,
-                'ml_boost': 0.0,
-                'risk_amount': risk_amount,
-                'position_size': position_size,
-                'stop_distance': stop_distance,
-                'risk_reward_ratio': 3.0,
-                'confluences': confluence_factors,
-                'confluence_score': confluence_score,
-                'signal_strength': 'High' if confluence_score >= 0.8 else 'Medium-High',
-                'timestamp': datetime.now().isoformat(),
-                'status': 'PENDING',
-                'pnl': 0.0,
-                'bias_methodology': 'TRADITIONAL_ANALYSIS'
-            }
-            
-            return signal
+            # Build and return signal
+            return self._build_traditional_signal(crypto, price_data, preferred_action, confluence_score, confluence_factors)
             
         except Exception as e:
             logger.error(f"❌ Error generating traditional ICT signal for {crypto}: {e}")
             return None
     
-    def _calculate_single_crypto_volatility(self, price_data: Dict) -> float:
-        """Calculate volatility for a single crypto"""
-        # Remove unused variable
-        # change_24h = abs(price_data.get('change_24h', 0))
+    def _generate_traditional_ict_signal(self, crypto: str, price_data: Dict) -> Optional[Dict]:
+        """Generate traditional ICT signal as fallback"""
+        try:
+            # Check if we should generate a signal based on market conditions
+            if not self._calculate_traditional_signal_probability(price_data):
+                return None
+            
+            # Calculate ICT confluence
+            confluence_score, confluence_factors, range_24h = self._calculate_ict_confluence(price_data)
+            
+            # Determine action based on premium/discount zones
+            preferred_action, zone_confluence, zone_factor = self._determine_premium_discount_action(price_data, range_24h)
+            confluence_score += zone_confluence
+            if zone_factor:
+                confluence_factors.append(zone_factor)
+            
+            # Check confluence threshold
+            if confluence_score < 0.65:
+                return None
+            
+            # Build and return signal
+            return self._build_traditional_signal(crypto, price_data, preferred_action, confluence_score, confluence_factors)
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating traditional ICT signal for {crypto}: {e}")
+            return None
+    
         high_24h = price_data.get('high_24h', price_data['price'])
         low_24h = price_data.get('low_24h', price_data['price'])
         
