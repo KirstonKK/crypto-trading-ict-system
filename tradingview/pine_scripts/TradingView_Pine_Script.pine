@@ -1,0 +1,218 @@
+//@version=5
+indicator("🚀 Crypto Trading Bot Pro", "CTB Pro", overlay=true)
+
+// ==================== CONFIGURATION ====================
+// Input parameters for strategy tuning
+rsi_length = input.int(14, title="RSI Length", minval=1, maxval=50, group="Technical Indicators")
+rsi_overbought = input.float(70.0, title="RSI Overbought", minval=50.0, maxval=90.0, group="Technical Indicators")
+rsi_oversold = input.float(30.0, title="RSI Oversold", minval=10.0, maxval=50.0, group="Technical Indicators")
+
+ma_fast_length = input.int(9, title="Fast MA Length", minval=1, maxval=50, group="Moving Averages")
+ma_slow_length = input.int(21, title="Slow MA Length", minval=1, maxval=100, group="Moving Averages")
+
+bb_length = input.int(20, title="Bollinger Bands Length", minval=1, maxval=50, group="Bollinger Bands")
+bb_mult = input.float(2.0, title="Bollinger Bands Multiplier", minval=0.1, maxval=5.0, group="Bollinger Bands")
+
+volume_ma_length = input.int(20, title="Volume MA Length", minval=1, maxval=100, group="Volume Analysis")
+volume_threshold = input.float(1.5, title="Volume Spike Threshold", minval=1.0, maxval=5.0, group="Volume Analysis")
+
+// Alert settings
+enable_rsi_alerts = input.bool(true, title="Enable RSI Alerts", group="Alert Settings")
+enable_ma_alerts = input.bool(true, title="Enable MA Cross Alerts", group="Alert Settings")
+enable_bb_alerts = input.bool(true, title="Enable BB Alerts", group="Alert Settings")
+enable_volume_alerts = input.bool(true, title="Enable Volume Alerts", group="Alert Settings")
+
+min_confidence = input.float(0.6, title="Minimum Alert Confidence", minval=0.1, maxval=1.0, group="Alert Settings")
+
+// ==================== TECHNICAL INDICATORS ====================
+// RSI
+rsi = ta.rsi(close, rsi_length)
+
+// Moving Averages
+ma_fast = ta.ema(close, ma_fast_length)
+ma_slow = ta.ema(close, ma_slow_length)
+
+// Bollinger Bands
+[bb_middle, bb_upper, bb_lower] = ta.bb(close, bb_length, bb_mult)
+
+// Volume Analysis
+volume_ma = ta.sma(volume, volume_ma_length)
+volume_spike = volume > volume_ma * volume_threshold
+
+// MACD
+[macd_line, signal_line, _] = ta.macd(close, 12, 26, 9)
+
+// Stochastic
+k = ta.stoch(close, high, low, 14)
+d = ta.sma(k, 3)
+
+// ==================== SIGNAL LOGIC ====================
+// RSI Signals
+rsi_oversold_signal = enable_rsi_alerts and ta.crossover(rsi, rsi_oversold) and rsi < rsi_oversold + 5
+rsi_overbought_signal = enable_rsi_alerts and ta.crossunder(rsi, rsi_overbought) and rsi > rsi_overbought - 5
+
+// Moving Average Signals
+ma_bullish_cross = enable_ma_alerts and ta.crossover(ma_fast, ma_slow)
+ma_bearish_cross = enable_ma_alerts and ta.crossunder(ma_fast, ma_slow)
+
+// Bollinger Band Signals
+bb_oversold = enable_bb_alerts and close < bb_lower and close[1] >= bb_lower[1]
+bb_overbought = enable_bb_alerts and close > bb_upper and close[1] <= bb_upper[1]
+
+// Volume confirmation
+volume_confirm = not enable_volume_alerts or volume_spike
+
+// ==================== BUY/SELL CONDITIONS ====================
+// Calculate confidence scores
+calc_confidence(rsi_weight, ma_weight, bb_weight, volume_weight) =>
+    score = 0.0
+    total_weight = 0.0
+    
+    // RSI confidence
+    if rsi_oversold_signal
+        rsi_strength = math.abs(rsi - 50) / 50  // Stronger signal when RSI is further from 50
+        score += rsi_weight * rsi_strength
+        total_weight += rsi_weight
+    
+    // MA confidence
+    if ma_bullish_cross
+        ma_spread = math.abs(ma_fast - ma_slow) / close  // Stronger when MAs are further apart
+        score += ma_weight * ma_spread * 100
+        total_weight += ma_weight
+    
+    // BB confidence
+    if bb_oversold
+        bb_distance = math.abs(close - bb_lower) / (bb_upper - bb_lower)
+        score += bb_weight * (1 - bb_distance)  // Stronger when closer to lower band
+        total_weight += bb_weight
+    
+    // Volume confidence
+    if volume_spike
+        volume_ratio = volume / volume_ma
+        volume_strength = math.min(volume_ratio / 3, 1.0)  // Cap at 1.0
+        score += volume_weight * volume_strength
+        total_weight += volume_weight
+    
+    confidence = total_weight > 0 ? math.min(score / total_weight, 1.0) : 0.0
+    confidence
+
+// BUY Signals with confidence
+buy_signal_basic = rsi_oversold_signal or ma_bullish_cross or bb_oversold
+buy_confidence = buy_signal_basic ? calc_confidence(0.3, 0.3, 0.2, 0.2) : 0.0
+buy_signal = buy_signal_basic and buy_confidence >= min_confidence and volume_confirm
+
+// SELL Signals with confidence  
+sell_signal_basic = rsi_overbought_signal or ma_bearish_cross or bb_overbought
+sell_confidence = sell_signal_basic ? calc_confidence(0.3, 0.3, 0.2, 0.2) : 0.0
+sell_signal = sell_signal_basic and sell_confidence >= min_confidence and volume_confirm
+
+// ==================== RISK MANAGEMENT ====================
+// Calculate dynamic stop loss based on volatility
+atr = ta.atr(14)
+dynamic_stop_loss_pct = math.min(math.max((atr / close) * 100 * 2, 1.0), 8.0)  // Between 1% and 8%
+
+// Support and Resistance levels
+pivot_high = ta.pivothigh(high, 5, 5)
+pivot_low = ta.pivotlow(low, 5, 5)
+
+// ==================== VISUAL ELEMENTS ====================
+// Plot Moving Averages
+plot(ma_fast, color=color.blue, linewidth=2, title="Fast MA")
+plot(ma_slow, color=color.red, linewidth=2, title="Slow MA")
+
+// Plot Bollinger Bands
+bb_upper_plot = plot(bb_upper, color=color.gray, linewidth=1, title="BB Upper")
+bb_lower_plot = plot(bb_lower, color=color.gray, linewidth=1, title="BB Lower")
+plot(bb_middle, color=color.yellow, linewidth=1, title="BB Middle")
+fill(bb_upper_plot, bb_lower_plot, color=color.new(color.gray, 95), title="BB Background")
+
+// Signal shapes
+plotshape(buy_signal, title="Buy Signal", location=location.belowbar, color=color.new(color.green, 0), 
+          style=shape.labelup, text="BUY\n" + str.tostring(math.round(buy_confidence * 100)) + "%", 
+          size=size.normal, textcolor=color.white)
+          
+plotshape(sell_signal, title="Sell Signal", location=location.abovebar, color=color.new(color.red, 0), 
+          style=shape.labeldown, text="SELL\n" + str.tostring(math.round(sell_confidence * 100)) + "%", 
+          size=size.normal, textcolor=color.white)
+
+// Volume spike markers
+plotchar(volume_spike, title="Volume Spike", location=location.bottom, color=color.orange, 
+         char="🔊", size=size.tiny)
+
+// Support/Resistance levels
+plotshape(pivot_high, title="Resistance", location=location.abovebar, color=color.red, 
+          style=shape.triangledown, size=size.small)
+plotshape(pivot_low, title="Support", location=location.belowbar, color=color.green, 
+          style=shape.triangleup, size=size.small)
+
+// ==================== ALERTS ====================
+// Format alert message with comprehensive data
+format_alert_message(action, confidence, price) =>
+    '{' +
+    '"symbol":"' + syminfo.ticker + '",' +
+    '"action":"' + action + '",' +
+    '"price":' + str.tostring(price) + ',' +
+    '"timestamp":"{{time}}",' +
+    '"confidence":' + str.tostring(math.round(confidence * 100) / 100) + ',' +
+    '"timeframe":"' + timeframe.period + '",' +
+    '"rsi":' + str.tostring(math.round(rsi * 10) / 10) + ',' +
+    '"macd":' + str.tostring(math.round(macd_line * 100) / 100) + ',' +
+    '"volume_spike":' + (volume_spike ? 'true' : 'false') + ',' +
+    '"atr":' + str.tostring(math.round(atr * 100) / 100) + ',' +
+    '"stop_loss_pct":' + str.tostring(math.round(dynamic_stop_loss_pct * 10) / 10) + ',' +
+    '"ma_fast":' + str.tostring(math.round(ma_fast * 100) / 100) + ',' +
+    '"ma_slow":' + str.tostring(math.round(ma_slow * 100) / 100) + ',' +
+    '"bb_upper":' + str.tostring(math.round(bb_upper * 100) / 100) + ',' +
+    '"bb_lower":' + str.tostring(math.round(bb_lower * 100) / 100) + ',' +
+    '"exchange":"' + syminfo.prefix + '",' +
+    '"source":"TRADINGVIEW_PINE",' +
+    '"strategy":"MULTI_INDICATOR"' +
+    '}'
+
+// BUY Alert
+if buy_signal
+    alert_message = format_alert_message("BUY", buy_confidence, close)
+    alert(alert_message, alert.freq_once_per_bar)
+
+// SELL Alert
+if sell_signal
+    alert_message = format_alert_message("SELL", sell_confidence, close)
+    alert(alert_message, alert.freq_once_per_bar)
+
+// ==================== TABLE DISPLAY ====================
+// Create info table
+var table info_table = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 80), 
+                                  border_width=1, border_color=color.gray)
+
+if barstate.islast
+    table.cell(info_table, 0, 0, "📊 INDICATOR", text_color=color.white, bgcolor=color.new(color.blue, 50))
+    table.cell(info_table, 1, 0, "📈 VALUE", text_color=color.white, bgcolor=color.new(color.blue, 50))
+    
+    table.cell(info_table, 0, 1, "RSI", text_color=color.white)
+    rsi_color = rsi > rsi_overbought ? color.red : rsi < rsi_oversold ? color.green : color.yellow
+    table.cell(info_table, 1, 1, str.tostring(math.round(rsi)), text_color=rsi_color)
+    
+    table.cell(info_table, 0, 2, "MACD", text_color=color.white)
+    macd_color = macd_line > signal_line ? color.green : color.red
+    table.cell(info_table, 1, 2, str.tostring(math.round(macd_line * 100) / 100), text_color=macd_color)
+    
+    table.cell(info_table, 0, 3, "Volume", text_color=color.white)
+    vol_color = volume_spike ? color.orange : color.gray
+    table.cell(info_table, 1, 3, volume_spike ? "🔊 SPIKE" : "Normal", text_color=vol_color)
+    
+    table.cell(info_table, 0, 4, "Trend", text_color=color.white)
+    trend_color = ma_fast > ma_slow ? color.green : color.red
+    trend_text = ma_fast > ma_slow ? "📈 BULL" : "📉 BEAR"
+    table.cell(info_table, 1, 4, trend_text, text_color=trend_color)
+    
+    table.cell(info_table, 0, 5, "BB Position", text_color=color.white)
+    bb_pos_color = close > bb_upper ? color.red : close < bb_lower ? color.green : color.yellow
+    bb_pos_text = close > bb_upper ? "ABOVE" : close < bb_lower ? "BELOW" : "MIDDLE"
+    table.cell(info_table, 1, 5, bb_pos_text, text_color=bb_pos_color)
+    
+    table.cell(info_table, 0, 6, "Stop Loss", text_color=color.white)
+    table.cell(info_table, 1, 6, str.tostring(math.round(dynamic_stop_loss_pct * 10) / 10) + "%", text_color=color.orange)
+    
+    table.cell(info_table, 0, 7, "🎯 Webhook", text_color=color.white)
+    webhook_status = "✅ READY"
+    table.cell(info_table, 1, 7, webhook_status, text_color=color.green)

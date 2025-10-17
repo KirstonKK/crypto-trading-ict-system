@@ -1,0 +1,18 @@
+{
+  "last_update": "2025-10-03T00:50:09.287862",
+  "scan_count": 930,
+  "signals_today": 10,
+  "paper_balance": 96.95757275809328,
+  "service_status": "operational",
+  "session_start": "2025-10-03",
+  "ml_model_status": {
+    "loaded": true,
+    "status": "loaded"
+  },
+  "symbols": [
+    "BTC",
+    "SOL",
+    "ETH",
+    "XRP"
+  ]
+}

@@ -1,0 +1,53 @@
+=== TRANSCRIPTION WITH TIMESTAMPS ===
+
+[00:00 - 00:01]  Hello, my dear friend.
+[00:01 - 00:04]  Now I will explain to you how our forecasting algorithm works.
+[00:04 - 00:08]  This is a forecasting module of the system that performs informative analysis of time
+[00:08 - 00:13]  series, calculates curve parameters, and generates the coefficients necessary for calculations,
+[00:13 - 00:17]  as well as time intervals for buying and selling your financial assets.
+[00:17 - 00:20]  But how can all this be explained in simple terms?
+[00:20 - 00:22]  This is our most important algorithm.
+[00:22 - 00:27]  It works very simply, at its lowest point you buy, and at its highest point you sell.
+[00:27 - 00:31]  What is its power you ask?
+[00:31 - 00:32]  It predicts the future.
+[00:32 - 00:35]  More precisely the exact date of the beginning of the up or down phase.
+[00:35 - 00:39]  This is a clear example of how it worked and how it will work here in the future.
+[00:39 - 00:43]  But when trading with it, it is important to understand some points.
+[00:43 - 00:46]  From the beginning, the forecast is made using a bigger time frame, and then you go down
+[00:46 - 00:48]  to smaller time frames.
+[00:48 - 00:54]  That is the daily time frame, four hour time frame, hourly time frame, and 15 minutes.
+[00:54 - 00:58]  On the chart, draw a vertical dotted line at the lowest or highest point of our algorithm,
+[00:58 - 01:01]  which will symbolize the beginning of the growth phase, or the beginning of the decline
+[01:01 - 01:03]  phase of the financial asset.
+[01:03 - 01:05]  Green line went up, red line went down.
+[01:05 - 01:08]  After that, you see the start date and will go down to the lower time frames, to more
+[01:08 - 01:11]  accurately adjust the start of the desired phase.
+[01:11 - 01:19]  You often hear me say this phrase, one to two days.
+[01:19 - 01:23]  Because with the passage of time and the constant recalculations of our algorithm, as we
+[01:23 - 01:27]  approach the previously set date for the start of the growth or decline phase, this date
+[01:27 - 01:29]  may shift a couple of days earlier or later.
+[01:29 - 01:34]  But it is precisely with this approach to forecasting, from a large time frame down to
+[01:34 - 01:40]  the smallest, that we can know exactly when this day will come, and not miss it.
+[01:40 - 01:45]  Similarly you can catch upward and downward movements on small time frames, such as those
+[01:45 - 01:47]  here and here.
+[01:47 - 01:48]  But there is another important point.
+[01:48 - 01:52]  But the algorithm has done its job and, for example, moved up from the bottom, but the
+[01:52 - 01:56]  price fluctuated within a small range, and if you bought the asset here, close it here
+[01:56 - 01:58]  and turn in the other direction.
+[01:58 - 02:01]  As we can see in this fragment.
+[02:01 - 02:05]  And remember, when we are in a downtrend on a large time frame, we only sell when switching
+[02:05 - 02:07]  to a small time frame.
+[02:07 - 02:10]  And when we are in an uptrend, we only buy.
+[02:10 - 02:12]  And here's another interesting point.
+[02:12 - 02:14]  It's more about risk management.
+[02:14 - 02:18]  If we see two bottoms in our mathematical model, I recommend dividing your money into equal
+[02:18 - 02:22]  parts and entering the position twice, here and here.
+[02:22 - 02:26]  In the next video, I will tell you why we enter a position exclusively based on our trading
+[02:26 - 02:31]  filter and how it works in tandem with our forecasting module.
+[02:31 - 02:35]  Also, don't forget to subscribe to all our social networks and write to me personally
+[02:35 - 02:38]  or to customer support about purchasing our algorithm.
+
+
+=== FULL TEXT ===
+
+ Hello, my dear friend. Now I will explain to you how our forecasting algorithm works. This is a forecasting module of the system that performs informative analysis of time series, calculates curve parameters, and generates the coefficients necessary for calculations, as well as time intervals for buying and selling your financial assets. But how can all this be explained in simple terms? This is our most important algorithm. It works very simply, at its lowest point you buy, and at its highest point you sell. What is its power you ask? It predicts the future. More precisely the exact date of the beginning of the up or down phase. This is a clear example of how it worked and how it will work here in the future. But when trading with it, it is important to understand some points. From the beginning, the forecast is made using a bigger time frame, and then you go down to smaller time frames. That is the daily time frame, four hour time frame, hourly time frame, and 15 minutes. On the chart, draw a vertical dotted line at the lowest or highest point of our algorithm, which will symbolize the beginning of the growth phase, or the beginning of the decline phase of the financial asset. Green line went up, red line went down. After that, you see the start date and will go down to the lower time frames, to more accurately adjust the start of the desired phase. You often hear me say this phrase, one to two days. Because with the passage of time and the constant recalculations of our algorithm, as we approach the previously set date for the start of the growth or decline phase, this date may shift a couple of days earlier or later. But it is precisely with this approach to forecasting, from a large time frame down to the smallest, that we can know exactly when this day will come, and not miss it. Similarly you can catch upward and downward movements on small time frames, such as those here and here. But there is another important point. But the algorithm has done its job and, for example, moved up from the bottom, but the price fluctuated within a small range, and if you bought the asset here, close it here and turn in the other direction. As we can see in this fragment. And remember, when we are in a downtrend on a large time frame, we only sell when switching to a small time frame. And when we are in an uptrend, we only buy. And here's another interesting point. It's more about risk management. If we see two bottoms in our mathematical model, I recommend dividing your money into equal parts and entering the position twice, here and here. In the next video, I will tell you why we enter a position exclusively based on our trading filter and how it works in tandem with our forecasting module. Also, don't forget to subscribe to all our social networks and write to me personally or to customer support about purchasing our algorithm.

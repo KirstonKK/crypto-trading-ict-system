@@ -1,0 +1,29 @@
+{
+  "signal_processing": {
+    "confluence_scoring": {
+      "min_score": 7,
+      "max_score": 10,
+      "weights": {
+        "market_structure": 2.0,
+        "order_blocks": 1.5,
+        "liquidity_levels": 1.5,
+        "kill_zones": 1.0,
+        "volume_analysis": 1.0,
+        "momentum": 0.8,
+        "session_bias": 0.7
+      }
+    },
+    "signal_filters": {
+      "market_regime_filter": true,
+      "volatility_filter": true,
+      "news_filter": false,
+      "correlation_filter": true
+    },
+    "execution_rules": {
+      "max_signals_per_hour": 3,
+      "max_signals_per_day": 12,
+      "min_time_between_signals": 300,
+      "require_confirmation": true
+    }
+  }
+}

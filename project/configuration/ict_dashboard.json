@@ -1,0 +1,22 @@
+{
+  "dashboard": {
+    "server": {
+      "host": "localhost",
+      "port": 5001,
+      "debug": false
+    },
+    "display": {
+      "auto_refresh_seconds": 30,
+      "show_charts": true,
+      "show_signals": true,
+      "show_journal": true,
+      "max_signals_display": 50
+    },
+    "features": {
+      "real_time_updates": true,
+      "signal_notifications": true,
+      "performance_metrics": true,
+      "risk_monitoring": true
+    }
+  }
+}

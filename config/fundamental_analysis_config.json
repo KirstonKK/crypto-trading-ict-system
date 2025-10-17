@@ -1,0 +1,193 @@
+{
+  "api_endpoints": {
+    "coingecko": {
+      "base_url": "https://api.coingecko.com/api/v3",
+      "endpoints": {
+        "coin_data": "/coins/{id}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true",
+        "market_data": "/coins/markets?vs_currency=usd&ids={ids}&order=market_cap_desc",
+        "global_data": "/global"
+      }
+    },
+    "defillama": {
+      "base_url": "https://api.llama.fi",
+      "endpoints": {
+        "tvl": "/tvl/{protocol}",
+        "protocols": "/protocols",
+        "chains": "/chains"
+      }
+    },
+    "newsapi": {
+      "base_url": "https://newsapi.org/v2",
+      "api_key": "YOUR_NEWS_API_KEY",
+      "endpoints": {
+        "everything": "/everything?q=cryptocurrency bitcoin ethereum solana&sortBy=publishedAt&apiKey={api_key}"
+      }
+    },
+    "social_metrics": {
+      "lunarcrush": {
+        "base_url": "https://api.lunarcrush.com/v2",
+        "api_key": "YOUR_LUNARCRUSH_API_KEY"
+      }
+    }
+  },
+  
+  "crypto_config": {
+    "BTC": {
+      "coingecko_id": "bitcoin",
+      "inflation_target": 1.7,
+      "halving_schedule": true,
+      "max_supply": 21000000,
+      "deflationary": false
+    },
+    "ETH": {
+      "coingecko_id": "ethereum", 
+      "inflation_target": -0.3,
+      "halving_schedule": false,
+      "max_supply": null,
+      "deflationary": true,
+      "eip1559": true
+    },
+    "SOL": {
+      "coingecko_id": "solana",
+      "inflation_target": 4.2,
+      "halving_schedule": false,
+      "max_supply": null,
+      "deflationary": false,
+      "token_burns": true
+    },
+    "XRP": {
+      "coingecko_id": "ripple",
+      "inflation_target": 0.0,
+      "halving_schedule": false,
+      "max_supply": 100000000000,
+      "deflationary": false,
+      "escrow_release": true
+    },
+    "ADA": {
+      "coingecko_id": "cardano",
+      "inflation_target": 4.5,
+      "halving_schedule": false,
+      "max_supply": 45000000000,
+      "deflationary": false
+    },
+    "DOT": {
+      "coingecko_id": "polkadot",
+      "inflation_target": 10.0,
+      "halving_schedule": false,
+      "max_supply": null,
+      "deflationary": false
+    },
+    "AVAX": {
+      "coingecko_id": "avalanche-2",
+      "inflation_target": 7.0,
+      "halving_schedule": false,
+      "max_supply": 720000000,
+      "deflationary": false,
+      "fee_burning": true
+    },
+    "MATIC": {
+      "coingecko_id": "matic-network",
+      "inflation_target": 5.0,
+      "halving_schedule": false,
+      "max_supply": 10000000000,
+      "deflationary": false,
+      "eip1559": true
+    }
+  },
+  
+  "scoring_weights": {
+    "supply_analysis": {
+      "inflation_rate": 0.4,
+      "token_burns": 0.2,
+      "max_supply_exists": 0.2,
+      "supply_growth_rate": 0.2
+    },
+    "demand_analysis": {
+      "daily_active_users": 0.25,
+      "total_value_locked": 0.25,
+      "developer_activity": 0.2,
+      "institutional_adoption": 0.15,
+      "social_mentions": 0.15
+    },
+    "overall_score": {
+      "supply_weight": 0.4,
+      "demand_weight": 0.5,
+      "news_weight": 0.1
+    }
+  },
+  
+  "thresholds": {
+    "inflation_rate": {
+      "excellent": 0.0,
+      "good": 2.0,
+      "average": 4.0,
+      "poor": 6.0
+    },
+    "daily_active_users": {
+      "excellent": 1000000,
+      "good": 500000,
+      "average": 100000,
+      "poor": 50000
+    },
+    "total_value_locked": {
+      "excellent": 10000000000,
+      "good": 5000000000,
+      "average": 1000000000,
+      "poor": 100000000
+    },
+    "developer_activity": {
+      "excellent": 500,
+      "good": 200,
+      "average": 100,
+      "poor": 50
+    }
+  },
+  
+  "news_keywords": {
+    "positive": [
+      "adoption", "partnership", "integration", "upgrade", "bullish",
+      "institutional", "investment", "breakthrough", "growth", "milestone",
+      "launch", "expansion", "innovation", "development", "collaboration"
+    ],
+    "negative": [
+      "hack", "exploit", "regulation", "ban", "crash", "dump", "bearish",
+      "investigation", "lawsuit", "vulnerability", "outage", "controversy",
+      "decline", "restriction", "warning", "criticism", "concern"
+    ],
+    "crypto_mentions": [
+      "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "xrp", "ripple",
+      "cardano", "ada", "polkadot", "dot", "avalanche", "avax", "polygon", "matic",
+      "cryptocurrency", "crypto", "blockchain", "defi", "nft"
+    ]
+  },
+  
+  "update_schedule": {
+    "supply_metrics": "daily",
+    "demand_metrics": "6_hours", 
+    "news_analysis": "hourly",
+    "full_analysis": "daily"
+  },
+  
+  "risk_factors": {
+    "regulatory_risk": {
+      "BTC": "low",
+      "ETH": "low", 
+      "SOL": "medium",
+      "XRP": "high",
+      "ADA": "low",
+      "DOT": "medium",
+      "AVAX": "medium",
+      "MATIC": "low"
+    },
+    "technical_risk": {
+      "BTC": "low",
+      "ETH": "medium",
+      "SOL": "medium", 
+      "XRP": "low",
+      "ADA": "medium",
+      "DOT": "medium",
+      "AVAX": "medium",
+      "MATIC": "medium"
+    }
+  }
+}

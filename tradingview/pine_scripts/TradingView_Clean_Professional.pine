@@ -1,0 +1,154 @@
+//@version=6
+indicator("Professional Crypto Signals", "PCS", overlay=true)
+
+// Import built-in libraries
+import TradingView/ta/1 as ta
+
+// ==================== CONFIGURATION ====================
+// Simplified input parameters for quality signals
+rsi_length = input.int(14, title="RSI Length", minval=5, maxval=30, group="Settings")
+ema_fast = input.int(21, title="Fast EMA", minval=5, maxval=50, group="Settings")
+ema_slow = input.int(55, title="Slow EMA", minval=20, maxval=100, group="Settings")
+atr_multiplier = input.float(2.5, title="ATR Stop Multiplier", minval=1.0, maxval=5.0, group="Settings")
+
+// Quality thresholds - higher values = fewer but better signals
+min_confidence = input.float(0.85, title="Minimum Signal Confidence", minval=0.7, maxval=0.95, group="Quality")
+volume_threshold = input.float(1.8, title="Volume Confirmation", minval=1.2, maxval=3.0, group="Quality")
+
+// Visual settings
+show_levels = input.bool(true, title="Show Support/Resistance", group="Display")
+show_trend = input.bool(true, title="Show Trend EMAs", group="Display")
+
+// ==================== CORE INDICATORS ====================
+// Clean moving averages
+ema21 = ta.ema(close, ema_fast)
+ema55 = ta.ema(close, ema_slow)
+ema_trend = ema21 > ema55
+
+// RSI for momentum
+rsi = ta.rsi(close, rsi_length)
+
+// Volume confirmation
+vol_ma = ta.sma(volume, 20)
+strong_volume = volume > vol_ma * volume_threshold
+
+// ATR for volatility-based stops
+atr = ta.atr(14)
+
+// MACD for trend confirmation
+[macd_line, signal_line, _] = ta.macd(close, 12, 26, 9)
+macd_bullish = macd_line > signal_line and macd_line > 0
+
+// ==================== SIGNAL LOGIC ====================
+// High-quality buy conditions (all must be true)
+buy_condition_1 = ta.crossover(ema21, ema55)  // Golden cross
+buy_condition_2 = rsi < 60 and rsi > 40  // RSI in sweet spot
+buy_condition_3 = close > ema21  // Price above fast EMA
+buy_condition_4 = strong_volume  // Volume confirmation
+buy_condition_5 = macd_bullish  // MACD trending up
+
+// High-quality sell conditions (all must be true)
+sell_condition_1 = ta.crossunder(ema21, ema55)  // Death cross
+sell_condition_2 = rsi > 40 and rsi < 70  // RSI in sweet spot
+sell_condition_3 = close < ema21  // Price below fast EMA
+sell_condition_4 = strong_volume  // Volume confirmation
+sell_condition_5 = not macd_bullish  // MACD trending down
+
+// Calculate signal confidence
+buy_signals_met = (buy_condition_1 ? 1 : 0) + (buy_condition_2 ? 1 : 0) + (buy_condition_3 ? 1 : 0) + (buy_condition_4 ? 1 : 0) + (buy_condition_5 ? 1 : 0)
+sell_signals_met = (sell_condition_1 ? 1 : 0) + (sell_condition_2 ? 1 : 0) + (sell_condition_3 ? 1 : 0) + (sell_condition_4 ? 1 : 0) + (sell_condition_5 ? 1 : 0)
+
+buy_confidence = buy_signals_met / 5.0
+sell_confidence = sell_signals_met / 5.0
+
+// Final high-quality signals
+buy_signal = buy_signals_met >= 4 and buy_confidence >= min_confidence
+sell_signal = sell_signals_met >= 4 and sell_confidence >= min_confidence
+
+// ==================== VISUAL ELEMENTS ====================
+// Clean trend lines with clear labels
+plot(show_trend ? ema21 : na, color=color.blue, linewidth=2, title="Fast EMA (21) - Blue Line")
+plot(show_trend ? ema55 : na, color=color.red, linewidth=2, title="Slow EMA (55) - Red Line")
+
+// Support and resistance levels with clear labels
+pivot_high = ta.pivothigh(high, 10, 10)
+pivot_low = ta.pivotlow(low, 10, 10)
+resistance = ta.valuewhen(not na(pivot_high), pivot_high, 0)
+support = ta.valuewhen(not na(pivot_low), pivot_low, 0)
+
+plot(show_levels ? resistance : na, color=color.red, linewidth=1, style=plot.style_stepline, title="Resistance Level")
+plot(show_levels ? support : na, color=color.green, linewidth=1, style=plot.style_stepline, title="Support Level")
+
+// High-probability buy/sell signals with clear icons and timestamps
+plotshape(buy_signal, title="HIGH CONFIDENCE BUY", location=location.belowbar, color=color.new(color.lime, 0), style=shape.labelup, text="🟢 BUY", size=size.large, textcolor=color.white)
+plotshape(sell_signal, title="HIGH CONFIDENCE SELL", location=location.abovebar, color=color.new(color.red, 0), style=shape.labeldown, text="🔴 SELL", size=size.large, textcolor=color.white)
+
+// Add timestamp labels for signals
+if buy_signal
+    label.new(bar_index, low - atr, text="BUY: " + str.tostring(close, '#.##') + "\n" + str.tostring(timenow, "HH:mm MM/dd"), style=label.style_label_up, color=color.lime, textcolor=color.white, size=size.normal)
+
+if sell_signal
+    label.new(bar_index, high + atr, text="SELL: " + str.tostring(close, '#.##') + "\n" + str.tostring(timenow, "HH:mm MM/dd"), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.normal)
+
+// ==================== CLEAN ALERTS ====================
+// Professional alert format
+format_clean_alert(string action, float confidence, float price) =>
+    stop_loss_distance = atr * atr_multiplier
+    stop_loss = action == "BUY" ? price - stop_loss_distance : price + stop_loss_distance
+    take_profit = action == "BUY" ? price + (stop_loss_distance * 2) : price - (stop_loss_distance * 2)
+    
+    json_data = 
+     '{' +
+     '"symbol":"' + syminfo.ticker + '",' +
+     '"action":"' + action + '",' +
+     '"price":' + str.tostring(price, '#.##') + ',' +
+     '"confidence":' + str.tostring(confidence, '#.##') + ',' +
+     '"stop_loss":' + str.tostring(stop_loss, '#.##') + ',' +
+     '"take_profit":' + str.tostring(take_profit, '#.##') + ',' +
+     '"timeframe":"' + timeframe.period + '",' +
+     '"timestamp":"{{time}}",' +
+     '"rsi":' + str.tostring(rsi, '#.#') + ',' +
+     '"trend":"' + (ema_trend ? "BULLISH" : "BEARISH") + '",' +
+     '"volume_strong":' + str.tostring(strong_volume) + ',' +
+     '"source":"PROFESSIONAL_SIGNALS"' +
+     '}'
+    json_data
+
+// High-quality alerts only
+if buy_signal
+    alert_message = format_clean_alert("BUY", buy_confidence, close)
+    alert(alert_message, alert.freq_once_per_bar_close)
+
+if sell_signal
+    alert_message = format_clean_alert("SELL", sell_confidence, close)
+    alert(alert_message, alert.freq_once_per_bar_close)
+
+// ==================== ENHANCED INFO TABLE ====================
+var table info_table = table.new(position=position.top_right, columns=2, rows=7, bgcolor=color.new(color.white, 85), border_width=1, border_color=color.gray, frame_width=1, frame_color=color.blue)
+
+if barstate.islast
+    table.cell(info_table, 0, 0, "SIGNAL STATUS", text_color=color.black, bgcolor=color.new(color.blue, 50))
+    table.cell(info_table, 1, 0, "VALUE", text_color=color.black, bgcolor=color.new(color.blue, 50))
+    
+    table.cell(info_table, 0, 1, "Current Trend", text_color=color.black)
+    trend_text = ema_trend ? "🟢 BULLISH" : "🔴 BEARISH"
+    trend_color = ema_trend ? color.green : color.red
+    table.cell(info_table, 1, 1, trend_text, text_color=trend_color)
+    
+    table.cell(info_table, 0, 2, "RSI Level", text_color=color.black)
+    rsi_color = rsi > 70 ? color.red : rsi < 30 ? color.green : color.gray
+    table.cell(info_table, 1, 2, str.tostring(math.round(rsi)), text_color=rsi_color)
+    
+    table.cell(info_table, 0, 3, "Volume Status", text_color=color.black)
+    table.cell(info_table, 1, 3, strong_volume ? "🟢 STRONG" : "⚪ WEAK", text_color=strong_volume ? color.green : color.gray)
+    
+    table.cell(info_table, 0, 4, "Signal Quality", text_color=color.black)
+    quality_text = buy_signal ? "🟢 BUY SIGNAL" : sell_signal ? "🔴 SELL SIGNAL" : "⏳ MONITORING"
+    quality_color = buy_signal ? color.green : sell_signal ? color.red : color.gray
+    table.cell(info_table, 1, 4, quality_text, text_color=quality_color)
+    
+    table.cell(info_table, 0, 5, "Blue Line (EMA21)", text_color=color.black)
+    table.cell(info_table, 1, 5, "Fast Trend", text_color=color.blue)
+    
+    table.cell(info_table, 0, 6, "Red Line (EMA55)", text_color=color.black)
+    table.cell(info_table, 1, 6, "Slow Trend", text_color=color.red)

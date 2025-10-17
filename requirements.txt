@@ -1,0 +1,51 @@
+# Trading Algorithm Requirements
+# Production dependencies for staging and deployment
+
+# Core dependencies
+requests>=2.31.0
+aiohttp>=3.8.5
+websockets>=11.0.2
+asyncio-mqtt>=0.13.0
+
+# Data processing
+pandas>=2.0.3
+numpy>=1.24.3
+scipy>=1.11.1
+
+# Machine learning
+scikit-learn>=1.3.0
+joblib>=1.3.1
+
+# Web framework
+Flask>=2.3.2
+Flask-SocketIO>=5.3.4
+python-socketio>=5.8.0
+
+# Cryptography
+cryptography>=41.0.3
+pyotp>=2.8.0
+
+# API and HTTP
+urllib3>=2.0.4
+certifi>=2023.7.22
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Logging and monitoring
+colorama>=0.4.6
+python-json-logger>=2.0.7
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+
+# Code quality
+black>=23.7.0
+flake8>=6.0.0
+mypy>=1.5.1
+
+# Deployment
+gunicorn>=21.2.0
+supervisor>=4.2.5

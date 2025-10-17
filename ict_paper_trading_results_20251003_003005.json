@@ -1,0 +1,27 @@
+{
+  "portfolio": {
+    "balance": 10000.0,
+    "positions": {},
+    "trades": [],
+    "statistics": {
+      "total_trades": 0,
+      "winning_trades": 0,
+      "losing_trades": 0,
+      "total_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "win_rate": 0.0,
+      "avg_rr": 0.0,
+      "ict_signals_processed": 0,
+      "confluence_scores": [],
+      "institutional_quality_breakdown": {
+        "PREMIUM": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0
+      }
+    },
+    "start_time": "2025-10-03 00:29:35.595656"
+  },
+  "session_duration": "0:00:30.001063",
+  "final_timestamp": "2025-10-03T00:30:05.597365"
+}

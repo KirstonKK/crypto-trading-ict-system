@@ -1,0 +1,3 @@
+Testing daily PnL calculation for 2025-10-15
+Daily PnL from calculation: $0.00
+Error: no such column: trade_id

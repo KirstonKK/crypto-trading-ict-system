@@ -1,0 +1,50 @@
+{
+  "analysis_timestamp": "2025-10-02T23:42:22.296881",
+  "session_summary": {
+    "total_scans": 872,
+    "signals_generated": 7,
+    "balance": 96.95757275809328,
+    "daily_pnl": -3.0424272419067226,
+    "completed_trades": 3,
+    "active_trades": 4
+  },
+  "market_analysis": {
+    "market_regime": "BULLISH",
+    "all_pairs_positive": true,
+    "strongest_performer": "SOL (+6.26%)",
+    "weakest_performer": "BTC (+1.81%)",
+    "average_24h_change": 3.5965479378260294
+  },
+  "loss_analysis": {
+    "all_losses_were_sells": true,
+    "average_loss_confidence": 84.8,
+    "counter_trend_issue": "SELL signals in bullish market failing",
+    "risk_management_effective": "All losses contained to ~ stop loss levels"
+  },
+  "ml_model_insights": {
+    "model_status": "loaded",
+    "ml_boost_coverage": "6/7 signals (85.7%)",
+    "average_ml_boost": 9.9,
+    "calibration_needed": "Model may need recalibration for bull market regime"
+  },
+  "strategy_insights": {
+    "confluence_reliability": "High confluence not guaranteeing success",
+    "sell_bias_problem": "Strategy too eager to short in bull market",
+    "signal_distribution": "57.1% SELL vs 42.9% BUY signals",
+    "timeframe_analysis": "Mix of 1m, 5m, 1h timeframes in losses"
+  },
+  "recommended_improvements": [
+    "Add market regime detection (bull/bear/sideways filter)",
+    "Reduce SELL signal sensitivity during strong bull moves",
+    "Increase ML model weight for market direction bias",
+    "Implement session-based strategy adjustments",
+    "Add momentum confirmation for counter-trend signals",
+    "Consider reducing 1m timeframe signal weight in trending markets"
+  ],
+  "next_learning_objectives": [
+    "Monitor if active BUY trades perform better",
+    "Test revised SELL signal criteria in next trading session",
+    "Collect more data on market regime detection accuracy",
+    "Evaluate if ML model predictions align with actual market moves"
+  ]
+}

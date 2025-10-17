@@ -1,0 +1,241 @@
+//@version=6
+indicator("🔮 Predictive Crypto Trading Bot Pro", "PCTB Pro", overlay=true)
+
+// Import built-in libraries
+import TradingView/ta/1 as ta
+
+// ==================== CONFIGURATION ====================
+// Input parameters for strategy tuning
+rsi_length = input.int(14, title="RSI Length", minval=1, maxval=50, group="Technical Indicators")
+rsi_overbought = input.float(70.0, title="RSI Overbought", minval=50.0, maxval=90.0, group="Technical Indicators")
+rsi_oversold = input.float(30.0, title="RSI Oversold", minval=10.0, maxval=50.0, group="Technical Indicators")
+
+ma_fast_length = input.int(9, title="Fast MA Length", minval=1, maxval=50, group="Moving Averages")
+ma_slow_length = input.int(21, title="Slow MA Length", minval=1, maxval=100, group="Moving Averages")
+
+bb_length = input.int(20, title="Bollinger Bands Length", minval=1, maxval=50, group="Bollinger Bands")
+bb_mult = input.float(2.0, title="Bollinger Bands Multiplier", minval=0.1, maxval=5.0, group="Bollinger Bands")
+
+// Predictive settings
+prediction_length = input.int(14, title="Prediction Lookback", minval=5, maxval=50, group="Predictive Analysis")
+trend_strength_length = input.int(10, title="Trend Strength Period", minval=5, maxval=30, group="Predictive Analysis")
+momentum_threshold = input.float(0.02, title="Momentum Threshold", minval=0.01, maxval=0.1, group="Predictive Analysis")
+
+// Alert settings
+enable_predictive_alerts = input.bool(true, title="Enable Predictive Alerts", group="Alert Settings")
+min_confidence = input.float(0.7, title="Minimum Alert Confidence", minval=0.1, maxval=1.0, group="Alert Settings")
+
+// ==================== TECHNICAL INDICATORS ====================
+// RSI
+rsi = ta.rsi(close, rsi_length)
+rsi_slope = (rsi - rsi[5]) / 5 // RSI momentum
+
+// Moving Averages  
+ma_fast = ta.ema(close, ma_fast_length)
+ma_slow = ta.ema(close, ma_slow_length)
+ma_slope = (ma_fast - ma_fast[prediction_length]) / prediction_length
+
+// Bollinger Bands
+[bb_middle, bb_upper, bb_lower] = ta.bb(close, bb_length, bb_mult)
+bb_squeeze = (bb_upper - bb_lower) / bb_middle < 0.1 // Low volatility = potential breakout
+
+// MACD with predictive analysis
+[macd_line, signal_line, macd_histogram] = ta.macd(close, 12, 26, 9)
+macd_momentum = macd_line - macd_line[5]
+macd_divergence = (close > close[prediction_length]) and (macd_line < macd_line[prediction_length])
+
+// Volume analysis with prediction
+volume_ma = ta.sma(volume, 20)
+volume_surge = volume > volume_ma * 2
+volume_trend = ta.linreg(volume, prediction_length, 0) // Volume trend line
+
+// ==================== PREDICTIVE ANALYSIS ====================
+// Price momentum analysis
+price_momentum = ta.mom(close, prediction_length) / close[prediction_length]
+price_acceleration = price_momentum - price_momentum[5]
+
+// Trend strength calculation
+trend_strength = ta.linreg(close, trend_strength_length, 0) - close
+trend_direction = trend_strength > 0 ? 1 : trend_strength < 0 ? -1 : 0
+trend_consistency = math.abs(trend_strength) / ta.stdev(close, trend_strength_length)
+
+// Support/Resistance prediction
+pivot_high = ta.pivothigh(high, 5, 5)
+pivot_low = ta.pivotlow(low, 5, 5)
+resistance_level = ta.valuewhen(not na(pivot_high), pivot_high, 0)
+support_level = ta.valuewhen(not na(pivot_low), pivot_low, 0)
+
+// Breakout prediction
+approaching_resistance = close > resistance_level * 0.98 and close < resistance_level
+approaching_support = close < support_level * 1.02 and close > support_level
+breakout_momentum = price_momentum > momentum_threshold and volume_surge
+
+// ==================== PREDICTIVE SIGNALS ====================
+// Bullish prediction signals
+rsi_bullish_divergence = close < close[prediction_length] and rsi > rsi[prediction_length]
+ma_bullish_setup = ma_fast > ma_slow and ma_slope > 0 and close > ma_fast
+bb_bullish_squeeze = bb_squeeze and close > bb_middle
+volume_bullish_surge = volume_surge and close > open
+
+// Bearish prediction signals  
+rsi_bearish_divergence = close > close[prediction_length] and rsi < rsi[prediction_length]
+ma_bearish_setup = ma_fast < ma_slow and ma_slope < 0 and close < ma_fast
+bb_bearish_squeeze = bb_squeeze and close < bb_middle
+volume_bearish_surge = volume_surge and close < open
+
+// ==================== CONFIDENCE SCORING ====================
+calc_predictive_confidence(bool bullish_setup) =>
+    var float confidence = 0.0
+    var int signal_count = 0
+    
+    if bullish_setup
+        // Bullish confidence factors
+        if rsi_bullish_divergence
+            confidence += 0.25
+            signal_count += 1
+        if ma_bullish_setup
+            confidence += 0.20
+            signal_count += 1
+        if bb_bullish_squeeze
+            confidence += 0.15
+            signal_count += 1
+        if volume_bullish_surge
+            confidence += 0.20
+            signal_count += 1
+        if trend_direction > 0
+            confidence += 0.15
+            signal_count += 1
+        if breakout_momentum and approaching_resistance
+            confidence += 0.25
+            signal_count += 1
+    else
+        // Bearish confidence factors
+        if rsi_bearish_divergence
+            confidence += 0.25
+            signal_count += 1
+        if ma_bearish_setup
+            confidence += 0.20
+            signal_count += 1
+        if bb_bearish_squeeze
+            confidence += 0.15
+            signal_count += 1
+        if volume_bearish_surge
+            confidence += 0.20
+            signal_count += 1
+        if trend_direction < 0
+            confidence += 0.15
+            signal_count += 1
+        if breakout_momentum and approaching_support
+            confidence += 0.25
+            signal_count += 1
+    
+    // Normalize confidence based on signal count
+    normalized_confidence = signal_count > 0 ? math.min(confidence, 1.0) : 0.0
+    normalized_confidence
+
+// ==================== PREDICTION LOGIC ====================
+// Bullish prediction
+bullish_prediction_basic = rsi_bullish_divergence or ma_bullish_setup or (bb_bullish_squeeze and volume_bullish_surge)
+bullish_confidence = calc_predictive_confidence(true)
+bullish_prediction = bullish_prediction_basic and bullish_confidence >= min_confidence and enable_predictive_alerts
+
+// Bearish prediction
+bearish_prediction_basic = rsi_bearish_divergence or ma_bearish_setup or (bb_bearish_squeeze and volume_bearish_surge) 
+bearish_confidence = calc_predictive_confidence(false)
+bearish_prediction = bearish_prediction_basic and bearish_confidence >= min_confidence and enable_predictive_alerts
+
+// ==================== VISUAL ELEMENTS ====================
+// Plot Moving Averages
+plot(ma_fast, color=color.blue, linewidth=2, title="Fast EMA")
+plot(ma_slow, color=color.red, linewidth=2, title="Slow EMA")
+
+// Plot Bollinger Bands
+bb_upper_plot = plot(bb_upper, color=color.gray, linewidth=1, title="BB Upper")
+bb_lower_plot = plot(bb_lower, color=color.gray, linewidth=1, title="BB Lower")
+plot(bb_middle, color=color.yellow, linewidth=1, title="BB Middle")
+fill(bb_upper_plot, bb_lower_plot, color=color.new(color.gray, 95), title="BB Background")
+
+// Support/Resistance levels
+plot(resistance_level, color=color.red, linewidth=2, style=plot.style_stepline, title="Resistance")
+plot(support_level, color=color.green, linewidth=2, style=plot.style_stepline, title="Support")
+
+// Prediction signals
+plotshape(bullish_prediction, title="Bullish Prediction", location=location.belowbar, color=color.new(color.lime, 0), style=shape.triangleup, text="🔮⬆", size=size.large, textcolor=color.white)
+plotshape(bearish_prediction, title="Bearish Prediction", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, text="🔮⬇", size=size.large, textcolor=color.white)
+
+// Squeeze indicators
+bgcolor(bb_squeeze ? color.new(color.yellow, 90) : na, title="BB Squeeze")
+
+// Volume surge
+plotchar(volume_surge, title="Volume Surge", location=location.bottom, color=color.purple, char="🚀", size=size.small)
+
+// ==================== PREDICTIVE ALERTS ====================
+format_prediction_alert(string direction, float confidence, float price) =>
+    // Calculate predicted price targets
+    atr = ta.atr(14)
+    predicted_move = atr * 2 // Expected move based on ATR
+    
+    target_price = direction == "BULLISH" ? price + predicted_move : price - predicted_move
+    stop_loss = direction == "BULLISH" ? price - (atr * 1.5) : price + (atr * 1.5)
+    
+    json_data = 
+     '{' +
+     '"symbol":"' + syminfo.ticker + '",' +
+     '"prediction":"' + direction + '",' +
+     '"current_price":' + str.tostring(price, '#.##') + ',' +
+     '"target_price":' + str.tostring(target_price, '#.##') + ',' +
+     '"stop_loss":' + str.tostring(stop_loss, '#.##') + ',' +
+     '"confidence":' + str.tostring(confidence, '#.##') + ',' +
+     '"timeframe":"' + timeframe.period + '",' +
+     '"timestamp":"{{time}}",' +
+     '"rsi":' + str.tostring(rsi, '#.#') + ',' +
+     '"trend_strength":' + str.tostring(trend_strength, '#.##') + ',' +
+     '"bb_squeeze":' + str.tostring(bb_squeeze) + ',' +
+     '"volume_surge":' + str.tostring(volume_surge) + ',' +
+     '"breakout_momentum":' + str.tostring(breakout_momentum) + ',' +
+     '"support_level":' + str.tostring(support_level, '#.##') + ',' +
+     '"resistance_level":' + str.tostring(resistance_level, '#.##') + ',' +
+     '"prediction_type":"TECHNICAL_ANALYSIS",' +
+     '"source":"TRADINGVIEW_PREDICTIVE_V6"' +
+     '}'
+    json_data
+
+// Prediction alerts
+if bullish_prediction
+    alert_message = format_prediction_alert("BULLISH", bullish_confidence, close)
+    alert(alert_message, alert.freq_once_per_bar_close)
+
+if bearish_prediction
+    alert_message = format_prediction_alert("BEARISH", bearish_confidence, close)
+    alert(alert_message, alert.freq_once_per_bar_close)
+
+// ==================== PREDICTION TABLE ====================
+var table prediction_table = table.new(position=position.top_left, columns=2, rows=7, bgcolor=color.new(color.navy, 80), border_width=1, border_color=color.blue, frame_width=2, frame_color=color.new(color.lime, 50))
+
+if barstate.islast
+    table.cell(prediction_table, 0, 0, "🔮 PREDICTION", text_color=color.white, bgcolor=color.new(color.lime, 50))
+    table.cell(prediction_table, 1, 0, "📊 STATUS", text_color=color.white, bgcolor=color.new(color.lime, 50))
+    
+    table.cell(prediction_table, 0, 1, "Trend Direction", text_color=color.white)
+    trend_text = trend_direction > 0 ? "📈 BULLISH" : trend_direction < 0 ? "📉 BEARISH" : "➡ SIDEWAYS"
+    trend_color = trend_direction > 0 ? color.lime : trend_direction < 0 ? color.red : color.yellow
+    table.cell(prediction_table, 1, 1, trend_text, text_color=trend_color)
+    
+    table.cell(prediction_table, 0, 2, "BB Squeeze", text_color=color.white)
+    table.cell(prediction_table, 1, 2, bb_squeeze ? "⚡ ACTIVE" : "🔄 Normal", text_color=bb_squeeze ? color.orange : color.gray)
+    
+    table.cell(prediction_table, 0, 3, "Momentum", text_color=color.white)
+    momentum_text = breakout_momentum ? "🚀 HIGH" : math.abs(price_momentum) > momentum_threshold/2 ? "📊 MEDIUM" : "📉 LOW"
+    momentum_color = breakout_momentum ? color.lime : math.abs(price_momentum) > momentum_threshold/2 ? color.yellow : color.gray
+    table.cell(prediction_table, 1, 3, momentum_text, text_color=momentum_color)
+    
+    table.cell(prediction_table, 0, 4, "Volume Trend", text_color=color.white)
+    vol_trend_text = volume_trend > 0 ? "📈 RISING" : "📉 FALLING"
+    vol_trend_color = volume_trend > 0 ? color.lime : color.red
+    table.cell(prediction_table, 1, 4, vol_trend_text, text_color=vol_trend_color)
+    
+    table.cell(prediction_table, 0, 5, "Next Resistance", text_color=color.white)
+    table.cell(prediction_table, 1, 5, str.tostring(resistance_level, '#.##'), text_color=color.red)
+    
+    table.cell(prediction_table, 0, 6, "Next Support", text_color=color.white)
+    table.cell(prediction_table, 1, 6, str.tostring(support_level, '#.##'), text_color=color.lime)

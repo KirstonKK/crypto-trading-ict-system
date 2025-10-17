@@ -1,0 +1,45 @@
+{
+  "session_date": "2025-10-02",
+  "session_duration_hours": "several hours (running for ~few hours)",
+  "system_performance": {
+    "total_scans": 830,
+    "signals_generated": 7,
+    "paper_trades_executed": 4,
+    "live_trades_active": 4,
+    "losses": 3,
+    "pnl": -3.04,
+    "pnl_currency": "USD"
+  },
+  "environment": {
+    "trading_environment": "Demo Mainnet",
+    "account_balance": 99959.53,
+    "api_endpoint": "https://api.bybit.com",
+    "leverage": "10x",
+    "margin_mode": "cross"
+  },
+  "system_status": {
+    "ict_monitor": "RUNNING",
+    "demo_trading_system": "RUNNING",
+    "signal_generation": "ACTIVE",
+    "ml_training_data_collection": "ACTIVE"
+  },
+  "trading_statistics": {
+    "scan_to_signal_ratio": 0.84,
+    "signal_to_trade_ratio": 57.14,
+    "avg_pnl_per_trade": -0.76,
+    "loss_rate": 75.0
+  },
+  "data_quality": {
+    "market_data_source": "Live Bybit prices",
+    "price_feeds": [
+      "BTC",
+      "ETH",
+      "SOL",
+      "XRP"
+    ],
+    "real_time_connection": true,
+    "demo_account_active": true
+  },
+  "timestamp": "2025-10-02T23:25:47.979355",
+  "session_notes": "First production session on Demo Mainnet with real market data for ML training"
+}

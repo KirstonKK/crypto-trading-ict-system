@@ -1,0 +1,129 @@
+{
+  "account_info": {
+    "total_balance": 10000.00,
+    "available_balance": 8500.00,
+    "used_balance": 1500.00,
+    "unrealized_pnl": 0.00,
+    "total_margin_balance": 10000.00,
+    "account_type": "UNIFIED"
+  },
+  "positions": [
+    {
+      "symbol": "BTCUSDT",
+      "side": "Buy",
+      "size": "0.1",
+      "position_value": "4720.00",
+      "entry_price": "47200.00",
+      "mark_price": "47250.00",
+      "liq_price": "0.00",
+      "unrealized_pnl": "5.00",
+      "realized_pnl": "0.00",
+      "position_margin": "472.00",
+      "position_mm": "47.20",
+      "leverage": "10",
+      "stop_loss": "45000.00",
+      "take_profit": "50000.00"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "side": "Buy",
+      "size": "1.0",
+      "position_value": "3520.00",
+      "entry_price": "3520.00",
+      "mark_price": "3525.00",
+      "liq_price": "0.00",
+      "unrealized_pnl": "5.00",
+      "realized_pnl": "0.00",
+      "position_margin": "352.00",
+      "position_mm": "35.20",
+      "leverage": "10",
+      "stop_loss": "3300.00",
+      "take_profit": "3800.00"
+    }
+  ],
+  "balances": {
+    "USDT": {
+      "coin": "USDT",
+      "wallet_balance": "8500.00",
+      "available_balance": "7676.00",
+      "used_balance": "824.00",
+      "locked": "0.00"
+    },
+    "BTC": {
+      "coin": "BTC",
+      "wallet_balance": "0.1",
+      "available_balance": "0.0",
+      "used_balance": "0.1",
+      "locked": "0.0"
+    },
+    "ETH": {
+      "coin": "ETH",
+      "wallet_balance": "1.0",
+      "available_balance": "0.0",
+      "used_balance": "1.0",
+      "locked": "0.0"
+    }
+  },
+  "orders": [
+    {
+      "order_id": "1234567890",
+      "symbol": "BTCUSDT",
+      "side": "Buy",
+      "order_type": "Limit",
+      "qty": "0.05",
+      "price": "46500.00",
+      "order_status": "New",
+      "created_time": "1640995800000",
+      "updated_time": "1640995800000",
+      "leaves_qty": "0.05",
+      "cum_exec_qty": "0.0",
+      "avg_price": "0.0",
+      "time_in_force": "GTC",
+      "reduce_only": false,
+      "close_on_trigger": false
+    }
+  ],
+  "trade_history": [
+    {
+      "trade_id": "abc123",
+      "symbol": "BTCUSDT",
+      "side": "Buy",
+      "qty": "0.1",
+      "price": "47200.00",
+      "trade_value": "4720.00",
+      "fee": "4.72",
+      "fee_coin": "USDT",
+      "trade_time": "1640995200000",
+      "order_id": "order123"
+    },
+    {
+      "trade_id": "def456",
+      "symbol": "ETHUSDT",
+      "side": "Buy",
+      "qty": "1.0",
+      "price": "3520.00",
+      "trade_value": "3520.00",
+      "fee": "3.52",
+      "fee_coin": "USDT",
+      "trade_time": "1640995400000",
+      "order_id": "order456"
+    }
+  ],
+  "risk_metrics": {
+    "portfolio_value": 10000.00,
+    "total_unrealized_pnl": 10.00,
+    "total_realized_pnl": 0.00,
+    "margin_ratio": 0.15,
+    "account_leverage": 1.5,
+    "free_collateral": 7676.00,
+    "max_withdraw": 7676.00,
+    "risk_level": "Low"
+  },
+  "metadata": {
+    "generated_at": "2024-01-01T00:00:00Z",
+    "account_type": "testnet",
+    "api_version": "v3",
+    "description": "Mock account balance and position data for testing",
+    "note": "This is simulated data for testing purposes only"
+  }
+}

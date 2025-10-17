@@ -1,0 +1,28 @@
+📋 Paper trades table schema:
+  id (INTEGER)
+  signal_id (TEXT)
+  symbol (TEXT)
+  direction (TEXT)
+  entry_price (REAL)
+  position_size (REAL)
+  stop_loss (REAL)
+  take_profit (REAL)
+  entry_time (TIMESTAMP)
+  exit_time (TIMESTAMP)
+  exit_price (REAL)
+  status (TEXT)
+  realized_pnl (REAL)
+  unrealized_pnl (REAL)
+  current_price (REAL)
+  risk_amount (REAL)
+  created_date (DATE)
+
+📊 Sample trades (first 5):
+  Trade 1: (7, 'PT_2', 'ETHUSDT', 'BUY', 4516.2, 0.01476167279276079, 4448.456999999999, 4617.8145, '2025-10-08 19:45:09.364161', '2025-10-13 11:26:23', 4111.77, 'STOP_LOSS', -1.031198544828791, 0.0, 4111.77, 1.0, '2025-10-08')
+  Trade 2: (8, 'PT_3', 'SOLUSDT', 'BUY', 228.7, 0.29150269639994214, 225.2695, 233.84574999999998, '2025-10-08 19:45:09.366133', '2025-10-13 11:28:35', 193.59, 'STOP_LOSS', -1.037376048817699, 0.0, 193.59, 1.0, '2025-10-08')
+  Trade 3: (12, 'PT_2', 'ETHUSDT', 'BUY', 4427.19, 0.015058460709087947, 4360.78215, 4526.801774999999, '2025-10-09 08:00:48.571922', '2025-10-13 11:26:23', 4111.77, 'STOP_LOSS', -1.031198544828791, 0.0, 4111.77, 1.0, '2025-10-09')
+  Trade 4: (13, 'PT_3', 'SOLUSDT', 'BUY', 224.81, 0.296546713521047, 221.43785, 229.868225, '2025-10-09 08:00:48.573643', '2025-10-13 11:28:35', 193.59, 'STOP_LOSS', -1.037376048817699, 0.0, 193.59, 1.0, '2025-10-09')
+  Trade 5: (14, 'PT_4', 'XRPUSDT', 'BUY', 2.82, 23.640661938534276, 2.7777, 2.88345, '2025-10-09 08:00:48.576281', '2025-10-13 11:25:18', 2.58, 'STOP_LOSS', -1.0178117048346094, 0.0, 2.58, 1.0, '2025-10-09')
+
+📈 Total trades in database: 44
+💰 Daily PnL: $0.00
