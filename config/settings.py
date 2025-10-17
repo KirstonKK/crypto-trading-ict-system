@@ -29,9 +29,9 @@ class Config:
     MAX_LEVERAGE = int(os.getenv('MAX_LEVERAGE', '10'))
     RISK_REWARD_RATIO = float(os.getenv('RISK_REWARD_RATIO', '3.0'))
     
-    # ICT Monitor Configuration - SECURITY FIX: Default to localhost only
+    # ICT Monitor Configuration
     ICT_MONITOR_PORT = int(os.getenv('ICT_MONITOR_PORT', '5001'))
-    ICT_MONITOR_HOST = os.getenv('ICT_MONITOR_HOST', '127.0.0.1')  # Changed from 0.0.0.0 to localhost
+    ICT_MONITOR_HOST = os.getenv('ICT_MONITOR_HOST', '0.0.0.0')
     
     # Signal Generation
     SIGNAL_PROBABILITY_BASE = float(os.getenv('SIGNAL_PROBABILITY_BASE', '0.035'))
