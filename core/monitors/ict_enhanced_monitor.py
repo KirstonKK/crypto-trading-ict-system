@@ -1705,93 +1705,6 @@ class ICTCryptoMonitor:
         """Execute a paper trade based on signal"""
         if not self.paper_trading_enabled:
             return
-        
-        # STRICT 1% risk per trade with DYNAMIC Risk-Reward ratio
-        risk_percentage = 0.01  # FIXED 1% risk per trade - NEVER CHANGES
-        risk_amount = self.paper_balance * risk_percentage
-        
-        # Get dynamic RR ratio based on signal quality
-        dynamic_rr = self.select_dynamic_rr_ratio(signal)
-    
-    def manage_signal_lifecycle(self):
-        """Manage signal lifecycle with 5-minute expiry and 3-signal limit"""
-        current_time = datetime.now()
-        
-        # Separate fresh and expired signals  
-        # FIXED: Removed unused fresh_signals variable
-        expired_signals = []
-        
-        # Update age information for all signals
-        for signal in self.live_signals:
-            age_minutes = self.get_signal_age_minutes(signal.get('timestamp', current_time))
-            signal['age_minutes'] = age_minutes
-            signal['age_category'] = self.get_signal_age_category(age_minutes)
-        
-        # Expire signals older than configured lifetime
-        expired_signals = [s for s in self.live_signals if s.get('age_minutes', 0) > self.signal_lifetime_minutes]
-        if expired_signals:
-            self.archived_signals.extend(expired_signals)
-            # Keep only those not expired in live_signals
-            self.live_signals = [s for s in self.live_signals if s not in expired_signals]
-            
-            # 🔧 SYNC DATABASE: Mark expired signals as 'EXPIRED' in database
-            self._sync_expired_signals_to_database(expired_signals)
-
-        # If we have more than 3 signals, keep only the newest 3
-        if len(self.live_signals) > self.max_live_signals:
-            # Sort by timestamp (newest first) 
-            self.live_signals.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-            
-            # Move excess (oldest) signals to archive
-            excess_signals = self.live_signals[self.max_live_signals:]
-            self.archived_signals.extend(excess_signals)
-            
-            # Keep only the newest 3
-            self.live_signals = self.live_signals[:self.max_live_signals]
-            
-            logger.info(f"📋 Signal Rotation: Moved {len(excess_signals)} older signals to archive, displaying newest 3")
-            archived_count = len(excess_signals) + len(expired_signals)
-        else:
-            archived_count = len(expired_signals)
-        
-        # Keep only last 100 archived signals to prevent memory bloat
-        if len(self.archived_signals) > 100:
-            self.archived_signals = self.archived_signals[-100:]
-        
-
-        # Debug logging to see what's happening
-        if len(self.live_signals) > 0:
-            oldest_signal_age = max(s.get('age_minutes', 0) for s in self.live_signals)
-            logger.info(f"� Signal Status: {len(self.live_signals)} live, {len(expired_signals)} expired, oldest: {oldest_signal_age:.1f}min")
-        
-        return archived_count
-    
-    def select_dynamic_rr_ratio(self, signal):
-        """
-        Dynamically select Risk-Reward ratio based on signal quality and market conditions
-        Always risks exactly 1% but adjusts reward target based on setup quality
-        """
-        confluence_score = signal.get('confluence_score', 0.5)
-        bias_strength = signal.get('bias_strength', 0.5)
-        
-        # Calculate signal quality score (0.0 to 1.0)
-        quality_score = (confluence_score + bias_strength) / 2
-        
-        # Select RR ratio based on quality
-        if quality_score >= 0.9:
-            rr_mode = 'maximum'      # 1:5 RR for exceptional setups
-        elif quality_score >= 0.8:
-            rr_mode = 'aggressive'   # 1:4 RR for high-confidence
-        elif quality_score >= 0.7:
-            rr_mode = 'balanced'     # 1:3 RR for normal trades
-        else:
-            rr_mode = 'conservative' # 1:2 RR for safer trades
-        
-        selected_rr = self.dynamic_rr_ratios[rr_mode]
-        
-        logger.info("🎯 DYNAMIC RR: Quality=%.2f → %s (1:%s) | Risk=1.0%% FIXED", quality_score, rr_mode.upper(), selected_rr)
-        
-        return selected_rr
     
     def execute_paper_trade(self, signal):
         """Execute a paper trade based on signal"""
@@ -1884,7 +1797,7 @@ class ICTCryptoMonitor:
         
         return False, ""
     
-    def _enforce_risk_limit(self, trade, pnl, risk_amount):
+    def _enforce_risk_limit(self, pnl, risk_amount):
         """Enforce strict 1% risk limit on losses"""
         if pnl < 0 and abs(pnl) > abs(risk_amount):
             logger.warning(f"⚠️ Loss exceeded risk amount! Capping loss to -${risk_amount:.2f} (was ${pnl:.2f})")
@@ -1975,7 +1888,7 @@ class ICTCryptoMonitor:
 
             # Strict 1% risk enforcement: cap loss at risk_amount using helper
             if should_close and close_reason == "STOP_LOSS":
-                pnl = self._enforce_risk_limit(trade, pnl, risk_amount)
+                pnl = self._enforce_risk_limit(pnl, risk_amount)
                 trade['pnl'] = pnl
 
             # Close trade if conditions met using helper
