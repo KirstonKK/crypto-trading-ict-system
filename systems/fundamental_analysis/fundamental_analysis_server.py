@@ -64,6 +64,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger('FundamentalAnalysis')
 
+# Constants for duplicate strings
+DEFAULT_TITLE = DEFAULT_TITLE
+SOURCE_DEMO_NEWS = SOURCE_DEMO_NEWS
+SOURCE_MARKET_ANALYSIS = SOURCE_MARKET_ANALYSIS
+
 class FundamentalAnalysisServer:
     """Standalone Crypto Fundamental Analysis Server"""
     
@@ -85,7 +90,7 @@ class FundamentalAnalysisServer:
             try:
                 bybit_symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT']
                 self.bybit_prices = BybitRealTimePrices(symbols=bybit_symbols, testnet=False)
-                logger.info(f"✅ Bybit real-time price monitor initialized for fundamental analysis")
+                logger.info("✅ Bybit real-time price monitor initialized for fundamental analysis")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to initialize Bybit prices: {e}")
                 self.bybit_prices = None
@@ -352,7 +357,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['BTC'],
                 'published_at': current_time.isoformat(),
                 'url': '#',
-                'source': 'Demo News'
+                'source': SOURCE_DEMO_NEWS
             },
             {
                 'title': 'Ethereum Network Upgrades Show Promise for DeFi Expansion',
@@ -361,7 +366,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['ETH'],
                 'published_at': (current_time - timedelta(hours=1)).isoformat(),
                 'url': '#',
-                'source': 'Demo News'
+                'source': SOURCE_DEMO_NEWS
             },
             {
                 'title': 'Solana Blockchain Performance Metrics Reach New Heights',
@@ -370,7 +375,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['SOL'],
                 'published_at': (current_time - timedelta(hours=2)).isoformat(),
                 'url': '#',
-                'source': 'Demo News'
+                'source': SOURCE_DEMO_NEWS
             },
             {
                 'title': 'XRP Legal Clarity Boosts Institutional Interest',
@@ -379,7 +384,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['XRP'],
                 'published_at': (current_time - timedelta(hours=3)).isoformat(),
                 'url': '#',
-                'source': 'Demo News'
+                'source': SOURCE_DEMO_NEWS
             },
             {
                 'title': 'Crypto Market Shows Resilience Amid Global Economic Uncertainty',
@@ -388,7 +393,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['BTC', 'ETH'],
                 'published_at': (current_time - timedelta(hours=4)).isoformat(),
                 'url': '#',
-                'source': 'Demo News'
+                'source': SOURCE_DEMO_NEWS
             }
         ]
         logger.info("📰 Generated 5 demo news articles for analysis")
@@ -428,7 +433,7 @@ class FundamentalAnalysisServer:
         
         return mentioned
     
-    async def run_background_analysis(self):
+    def _parse_coindesk(self, data):
         """Parse CoinDesk news format"""
         news_items = []
         try:
@@ -439,7 +444,7 @@ class FundamentalAnalysisServer:
                 impact_level = self._determine_impact_level(article.get('title', ''), crypto_mentioned)
                 
                 news_item = {
-                    'title': article.get('title', 'No title'),
+                    'title': article.get('title', DEFAULT_TITLE),
                     'sentiment': sentiment,
                     'impact_level': impact_level,
                     'crypto_mentioned': crypto_mentioned,
@@ -465,7 +470,7 @@ class FundamentalAnalysisServer:
                 impact_level = self._determine_impact_level(article.get('title', ''), crypto_mentioned)
                 
                 news_item = {
-                    'title': article.get('title', 'No title'),
+                    'title': article.get('title', DEFAULT_TITLE),
                     'sentiment': sentiment,
                     'impact_level': impact_level,
                     'crypto_mentioned': crypto_mentioned,
@@ -491,7 +496,7 @@ class FundamentalAnalysisServer:
                 impact_level = self._determine_impact_level(article.get('title', ''), crypto_mentioned)
                 
                 news_item = {
-                    'title': article.get('title', 'No title'),
+                    'title': article.get('title', DEFAULT_TITLE),
                     'sentiment': sentiment,
                     'impact_level': impact_level,
                     'crypto_mentioned': crypto_mentioned,
@@ -517,7 +522,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['BTC', 'BITCOIN'],
                 'published_at': current_time,
                 'summary': 'Bitcoin continues to hold above the $66,000 psychological support level, with technical indicators showing potential for bullish continuation. Market sentiment remains cautiously optimistic.',
-                'source': 'Market Analysis',
+                'source': SOURCE_MARKET_ANALYSIS,
                 'url': '',
                 'image': ''
             },
@@ -528,7 +533,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['ETH', 'ETHEREUM'],
                 'published_at': current_time,
                 'summary': 'Ethereum demonstrates resilience at the $2,600 level with increased network activity and growing institutional interest in ETH staking solutions.',
-                'source': 'Market Analysis',
+                'source': SOURCE_MARKET_ANALYSIS,
                 'url': '',
                 'image': ''
             },
@@ -539,7 +544,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['SOL', 'XRP', 'ADA'],
                 'published_at': current_time,
                 'summary': 'Alternative cryptocurrencies showing mixed performance with some outperforming Bitcoin while others lag. Market participants watching for clearer directional signals.',
-                'source': 'Market Analysis',
+                'source': SOURCE_MARKET_ANALYSIS,
                 'url': '',
                 'image': ''
             },
@@ -550,7 +555,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['DEFI', 'GENERAL'],
                 'published_at': current_time,
                 'summary': 'Decentralized Finance protocols seeing uptick in total value locked and transaction volumes, suggesting renewed interest in yield farming opportunities.',
-                'source': 'Market Analysis',
+                'source': SOURCE_MARKET_ANALYSIS,
                 'url': '',
                 'image': ''
             },
@@ -561,7 +566,7 @@ class FundamentalAnalysisServer:
                 'crypto_mentioned': ['GENERAL'],
                 'published_at': current_time,
                 'summary': 'Financial regulators worldwide signaling potential framework announcements for cryptocurrency regulation, which could provide market stability and institutional confidence.',
-                'source': 'Market Analysis',
+                'source': SOURCE_MARKET_ANALYSIS,
                 'url': '',
                 'image': ''
             }
@@ -654,7 +659,7 @@ class FundamentalAnalysisServer:
         logger.info(f"📰 Multi-source news sentiment: {crypto_sentiment}")
         return crypto_sentiment
     
-    def _determine_impact_level(self, title, crypto_mentioned):
+    def _determine_impact_level(self, title, _crypto_mentioned):
         """Determine the potential market impact of the news"""
         title_lower = title.lower()
         
@@ -1411,7 +1416,7 @@ class FundamentalAnalysisServer:
                 'recommendation': 'Check Telegram integration configuration'
             }
     
-    async def run_background_analysis(self):
+    def start_telegram_monitoring(self):
         """Start WatcherGuru Telegram monitoring if available"""
         if self.telegram_bridge:
             try:

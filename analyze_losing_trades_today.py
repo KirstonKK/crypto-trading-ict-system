@@ -137,17 +137,15 @@ def analyze_table_data(data, _table_name):
             elif col in ['result', 'outcome', 'status']:
                 # Categorical analysis
                 value_counts = data[col].value_counts()
-                print("      {col} distribution:")
+                print(f"      {col} distribution:")
                 for value, count in value_counts.items():
-                    print("        {value}: {count}")
+                    print(f"        {value}: {count}")
                 analysis[f'{col}_distribution'] = value_counts.to_dict()
             
             elif col in ['direction', 'crypto']:
-                # Direction/crypto analysis
+                # Direction/crypto analysis - same logic as above
                 value_counts = data[col].value_counts()
-                print("      {col} distribution:")
-                for value, count in value_counts.items():
-                    print("        {value}: {count}")
+                print(f"      {col} distribution:")
                 analysis[f'{col}_distribution'] = value_counts.to_dict()
     
     return analysis

@@ -73,11 +73,10 @@ class APIKeyMonitor:
         
         while check_count < max_checks:
             check_count += 1
-            current_time = datetime.now().strftime('%H:%M:%S')
             
-            print('🔍 Check #{check_count} at {current_time}...', end=' ')
+            print(f'🔍 Check #{check_count}...', end=' ')
             
-            ret_code, ret_msg = await self.test_api_key()
+            ret_code, _ = await self.test_api_key()
             
             if ret_code == 0:
                 print('✅ SUCCESS!')
