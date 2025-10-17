@@ -332,7 +332,7 @@ class WatcherGuruTelegramBot:
             conn.commit()
             conn.close()
             
-        except Exception as e:
+        except Exception:
             logger.error("Error storing telegram news")
 
     def check_price_alerts(self, text: str, analysis: dict, timestamp: str):

@@ -1374,10 +1374,7 @@ class ICTCryptoMonitor:
             logger.info(f"📦 Restored persisted data: {len(self.trading_journal)} journal entries")
             
         except Exception as e:
-            logger.error(f"❌ Failed to load persisted data: {e}")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to save paper trade to database: {e}")
+            logger.error(f"❌ Failed to load persisted data or save paper trade to database: {e}")
 
     def get_todays_active_trades_from_db(self):
         """Get today's active trades from database (single source of truth)"""
@@ -2729,10 +2726,9 @@ class ICTSignalGenerator:
             if change_24h > 1.5:
                 confluence_score += 0.25
                 confluence_factors.append("FVG High Volatility")
-            elif change_24h > 0.5:
-                if np.random.default_rng(42).random() < 0.40:
-                    confluence_score += 0.20
-                    confluence_factors.append("FVG")
+            elif change_24h > 0.5 and np.random.default_rng(42).random() < 0.40:
+                confluence_score += 0.20
+                confluence_factors.append("FVG")
             
             # Order Block Analysis
             range_24h = high_24h - low_24h
@@ -2749,10 +2745,9 @@ class ICTSignalGenerator:
             if change_24h > 2.5:
                 confluence_score += 0.20
                 confluence_factors.append("Structure Shift Strong")
-            elif change_24h > 1.0:
-                if np.random.default_rng(42).random() < 0.50:
-                    confluence_score += 0.15
-                    confluence_factors.append("Structure Shift")
+            elif change_24h > 1.0 and np.random.default_rng(42).random() < 0.50:
+                confluence_score += 0.15
+                confluence_factors.append("Structure Shift")
             
             # Premium/Discount Analysis
             price_position = (current_price - low_24h) / range_24h if range_24h > 0 else 0.5
@@ -2888,12 +2883,7 @@ class ICTSignalGenerator:
     
     # ========== STARTUP COOLDOWN AND SESSION VALIDATION ==========
     
-    def should_generate_signals(self) -> bool:
-        """Check if enough time has passed since startup to generate signals"""
-        minutes_since_startup = (datetime.now() - self.startup_time).total_seconds() / 60
-        if minutes_since_startup < self.startup_cooldown_minutes:
-            return False
-        return True
+    # Note: should_generate_signals() is already defined above in the base class
     
     def validate_session_timing(self, session_type: str = 'ny_open') -> bool:
         """Validate if current time is within valid session window"""
@@ -3087,7 +3077,7 @@ class ICTSignalGenerator:
         enhanced_blocks.sort(key=lambda x: x['total_confluence'], reverse=True)
         return enhanced_blocks
     
-    def check_fair_value_gaps(self, crypto: str, enhanced_blocks: List[Dict], current_price: float) -> List[Dict]:
+    def check_fair_value_gaps(self, _crypto: str, enhanced_blocks: List[Dict], current_price: float) -> List[Dict]:
         """Step 4: Check for fair value gaps with actual price gap calculations"""
         fvg_config = self.ict_methodology['fair_value_gaps']
         
@@ -3107,9 +3097,8 @@ class ICTSignalGenerator:
                 mitigation_level = block.get('mitigation_level', block_price)
                 
                 # Check if price has mitigated beyond threshold
-                if block['type'] == 'bullish_ob' and current_price < mitigation_level:
-                    fvg_conflict = True
-                elif block['type'] == 'bearish_ob' and current_price > mitigation_level:
+                if (block['type'] == 'bullish_ob' and current_price < mitigation_level) or \
+                   (block['type'] == 'bearish_ob' and current_price > mitigation_level):
                     fvg_conflict = True
             
             if not fvg_conflict:
@@ -3829,12 +3818,11 @@ class ICTWebMonitor:
                     # Save trading journal entry for this signal
                     journal_entry = {
                         'type': 'TRADE',
-                        'action': "Signal Generated",
+                        'action': signal['action'],  # Use signal action directly
                         'details': f"{crypto} {signal['action']} signal at ${signal['entry_price']:.4f}",
                         'id': signal['id'],
                         'symbol': signal['symbol'],
                         'entry_price': signal['entry_price'],
-                        'action': signal['action'],
                         'crypto': crypto,
                         'confidence': signal['confidence'],
                         'timestamp': datetime.now().isoformat()
