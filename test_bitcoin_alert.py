@@ -100,8 +100,8 @@ def test_bitcoin_alert_detection():
         print("💡 Make sure telegram_bridge.py and telegram_news_bot.py are in the current directory")
         return False
         
-    except Exception:
-        print("❌ Test failed")
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
         import traceback
         traceback.print_exc()
         return False

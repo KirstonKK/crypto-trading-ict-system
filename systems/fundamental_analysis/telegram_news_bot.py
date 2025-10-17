@@ -329,11 +329,11 @@ class WatcherGuruTelegramBot:
                 datetime.now().isoformat()
             ))
             
-            conn.commit()
-            conn.close()
+                conn.commit()
+                conn.close()
             
-        except Exception:
-            logger.error("Error storing telegram news")
+        except Exception as e:
+            logger.error(f"Error storing telegram news: {e}")
 
     async def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
         """Check for price alerts and store them"""
