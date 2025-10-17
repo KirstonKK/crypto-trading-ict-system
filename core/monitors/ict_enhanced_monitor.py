@@ -3504,6 +3504,147 @@ class ICTWebMonitor:
         # Setup routes
         self.setup_routes()
         self.setup_socketio_events()
+    
+    def _get_health_check_data(self):
+        """Get health check data for API endpoint"""
+        from datetime import date
+        today = date.today()
+
+        def _to_dt(ts):
+            if isinstance(ts, str):
+                if not ts.strip():
+                    return None
+                try:
+                    return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
+                except Exception as e:
+                    logger.warning(f"⚠️ Invalid isoformat string in _to_dt: '{ts}' ({e})")
+                    return None
+            return ts
+
+        today_signals = 0
+        for s in (self.crypto_monitor.live_signals + self.crypto_monitor.archived_signals):
+            ts = s.get('timestamp')
+            if not ts:
+                continue
+            try:
+                if _to_dt(ts).date() == today:
+                    today_signals += 1
+            except Exception:
+                continue
+
+        return {
+            'status': 'operational',
+            'service': 'ICT Enhanced Trading Monitor',
+            'port': self.port,
+            'timestamp': datetime.now().isoformat(),
+            'symbols': self.crypto_monitor.display_symbols,
+            'scan_count': self.crypto_monitor.scan_count,
+            'signals_today': today_signals,
+            'market_hours': self.statistics.is_market_hours(),
+            'paper_balance': self.crypto_monitor.paper_balance,
+            'account_blown': self.crypto_monitor.account_blown,
+            'ml_model_status': {
+                'loaded': self.signal_generator.ml_model is not None,
+                'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
+            }
+        }
+    
+    def _get_todays_completed_trades(self):
+        """Get today's completed trades from database and journal"""
+        from datetime import date
+        today_str = date.today().isoformat()
+        
+        # Primary source: Database completed trades
+        today_completed_trades = self.crypto_monitor.get_todays_completed_trades_from_db()
+        
+        # Secondary source: Journal entries not yet in database
+        journal_supplement = []
+        db_trade_ids = {trade['id'] for trade in today_completed_trades}
+        
+        for entry in self.crypto_monitor.trading_journal:
+            try:
+                entry_exit_time = entry.get('exit_time', '')
+                entry_id = entry.get('id')
+                
+                if (entry_exit_time and entry_exit_time.startswith(today_str) and 
+                    entry_id not in db_trade_ids):
+                    journal_supplement.append(entry)
+            except (KeyError, AttributeError):
+                continue
+        
+        # Combine database + journal (database-first approach)
+        return today_completed_trades + journal_supplement
+    
+    def _get_todays_signals_summary(self):
+        """Get summary of today's signals (active only)"""
+        from datetime import date
+        
+        def _to_dt(ts):
+            if isinstance(ts, str):
+                return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
+            return ts
+        
+        todays_summary = []
+        today_str = date.today().isoformat()
+        
+        # Only show truly active signals, not closed ones
+        for s in self.crypto_monitor.live_signals:
+            ts = s.get('timestamp')
+            if not ts:
+                continue
+            try:
+                if _to_dt(ts).date() == date.today():
+                    # Skip if this signal has a corresponding closed trade in journal
+                    paper_trade_id = s.get('paper_trade_id', '')
+                    is_closed = any(
+                        trade.get('exit_time', '').startswith(today_str) 
+                        for trade in self.crypto_monitor.trading_journal
+                        if str(trade.get('id', '')) in paper_trade_id
+                    )
+                    
+                    if not is_closed:  # Only show if not closed
+                        cp = s.copy()
+                        if hasattr(cp.get('timestamp'), 'isoformat'):
+                            cp['timestamp'] = cp['timestamp'].isoformat()
+                        todays_summary.append(cp)
+            except Exception:
+                continue
+        
+        todays_summary.sort(key=lambda s: _to_dt(s.get('timestamp', datetime.now())), reverse=True)
+        return todays_summary[:50]
+    
+    def _get_signal_generation_params(self):
+        """Get current signal generation parameters"""
+        if not self.current_prices:
+            return {}
+        
+        market_volatility = self.signal_generator._calculate_market_volatility(self.current_prices)
+        session_multiplier = self.signal_generator._get_session_multiplier()
+        base_prob = 0.035  # 3.5% base chance
+        volatility_multiplier = max(0.5, min(3.0, market_volatility))
+        effective_prob = base_prob * volatility_multiplier * session_multiplier
+        
+        return {
+            'base_probability': base_prob * 100,
+            'volatility_multiplier': volatility_multiplier,
+            'session_multiplier': session_multiplier,
+            'effective_probability': effective_prob * 100,
+            'confluence_threshold': 15.0
+        }
+    
+    def _get_risk_management_status(self):
+        """Get risk management status data"""
+        return {
+            'portfolio_risk': f"{self.crypto_monitor.calculate_portfolio_risk()*100:.2f}%",
+            'max_portfolio_risk': f"{self.crypto_monitor.max_portfolio_risk*100:.1f}%",
+            'concurrent_signals': f"{len(self.crypto_monitor.live_signals)}/{self.crypto_monitor.max_concurrent_signals}",
+            'active_positions': {symbol.replace('USDT', ''): self.crypto_monitor.get_active_positions_for_symbol(symbol) 
+                               for symbol in ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT']},
+            'signal_cooldowns': {symbol: self.crypto_monitor.has_recent_signal(symbol) 
+                               for symbol in ['BTC', 'ETH', 'SOL', 'XRP']},
+            'deduplication_enabled': True,
+            'cooldown_minutes': self.crypto_monitor.signal_cooldown_minutes
+        }
         
     def setup_routes(self):
         """Setup Flask routes"""
@@ -3514,48 +3655,7 @@ class ICTWebMonitor:
             
         @self.app.route('/health')
         def health_check():
-            # Derive signals_today from today's live + archived signals (not the journal)
-            from datetime import date
-            today = date.today()
-
-            def _to_dt(ts):
-                if isinstance(ts, str):
-                    if not ts.strip():
-                        return None
-                    try:
-                        return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
-                    except Exception as e:
-                        logger.warning(f"⚠️ Invalid isoformat string in _to_dt: '{ts}' ({e})")
-                        return None
-                return ts
-
-            today_signals = 0
-            for s in (self.crypto_monitor.live_signals + self.crypto_monitor.archived_signals):
-                ts = s.get('timestamp')
-                if not ts:
-                    continue
-                try:
-                    if _to_dt(ts).date() == today:
-                        today_signals += 1
-                except Exception:
-                    continue
-
-            return jsonify({
-                'status': 'operational',
-                'service': 'ICT Enhanced Trading Monitor',
-                'port': self.port,
-                'timestamp': datetime.now().isoformat(),
-                'symbols': self.crypto_monitor.display_symbols,
-                'scan_count': self.crypto_monitor.scan_count,
-                'signals_today': today_signals,
-                'market_hours': self.statistics.is_market_hours(),
-                'paper_balance': self.crypto_monitor.paper_balance,
-                'account_blown': self.crypto_monitor.account_blown,
-                'ml_model_status': {
-                    'loaded': self.signal_generator.ml_model is not None,
-                    'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
-                }
-            })
+            return jsonify(self._get_health_check_data())
             
         @self.app.route('/api/data')
         def get_current_data():
@@ -3568,123 +3668,44 @@ class ICTWebMonitor:
                         signal_copy['timestamp'] = signal_copy['timestamp'].isoformat()
                     serialized_signals.append(signal_copy)
                 
-                # Get trading journal from database for today's completed trades (database-first)
-                from datetime import date
-                today_str = date.today().isoformat()
-                
-                # Primary source: Database completed trades
-                today_completed_trades = self.crypto_monitor.get_todays_completed_trades_from_db()
-                
-                # Secondary source: Journal entries not yet in database
-                journal_supplement = []
-                db_trade_ids = {trade['id'] for trade in today_completed_trades}
-                
-                for entry in self.crypto_monitor.trading_journal:
-                    try:
-                        # Check if this journal entry is from today and not in database
-                        entry_exit_time = entry.get('exit_time', '')
-                        entry_id = entry.get('id')
-                        
-                        if (entry_exit_time and entry_exit_time.startswith(today_str) and 
-                            entry_id not in db_trade_ids):
-                            journal_supplement.append(entry)
-                    except (KeyError, AttributeError):
-                        continue
-                
-                # Combine database + journal (database-first approach)
-                all_today_trades = today_completed_trades + journal_supplement
-                
-                # Take last 10 entries and serialize for JSON
+                # Get today's completed trades
+                all_today_trades = self._get_todays_completed_trades()
                 serialized_journal = self.serialize_datetime_objects(all_today_trades[-10:])
 
-                # Derive signals_today from database instead of in-memory lists
+                # Derive signals_today from database
                 from datetime import date
                 import sqlite3
                 today = date.today().isoformat()
                 
-                # Get accurate count from database
                 conn = sqlite3.connect(DATABASE_PATH)
                 cursor = conn.cursor()
                 cursor.execute(DAILY_COUNT_QUERY, (today,))
                 today_signals = cursor.fetchone()[0]
                 conn.close()
                 
-                # Build today's summary from live signals only (exclude closed trades)
-                todays_summary = []
-                def _to_dt(ts):
-                    if isinstance(ts, str):
-                        return datetime.fromisoformat(ts.replace('Z', UTC_OFFSET))
-                    return ts
+                # Get today's signal summary
+                todays_summary = self._get_todays_signals_summary()
                 
-                # Only show truly active signals, not closed ones
-                for s in self.crypto_monitor.live_signals:
-                    ts = s.get('timestamp')
-                    if not ts:
-                        continue
-                    try:
-                        if _to_dt(ts).date() == date.today():
-                            # Skip if this signal has a corresponding closed trade in journal
-                            paper_trade_id = s.get('paper_trade_id', '')
-                            is_closed = any(
-                                trade.get('exit_time', '').startswith(today) 
-                                for trade in self.crypto_monitor.trading_journal
-                                if str(trade.get('id', '')) in paper_trade_id
-                            )
-                            
-                            if not is_closed:  # Only show if not closed
-                                cp = s.copy()
-                                if hasattr(cp.get('timestamp'), 'isoformat'):
-                                    cp['timestamp'] = cp['timestamp'].isoformat()
-                                todays_summary.append(cp)
-                    except Exception:
-                        continue
-                todays_summary.sort(key=lambda s: _to_dt(s.get('timestamp', datetime.now())), reverse=True)
-                todays_summary = todays_summary[:50]
-
-                # Get current signal generation parameters
-                signal_params = {}
-                if self.current_prices:
-                    market_volatility = self.signal_generator._calculate_market_volatility(self.current_prices)
-                    session_multiplier = self.signal_generator._get_session_multiplier()
-                    base_prob = 0.035  # 3.5% base chance (increased for ML learning)
-                    volatility_multiplier = max(0.5, min(3.0, market_volatility))
-                    effective_prob = base_prob * volatility_multiplier * session_multiplier
-                    
-                    signal_params = {
-                        'base_probability': base_prob * 100,  # Convert to percentage
-                        'volatility_multiplier': volatility_multiplier,
-                        'session_multiplier': session_multiplier,
-                        'effective_probability': effective_prob * 100,  # Convert to percentage
-                        'confluence_threshold': 15.0  # 15% minimum confluence required (emergency fix)
-                    }
+                # Get signal generation parameters
+                signal_params = self._get_signal_generation_params()
 
                 return jsonify({
                     'prices': self.current_prices,
                     'scan_count': self.crypto_monitor.scan_count,
                     'signals_today': today_signals,
                     'daily_pnl': self.crypto_monitor.daily_pnl,
-                    'paper_balance': self.crypto_monitor.paper_balance,  # Current account balance
-                    'account_blown': self.crypto_monitor.account_blown,  # Account blow-up status
-                    'live_signals': serialized_signals,  # Serialized signals
+                    'paper_balance': self.crypto_monitor.paper_balance,
+                    'account_blown': self.crypto_monitor.account_blown,
+                    'live_signals': serialized_signals,
                     'total_live_signals': len(self.crypto_monitor.live_signals),
-                    'signals_summary': todays_summary,  # Full summary for today
-                    'trading_journal': serialized_journal,  # Serialized journal
-                    'paper_trades': self.crypto_monitor.get_todays_active_trades_from_db(),  # Database-first active trades
+                    'signals_summary': todays_summary,
+                    'trading_journal': serialized_journal,
+                    'paper_trades': self.crypto_monitor.get_todays_active_trades_from_db(),
                     'session_status': self.session_tracker.get_sessions_status(),
                     'uptime': self.statistics.get_uptime(),
                     'market_hours': self.statistics.is_market_hours(),
-                    'signal_generation_params': signal_params,  # Signal generation debugging info
-                    'risk_management_status': {
-                        'portfolio_risk': f"{self.crypto_monitor.calculate_portfolio_risk()*100:.2f}%",
-                        'max_portfolio_risk': f"{self.crypto_monitor.max_portfolio_risk*100:.1f}%",
-                        'concurrent_signals': f"{len(self.crypto_monitor.live_signals)}/{self.crypto_monitor.max_concurrent_signals}",
-                        'active_positions': {symbol.replace('USDT', ''): self.crypto_monitor.get_active_positions_for_symbol(symbol) 
-                                           for symbol in ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT']},
-                        'signal_cooldowns': {symbol: self.crypto_monitor.has_recent_signal(symbol) 
-                                           for symbol in ['BTC', 'ETH', 'SOL', 'XRP']},
-                        'deduplication_enabled': True,
-                        'cooldown_minutes': self.crypto_monitor.signal_cooldown_minutes
-                    },
+                    'signal_generation_params': signal_params,
+                    'risk_management_status': self._get_risk_management_status(),
                     'ml_model_status': {
                         'loaded': self.signal_generator.ml_model is not None,
                         'status': 'loaded' if self.signal_generator.ml_model is not None else 'not_found'
