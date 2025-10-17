@@ -428,7 +428,7 @@ class FundamentalAnalysisServer:
         
         return mentioned
     
-    async def run_background_analysis(self):
+    def _parse_coindesk_news(self, data):
         """Parse CoinDesk news format"""
         news_items = []
         try:
@@ -1411,7 +1411,7 @@ class FundamentalAnalysisServer:
                 'recommendation': 'Check Telegram integration configuration'
             }
     
-    async def run_background_analysis(self):
+    def start_telegram_monitoring(self):
         """Start WatcherGuru Telegram monitoring if available"""
         if self.telegram_bridge:
             try:
