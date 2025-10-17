@@ -174,10 +174,13 @@ class DemoTradingSystem:
             # Initialize Bybit client (if not dry run and not demo mode)
             if not self.dry_run and self.config and not self.demo_mode:
                 logger.info("🏪 Initializing Bybit demo client...")
+                # Use demo=True for Demo Mainnet (real prices, fake money)
+                use_demo = getattr(self.config.bybit, 'demo', False)
                 self.bybit_client = BybitDemoClient(
                     api_key=self.config.bybit.api_key,
                     api_secret=self.config.bybit.api_secret,
-                    testnet=self.config.bybit.testnet
+                    testnet=self.config.bybit.testnet,
+                    demo=use_demo
                 )
                 
                 # Test connection

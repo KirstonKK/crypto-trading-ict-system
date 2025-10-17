@@ -451,7 +451,7 @@ class BybitRealTimePrices:
                 new_price = self._safe_float(delta_data['lastPrice'])
                 if new_price > 0:  # Only update if valid price
                     existing_data['price'] = new_price
-                    logger.info("✅ DELTA UPDATE {symbol}: price=${new_price}")
+                    logger.info(f"✅ DELTA UPDATE {symbol}: price=${new_price}")
                 else:
                     logger.warning(f"⚠️ DELTA UPDATE {symbol}: received invalid lastPrice {new_price}")
             # Don't update price if lastPrice is not in delta - preserve existing price

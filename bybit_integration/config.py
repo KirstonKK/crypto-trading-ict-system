@@ -16,10 +16,14 @@ class BybitConfig:
     api_key: str = ""
     api_secret: str = ""
     testnet: bool = True
+    demo: bool = False  # Demo Mainnet (real prices, fake money)
     base_url: str = ""
     
     def __post_init__(self):
-        if self.testnet:
+        # Demo Mainnet takes precedence
+        if self.demo:
+            self.base_url = "https://api-demo.bybit.com"
+        elif self.testnet:
             self.base_url = "https://api-testnet.bybit.com"
         else:
             self.base_url = "https://api.bybit.com"
@@ -121,7 +125,8 @@ def load_config_from_env(env_file: str = ".env") -> IntegrationConfig:
     bybit_config = BybitConfig(
         api_key=os.getenv("BYBIT_API_KEY", ""),
         api_secret=os.getenv("BYBIT_API_SECRET", ""),
-        testnet=os.getenv("BYBIT_TESTNET", "true").lower() == "true"
+        testnet=os.getenv("BYBIT_TESTNET", "true").lower() == "true",
+        demo=os.getenv("BYBIT_DEMO", "false").lower() == "true"
     )
     
     # Trading configuration

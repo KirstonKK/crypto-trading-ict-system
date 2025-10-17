@@ -40,8 +40,8 @@ class ICTCryptoMonitor:
     """ICT Enhanced Crypto Monitor matching previous version exactly"""
     
     def __init__(self):
-        # Initialize database first
-        self.db = TradingDatabase("trading_data.db")
+        # Initialize database first - use the real database with historical data
+        self.db = TradingDatabase("databases/trading_data.db")
         
         # Exact same symbols as previous monitor
         self.symbols = ['BTCUSDT', 'SOLUSDT', 'ETHUSDT', 'XRPUSDT']
@@ -83,11 +83,13 @@ class ICTCryptoMonitor:
         # Paper trading configuration
         self.paper_trading_enabled = True
         self.paper_balance = 100.0  # Starting with $100 for 1% risk testing
+        self.live_demo_balance = 0.0  # Live balance from Bybit Demo Trading
         self.account_blown = False  # Track if account is blown
         self.blow_up_threshold = 0.0  # Blow up when balance <= $0
         self.active_paper_trades = []  # Currently open paper trades
         self.completed_paper_trades = []  # Completed paper trades
         self.total_paper_pnl = 0.0
+        self.last_balance_update = None  # Track last Bybit balance fetch
         
         # Load previous state on startup
         self._load_trading_state()
@@ -540,48 +542,99 @@ class ICTCryptoMonitor:
         return len(trades_to_close)
         
     async def get_real_time_prices(self):
-        """Get real-time prices from CoinGecko API (Binance blocked in location)"""
+        """Get real-time prices from Bybit Demo Trading (real market prices)"""
         try:
-            async with aiohttp.ClientSession() as session:
-                # Use CoinGecko as primary source - more reliable globally
-                url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,ripple&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true"
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        prices = {}
+            # Import Bybit client
+            sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+            from bybit_integration.bybit_client import BybitDemoClient
+            from dotenv import load_dotenv
+            
+            # Load API credentials
+            env_path = os.path.join(os.path.dirname(__file__), '../../.env')
+            load_dotenv(env_path)
+            
+            # Initialize Bybit client with Demo Trading
+            client = BybitDemoClient(demo=True)
+            
+            prices = {}
+            
+            # Map our symbols to Bybit format
+            symbol_mapping = {
+                'BTC': 'BTCUSDT',
+                'ETH': 'ETHUSDT',
+                'SOL': 'SOLUSDT',
+                'XRP': 'XRPUSDT'
+            }
+            
+            for crypto_name, bybit_symbol in symbol_mapping.items():
+                try:
+                    # Get ticker data from Bybit (real-time market data)
+                    ticker = await client.get_ticker(bybit_symbol)
+                    
+                    if ticker:
+                        last_price = float(ticker.get('lastPrice', 0))
+                        high_24h = float(ticker.get('highPrice24h', last_price * 1.02))
+                        low_24h = float(ticker.get('lowPrice24h', last_price * 0.98))
+                        volume_24h = float(ticker.get('volume24h', 0))
+                        price_change_24h = float(ticker.get('price24hPcnt', 0)) * 100  # Convert to percentage
                         
-                        # Map CoinGecko IDs to our crypto names
-                        coin_mapping = {
-                            'bitcoin': 'BTC',
-                            'ethereum': 'ETH', 
-                            'solana': 'SOL',
-                            'ripple': 'XRP'
+                        prices[crypto_name] = {
+                            'price': last_price,
+                            'change_24h': price_change_24h,
+                            'volume': volume_24h,
+                            'high_24h': high_24h,
+                            'low_24h': low_24h,
+                            'timestamp': datetime.now().isoformat()
                         }
+                except Exception as e:
+                    logger.warning(f"Failed to fetch {crypto_name} from Bybit: {e}")
+                    continue
+            
+            # Fetch live Demo Trading balance (if not fetched recently)
+            now = datetime.now(timezone.utc)
+            if self.last_balance_update is None or (now - self.last_balance_update).total_seconds() > 60:
+                try:
+                    balance_data = await client.get_balance()
+                    if balance_data:
+                        # Calculate total portfolio value in USDT
+                        total_value = 0.0
+                        balances_detail = []
                         
-                        for coin_id, crypto_name in coin_mapping.items():
-                            if coin_id in data:
-                                coin_data = data[coin_id]
-                                price = coin_data['usd']
-                                change_24h = coin_data.get('usd_24h_change', 0)
-                                volume_24h = coin_data.get('usd_24h_vol', 0)
-                                
-                                prices[crypto_name] = {
-                                    'price': float(price),
-                                    'change_24h': float(change_24h),
-                                    'volume': float(volume_24h),
-                                    'high_24h': float(price * 1.02),  # Estimate
-                                    'low_24h': float(price * 0.98),   # Estimate
-                                    'timestamp': datetime.now().isoformat()
-                                }
+                        for coin, amount in balance_data.items():
+                            if amount > 0:
+                                if coin == 'USDT' or coin == 'USDC':
+                                    # Stablecoins are 1:1 with USD
+                                    coin_value = amount
+                                    total_value += coin_value
+                                    balances_detail.append(f"{coin}: ${coin_value:,.2f}")
+                                elif coin in ['BTC', 'ETH', 'SOL', 'XRP']:
+                                    # Use real-time prices we just fetched
+                                    coin_price = prices.get(coin, {}).get('price', 0)
+                                    if coin_price > 0:
+                                        coin_value = amount * coin_price
+                                        total_value += coin_value
+                                        balances_detail.append(f"{amount:.6f} {coin} @ ${coin_price:,.2f} = ${coin_value:,.2f}")
                         
-                        logger.info(f"✅ Real-time prices updated from CoinGecko: BTC=${prices['BTC']['price']:,.2f}")
-                        return prices
-                    else:
-                        logger.warning("Failed to fetch prices from CoinGecko")
-                        return await self.get_binance_fallback()
+                        self.live_demo_balance = total_value
+                        self.last_balance_update = now
+                        logger.info(f"💰 Live Demo Portfolio Value: ${total_value:,.2f}")
+                        logger.info(f"   Holdings: {', '.join(balances_detail)}")
+                except Exception as balance_error:
+                    logger.debug(f"Could not fetch Demo balance: {balance_error}")
+            
+            # Close the client session
+            if client.session:
+                await client.session.close()
+            
+            if prices:
+                logger.info(f"✅ Real-time prices updated from Bybit Demo Trading: BTC=${prices.get('BTC', {}).get('price', 0):,.2f}")
+                return prices
+            else:
+                logger.warning("No prices fetched from Bybit, using fallback")
+                return await self.get_binance_fallback()
                         
         except Exception as e:
-            logger.error(f"Error fetching CoinGecko prices: {e}")
+            logger.error(f"Error fetching Bybit prices: {e}")
             return await self.get_binance_fallback()
     
     async def get_binance_fallback(self):
@@ -1478,6 +1531,7 @@ class ICTWebMonitor:
                 'signals_today': today_signals,
                 'market_hours': self.statistics.is_market_hours(),
                 'paper_balance': self.crypto_monitor.paper_balance,
+                'live_demo_balance': self.crypto_monitor.live_demo_balance,
                 'account_blown': self.crypto_monitor.account_blown,
                 'ml_model_status': {
                     'loaded': self.signal_generator.ml_model is not None,
@@ -1534,6 +1588,7 @@ class ICTWebMonitor:
                     'signals_today': daily_stats.get('signals_generated', 0),
                     'daily_pnl': daily_stats.get('total_pnl', 0),
                     'paper_balance': daily_stats.get('paper_balance', 100),
+                    'live_demo_balance': self.crypto_monitor.live_demo_balance,
                     'account_blown': daily_stats.get('paper_balance', 100) <= 10,  # Account blown if balance <= $10
                     'live_signals': serialized_signals,
                     'total_live_signals': len(todays_signals),
@@ -1855,6 +1910,7 @@ class ICTWebMonitor:
                 'total_signals': self.crypto_monitor.total_signals,
                 'daily_pnl': self.crypto_monitor.daily_pnl,  # Now calculated from paper trades
                 'paper_balance': self.crypto_monitor.paper_balance,
+                'live_demo_balance': self.crypto_monitor.live_demo_balance,  # Live Demo Trading balance
                 'total_paper_pnl': self.crypto_monitor.total_paper_pnl,
                 'active_paper_trades': len(self.crypto_monitor.active_paper_trades),
                 'completed_paper_trades': serialized_completed_trades,  # Send full trade data
@@ -1965,35 +2021,54 @@ class ICTWebMonitor:
         
         .prices-display {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 15px;
             margin: 15px 0;
         }
         
+        @media (max-width: 1024px) {
+            .prices-display {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .prices-display {
+                grid-template-columns: 1fr;
+            }
+        }
+        
         .price-item {
             background: rgba(0, 255, 136, 0.1);
-            padding: 10px;
+            padding: 15px;
             border-radius: 8px;
             text-align: center;
             border: 1px solid rgba(0, 255, 136, 0.3);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         
         .price-crypto {
             font-weight: bold;
             color: #00ff88;
             font-size: 1.1em;
+            margin-bottom: 8px;
         }
         
         .price-value {
             color: #ffffff;
-            font-size: 1.2em;
+            font-size: 1.3em;
             font-weight: bold;
-            margin: 5px 0;
+            margin: 8px 0;
+            word-break: break-word;
         }
         
         .price-change {
             font-size: 0.9em;
             font-weight: bold;
+            margin-top: 5px;
         }
         
         .price-change.positive { color: #00ff88; }
@@ -2005,29 +2080,35 @@ class ICTWebMonitor:
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
             margin-bottom: 30px;
         }
         
         .stat-card {
             background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
+            padding: 15px 10px;
             border-radius: 10px;
             text-align: center;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 0;
+            overflow: hidden;
         }
         
         .stat-number {
-            font-size: 2em;
+            font-size: 1.8em;
             font-weight: bold;
             color: #00ff88;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.2;
         }
         
         .stat-label {
             color: rgba(255,255,255,0.7);
-            margin-top: 5px;
+            margin-top: 8px;
+            font-size: 0.9em;
         }
         
         .main-grid {
@@ -2297,6 +2378,14 @@ class ICTWebMonitor:
             <div class="stat-label">Signals Today</div>
         </div>
         <div class="stat-card">
+            <div class="stat-number" id="paper-balance" style="color: #ffa500;">$100</div>
+            <div class="stat-label">Paper Balance</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="live-demo-balance" style="color: #00ff88; font-size: 1.3em; word-break: break-all;">$0</div>
+            <div class="stat-label">Live Demo Balance</div>
+        </div>
+        <div class="stat-card">
             <div class="stat-number" id="daily-pnl">$0</div>
             <div class="stat-label">Daily P&L</div>
         </div>
@@ -2430,6 +2519,10 @@ class ICTWebMonitor:
             // Update stats
             document.getElementById('scan-count').textContent = data.scan_count;
             document.getElementById('signals-today').textContent = data.signals_today;
+            document.getElementById('paper-balance').textContent = '$' + (data.paper_balance || 100).toFixed(2);
+            // Format live demo balance with commas and proper wrapping
+            const liveDemoBalance = data.live_demo_balance || 0;
+            document.getElementById('live-demo-balance').textContent = '$' + liveDemoBalance.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
             document.getElementById('daily-pnl').textContent = '$' + (data.daily_pnl || 0).toFixed(2);  // Fixed to use daily_pnl
             document.getElementById('active-hours').textContent = data.active_hours;
             
