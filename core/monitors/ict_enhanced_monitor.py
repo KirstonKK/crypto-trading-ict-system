@@ -1164,54 +1164,18 @@ class ICTCryptoMonitor:
 
     def cleanup_old_journal_entries(self):
         """Remove journal entries that are not from today"""
-        try:
-            from datetime import date
-            today_str = date.today().isoformat()
-            
-            original_count = len(self.trading_journal)
-            filtered_journal = []
-            
-            for entry in self.trading_journal:
-                entry_date = None
-                
-                # Check various date fields that might exist
-                if 'timestamp' in entry:
-                    try:
-                        if isinstance(entry['timestamp'], str):
-                            entry_date = entry['timestamp'][:10]  # Extract YYYY-MM-DD
-                        else:
-                            entry_date = entry['timestamp'].strftime('%Y-%m-%d')
-                    except (KeyError, AttributeError, ValueError) as e:
-                        logger.debug(f"Error parsing timestamp in cleanup: {e}")
-                elif 'entry_time' in entry:
-                    try:
-                        if isinstance(entry['entry_time'], str):
-                            entry_date = entry['entry_time'][:10]  # Extract YYYY-MM-DD
-                        else:
-                            entry_date = entry['entry_time'].strftime('%Y-%m-%d')
-                    except (ValueError, AttributeError):
-                        pass
-                elif 'exit_time' in entry:
-                    try:
-                        if isinstance(entry['exit_time'], str):
-                            entry_date = entry['exit_time'][:10]  # Extract YYYY-MM-DD
-                        else:
-                            entry_date = entry['exit_time'].strftime('%Y-%m-%d')
-                    except (ValueError, AttributeError):
-                        pass
-                
-                # Only keep entries from today
-                if entry_date == today_str:
-                    filtered_journal.append(entry)
-            
-            self.trading_journal = filtered_journal
-            removed_count = original_count - len(filtered_journal)
-            
-            if removed_count > 0:
-                logger.info(f"🧹 Cleaned journal: removed {removed_count} old entries, kept {len(filtered_journal)} from today")
-                
-        except Exception as e:
-            logger.error(f"❌ Failed to cleanup journal entries: {e}")
+        from datetime import date
+        today_str = date.today().isoformat()
+        original_count = len(self.trading_journal)
+        filtered_journal = []
+        for entry in self.trading_journal:
+            entry_date = self._extract_entry_date(entry)
+            if entry_date == today_str:
+                filtered_journal.append(entry)
+        self.trading_journal = filtered_journal
+        removed_count = original_count - len(filtered_journal)
+        if removed_count > 0:
+            logger.info(f"🧹 Cleaned journal: removed {removed_count} old entries, kept {len(filtered_journal)} from today")
 
     def save_session_status(self, session_data):
         """Save session status to database"""
@@ -1484,7 +1448,7 @@ class ICTCryptoMonitor:
             
             # Also include any journal entries that might not be in database yet
             from datetime import date
-            today = date.today().isoformat()
+            today = date.today().isoformat();
             
             journal_pnl = 0.0
             db_trade_ids = {trade['id'] for trade in completed_trades}
@@ -1633,37 +1597,121 @@ class ICTCryptoMonitor:
         """Check if new signal price is sufficiently separated from existing signals"""
         if not new_price:
             return True  # Allow if no price provided (backward compatibility)
-            
+
         logger.info(f"🔍 Checking price separation for {crypto} @ ${new_price:.2f} (need {min_separation_pct:.1f}%)")
-        
+
         # Check against live signals for this crypto
         live_signal_count = 0
         for signal in self.live_signals:
             if signal.get('crypto') == crypto:
                 live_signal_count += 1
                 existing_price = signal.get('entry_price', 0)
-                if existing_price > 0:
-                    price_diff_pct = abs((new_price - existing_price) / existing_price) * 100
-                    logger.info(f"   📊 vs Live Signal: ${existing_price:.2f} - difference: {price_diff_pct:.2f}%")
-                    if price_diff_pct < min_separation_pct:
-                        logger.info(f"   ❌ BLOCKED by live signal: {price_diff_pct:.2f}% < {min_separation_pct:.1f}%")
-                        return False
-        
+                if not self._is_price_separated(existing_price, new_price, min_separation_pct, "📊 vs Live Signal"):
+                    return False
+
         # Check against active paper trades for this crypto
         trade_count = 0
         for trade in self.active_paper_trades:
             if trade.get('symbol', '').replace('USDT', '') == crypto and trade.get('status') == 'OPEN':
                 trade_count += 1
                 existing_price = trade.get('entry_price', 0)
-                if existing_price > 0:
-                    price_diff_pct = abs((new_price - existing_price) / existing_price) * 100
-                    logger.info(f"   💼 vs Active Trade: ${existing_price:.2f} - difference: {price_diff_pct:.2f}%")
-                    if price_diff_pct < min_separation_pct:
-                        logger.info(f"   ❌ BLOCKED by active trade: {price_diff_pct:.2f}% < {min_separation_pct:.1f}%")
-                        return False
-        
+                if not self._is_price_separated(existing_price, new_price, min_separation_pct, "💼 vs Active Trade"):
+                    return False
+
         logger.info(f"   ✅ Price separation OK: checked {live_signal_count} live signals, {trade_count} active trades")
         return True
+    
+    def manage_signal_lifecycle(self):
+        """Manage signal lifecycle with 5-minute expiry and 3-signal limit"""
+        current_time = datetime.now()
+        
+        # Separate fresh and expired signals  
+        # FIXED: Removed unused fresh_signals variable
+        expired_signals = []
+        
+        # Update age information for all signals
+        for signal in self.live_signals:
+            age_minutes = self.get_signal_age_minutes(signal.get('timestamp', current_time))
+            signal['age_minutes'] = age_minutes
+            signal['age_category'] = self.get_signal_age_category(age_minutes)
+        
+        # Expire signals older than configured lifetime
+        expired_signals = [s for s in self.live_signals if s.get('age_minutes', 0) > self.signal_lifetime_minutes]
+        if expired_signals:
+            self.archived_signals.extend(expired_signals)
+            # Keep only those not expired in live_signals
+            self.live_signals = [s for s in self.live_signals if s not in expired_signals]
+            
+            # 🔧 SYNC DATABASE: Mark expired signals as 'EXPIRED' in database
+            self._sync_expired_signals_to_database(expired_signals)
+
+        # If we have more than 3 signals, keep only the newest 3
+        if len(self.live_signals) > self.max_live_signals:
+            # Sort by timestamp (newest first) 
+            self.live_signals.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+            
+            # Move excess (oldest) signals to archive
+            excess_signals = self.live_signals[self.max_live_signals:]
+            self.archived_signals.extend(excess_signals)
+            
+            # Keep only the newest 3
+            self.live_signals = self.live_signals[:self.max_live_signals]
+            
+            logger.info(f"📋 Signal Rotation: Moved {len(excess_signals)} older signals to archive, displaying newest 3")
+            archived_count = len(excess_signals) + len(expired_signals)
+        else:
+            archived_count = len(expired_signals)
+        
+        # Keep only last 100 archived signals to prevent memory bloat
+        if len(self.archived_signals) > 100:
+            self.archived_signals = self.archived_signals[-100:]
+        
+
+        # Debug logging to see what's happening
+        if len(self.live_signals) > 0:
+            oldest_signal_age = max(s.get('age_minutes', 0) for s in self.live_signals)
+            logger.info(f"� Signal Status: {len(self.live_signals)} live, {len(expired_signals)} expired, oldest: {oldest_signal_age:.1f}min")
+        
+        return archived_count
+    
+    def select_dynamic_rr_ratio(self, signal):
+        """
+        Dynamically select Risk-Reward ratio based on signal quality and market conditions
+        Always risks exactly 1% but adjusts reward target based on setup quality
+        """
+        confluence_score = signal.get('confluence_score', 0.5)
+        bias_strength = signal.get('bias_strength', 0.5)
+        
+        # Calculate signal quality score (0.0 to 1.0)
+        quality_score = (confluence_score + bias_strength) / 2
+        
+        # Select RR ratio based on quality
+        if quality_score >= 0.9:
+            rr_mode = 'maximum'      # 1:5 RR for exceptional setups
+        elif quality_score >= 0.8:
+            rr_mode = 'aggressive'   # 1:4 RR for high-confidence
+        elif quality_score >= 0.7:
+            rr_mode = 'balanced'     # 1:3 RR for normal trades
+        else:
+            rr_mode = 'conservative' # 1:2 RR for safer trades
+        
+        selected_rr = self.dynamic_rr_ratios[rr_mode]
+        
+        logger.info("🎯 DYNAMIC RR: Quality=%.2f → %s (1:%s) | Risk=1.0%% FIXED", quality_score, rr_mode.upper(), selected_rr)
+        
+        return selected_rr
+    
+    def execute_paper_trade(self, signal):
+        """Execute a paper trade based on signal"""
+        if not self.paper_trading_enabled:
+            return
+        
+        # STRICT 1% risk per trade with DYNAMIC Risk-Reward ratio
+        risk_percentage = 0.01  # FIXED 1% risk per trade - NEVER CHANGES
+        risk_amount = self.paper_balance * risk_percentage
+        
+        # Get dynamic RR ratio based on signal quality
+        dynamic_rr = self.select_dynamic_rr_ratio(signal)
     
     def manage_signal_lifecycle(self):
         """Manage signal lifecycle with 5-minute expiry and 3-signal limit"""
@@ -1808,96 +1856,72 @@ class ICTCryptoMonitor:
         
         return paper_trade
     
-    def update_paper_trades(self, current_prices):
-        """Update active paper trades with current prices"""
-        if not current_prices:
-            return
+    def _calculate_trade_pnl(self, trade, current_price):
+        """Calculate current PnL for a trade"""
+        entry_price = trade['entry_price']
+        position_size = trade['position_size']
+        action = trade['action']
         
-        trades_to_close = []
+        if action == 'BUY':
+            return (current_price - entry_price) * position_size
+        else:  # SELL
+            return (entry_price - current_price) * position_size
+    
+    def _should_close_trade(self, trade, current_price):
+        """Check if trade should be closed (SL or TP hit)"""
+        action = trade['action']
         
-        for trade in self.active_paper_trades:
-            crypto = trade['crypto']
-            if crypto not in current_prices:
-                continue
-
-            current_price = current_prices[crypto]['price']
-            entry_price = trade['entry_price']
-            position_size = trade['position_size']
-            action = trade['action']
-            risk_amount = trade.get('risk_amount', self.paper_balance * self.risk_per_trade)
-
-            # Calculate current PnL
-            if action == 'BUY':
-                pnl = (current_price - entry_price) * position_size
-            else:  # SELL
-                pnl = (entry_price - current_price) * position_size
-
-            trade['current_price'] = current_price
-            trade['pnl'] = pnl
-
-            # Check for stop loss or take profit
-            should_close = False
-            close_reason = ""
-
-            # Log trade monitoring details every 10th scan for debugging
-            if hasattr(self, 'scan_count') and self.scan_count % 10 == 0:
-                logger.info(f"🔍 MONITORING: {crypto} {action} | Current: ${current_price:.4f} | Entry: ${entry_price:.4f} | SL: ${trade['stop_loss']:.4f} | TP: ${trade['take_profit']:.4f} | PnL: ${pnl:.2f}")
-
-            if action == 'BUY':
-                if current_price <= trade['stop_loss']:
-                    should_close = True
-                    close_reason = "STOP_LOSS"
-                elif current_price >= trade['take_profit']:
-                    should_close = True
-                    close_reason = "TAKE_PROFIT"
-            else:  # SELL
-                if current_price >= trade['stop_loss']:
-                    should_close = True
-                    close_reason = "STOP_LOSS"
-                elif current_price <= trade['take_profit']:
-                    should_close = True
-                    close_reason = "TAKE_PROFIT"
-
-            # Strict 1% risk enforcement: cap loss at risk_amount
-            if should_close and close_reason == "STOP_LOSS" and pnl < 0 and abs(pnl) > abs(risk_amount):
-                logger.warning(f"⚠️ Loss exceeded risk amount! Capping loss to -${risk_amount:.2f} (was ${pnl:.2f})")
-                pnl = -abs(risk_amount)
-                trade['pnl'] = pnl
-
-            # Close trade if conditions met
-            if should_close:
-                trade['exit_price'] = current_price
-                trade['exit_time'] = datetime.now()
-                trade['status'] = close_reason
-                trade['final_pnl'] = pnl
-
-                # Update totals and balance
-                self.total_paper_pnl += pnl
-                # Update paper balance with PnL - this affects next trade's 1% risk calculation
-                self.paper_balance += pnl
-
-                # ✅ FIX: Save balance update to database
-                self.save_balance_to_database(self.paper_balance, f"Trade closed: {close_reason} ${pnl:.2f}")
-
-                # Check for account blow-up
-                if self.paper_balance <= self.blow_up_threshold and not self.account_blown:
-                    self.account_blown = True
-                    logger.error(f"💥 ACCOUNT BLOWN! Balance: ${self.paper_balance:.2f} | TRADING STOPPED")
-                    logger.info("🔄 Use /reset_account endpoint to restart with $100")
-
-                # daily_pnl is now calculated dynamically from completed_paper_trades
-
-                trades_to_close.append(trade)
-                blown_msg = " | 💥 ACCOUNT BLOWN!" if self.account_blown else ""
-                logger.info(f"📄 PAPER TRADE CLOSED: {trade['crypto']} {trade['action']} | {close_reason} | PnL: ${pnl:.2f} | New Balance: ${self.paper_balance:.2f}{blown_msg}")
+        if action == 'BUY':
+            if current_price <= trade['stop_loss']:
+                return True, "STOP_LOSS"
+            elif current_price >= trade['take_profit']:
+                return True, "TAKE_PROFIT"
+        else:  # SELL
+            if current_price >= trade['stop_loss']:
+                return True, "STOP_LOSS"
+            elif current_price <= trade['take_profit']:
+                return True, "TAKE_PROFIT"
         
-        # Move closed trades to completed
+        return False, ""
+    
+    def _enforce_risk_limit(self, trade, pnl, risk_amount):
+        """Enforce strict 1% risk limit on losses"""
+        if pnl < 0 and abs(pnl) > abs(risk_amount):
+            logger.warning(f"⚠️ Loss exceeded risk amount! Capping loss to -${risk_amount:.2f} (was ${pnl:.2f})")
+            return -abs(risk_amount)
+        return pnl
+    
+    def _close_trade(self, trade, current_price, pnl, close_reason):
+        """Close a trade and update account state"""
+        trade['exit_price'] = current_price
+        trade['exit_time'] = datetime.now()
+        trade['status'] = close_reason
+        trade['final_pnl'] = pnl
+        
+        # Update totals and balance
+        self.total_paper_pnl += pnl
+        self.paper_balance += pnl
+        
+        # Save balance update to database
+        self.save_balance_to_database(self.paper_balance, f"Trade closed: {close_reason} ${pnl:.2f}")
+        
+        # Check for account blow-up
+        if self.paper_balance <= self.blow_up_threshold and not self.account_blown:
+            self.account_blown = True
+            logger.error(f"💥 ACCOUNT BLOWN! Balance: ${self.paper_balance:.2f} | TRADING STOPPED")
+            logger.info("🔄 Use /reset_account endpoint to restart with $100")
+        
+        blown_msg = " | 💥 ACCOUNT BLOWN!" if self.account_blown else ""
+        logger.info(f"📄 PAPER TRADE CLOSED: {trade['crypto']} {trade['action']} | {close_reason} | PnL: ${pnl:.2f} | New Balance: ${self.paper_balance:.2f}{blown_msg}")
+    
+    def _finalize_closed_trades(self, trades_to_close):
+        """Move closed trades to completed and save to database"""
+        from datetime import date
+        today_str = date.today().isoformat()
+        
         for trade in trades_to_close:
             self.active_paper_trades.remove(trade)
             self.completed_paper_trades.append(trade)
-            # Add to trading journal when trade completes (only if it's today)
-            from datetime import date
-            today_str = date.today().isoformat()
             
             # Check if this trade closed today
             trade_exit_date = None
@@ -1913,158 +1937,105 @@ class ICTCryptoMonitor:
             # Only add to journal if it closed today
             if trade_exit_date == today_str:
                 self.trading_journal.append(trade)
-                # Guarantee: Save journal entry to database immediately
                 self.save_trading_journal_entry(trade)
-            # ✅ FIX: Update the trade in database when it closes
+            
+            # Update the trade in database when it closes
             self.update_paper_trade_in_database(trade)
         
         # Keep only last 50 completed trades
         if len(self.completed_paper_trades) > 50:
             self.completed_paper_trades = self.completed_paper_trades[-50:]
-        
-        # ✅ FIX: Update active trades in database with current prices and unrealized PnL
+    
+    def update_paper_trades(self, current_prices):
+        """Update active paper trades with current prices"""
+        if not current_prices:
+            return
+
+        trades_to_close = []
+
+        for trade in self.active_paper_trades:
+            crypto = trade['crypto']
+            if crypto not in current_prices:
+                continue
+
+            current_price = current_prices[crypto]['price']
+            risk_amount = trade.get('risk_amount', self.paper_balance * self.risk_per_trade)
+
+            # Calculate current PnL using helper
+            pnl = self._calculate_trade_pnl(trade, current_price)
+            trade['current_price'] = current_price
+            trade['pnl'] = pnl
+
+            # Check for stop loss or take profit using helper
+            should_close, close_reason = self._should_close_trade(trade, current_price)
+
+            # Log trade monitoring details every 10th scan for debugging
+            if hasattr(self, 'scan_count') and self.scan_count % 10 == 0:
+                logger.info(f"🔍 MONITORING: {crypto} {trade['action']} | Current: ${current_price:.4f} | Entry: ${trade['entry_price']:.4f} | SL: ${trade['stop_loss']:.4f} | TP: ${trade['take_profit']:.4f} | PnL: ${pnl:.2f}")
+
+            # Strict 1% risk enforcement: cap loss at risk_amount using helper
+            if should_close and close_reason == "STOP_LOSS":
+                pnl = self._enforce_risk_limit(trade, pnl, risk_amount)
+                trade['pnl'] = pnl
+
+            # Close trade if conditions met using helper
+            if should_close:
+                self._close_trade(trade, current_price, pnl, close_reason)
+                trades_to_close.append(trade)
+
+        # Finalize closed trades using helper
+        self._finalize_closed_trades(trades_to_close)
+
+        # Update active trades in database with current prices and unrealized PnL
         self.update_active_trades_in_database(current_prices)
-        
+
         return len(trades_to_close)
     
     def check_and_close_eod_positions(self, current_prices):
         """Check if it's end of day and close all open positions (DATABASE-DRIVEN)"""
         if not self.close_positions_eod or not current_prices:
             return 0
-        
+
         from datetime import datetime
         import sqlite3
-        
+
         now = datetime.now()
         current_date = now.date()
-        
-        # Check if we've already done EOD closure today
+
         if self.last_eod_check_date == current_date:
             return 0
-        
-        # Check if current time is at or past EOD close time
+
         eod_time = now.replace(hour=self.eod_close_hour, minute=self.eod_close_minute, second=0, microsecond=0)
-        
-        # Query ALL open positions from database (not just in-memory)
+
         try:
-            # CRITICAL FIX: Use consistent database path for EOD closure
             conn = sqlite3.connect(DATABASE_PATH)
             cursor = conn.cursor()
-            
-            # Get ALL open positions regardless of entry date
             cursor.execute("""
                 SELECT id, symbol, direction, entry_price, position_size, 
                        stop_loss, take_profit, entry_time, risk_amount
                 FROM paper_trades 
                 WHERE status = 'OPEN'
             """)
-            
             open_positions = cursor.fetchall()
-            
-            if now >= eod_time and len(open_positions) > 0:
+
+            closed_count = 0
+            if now >= eod_time and open_positions:
                 logger.info(f"🌙 END OF DAY: Closing all {len(open_positions)} open positions at market")
-                
-                closed_count = 0
-                
                 for position in open_positions:
-                    trade_id, symbol, direction, entry_price, position_size, stop_loss, take_profit, entry_time, risk_amount = position
-                    
-                    # Get crypto symbol (remove USDT)
-                    crypto = symbol.replace('USDT', '')
-                    
-                    if crypto not in current_prices:
-                        logger.warning(f"⚠️ No price data for {crypto}, skipping EOD closure")
-                        continue
-                    
-                    current_price = current_prices[crypto]['price']
-                    
-                    # Calculate final PnL
-                    if direction == 'BUY':
-                        pnl = (current_price - entry_price) * position_size
-                    else:  # SELL
-                        pnl = (entry_price - current_price) * position_size
-                    
-                    # Update the trade in database
-                    cursor.execute("""
-                        UPDATE paper_trades 
-                        SET exit_price = ?, exit_time = ?, status = 'EOD_CLOSE', 
-                            realized_pnl = ?
-                        WHERE id = ?
-                    """, (current_price, now.isoformat(), pnl, trade_id))
-                    
-                    # Update balance
-                    self.paper_balance += pnl
-                    self.total_paper_pnl += pnl
-                    
-                    # Save balance update
-                    self.save_balance_to_database(self.paper_balance, f"EOD Close: {crypto} ${pnl:.2f}")
-                    
-                    # Create journal entry
-                    journal_entry = {
-                        'id': trade_id,
-                        'symbol': symbol,
-                        'crypto': crypto,
-                        'direction': direction,
-                        'action': direction,
-                        'entry_price': entry_price,
-                        'exit_price': current_price,
-                        'position_size': position_size,
-                        'entry_time': entry_time,
-                        'exit_time': now.isoformat(),
-                        'status': 'EOD_CLOSE',
-                        'final_pnl': pnl,
-                        'pnl': pnl,
-                        'stop_loss': stop_loss,
-                        'take_profit': take_profit,
-                        'risk_amount': risk_amount
-                    }
-                    
-                    # Save journal entry
-                    self.save_trading_journal_entry(journal_entry)
-                    
-                    # Remove from active trades if it exists in memory
-                    self.active_paper_trades = [t for t in self.active_paper_trades if t.get('id') != trade_id]
-                    
-                    # Update corresponding signal status to show it's closed
-                    paper_trade_id = f"PT_{trade_id}"
-                    for signal in self.live_signals:
-                        if signal.get('paper_trade_id') == paper_trade_id:
-                            signal['status'] = 'EOD_CLOSE'
-                            signal['exit_price'] = current_price
-                            signal['exit_time'] = now.isoformat()
-                            signal['final_pnl'] = pnl
-                            # Move to archived signals
-                            self.archived_signals.append(signal)
-                            break
-                    
-                    # Remove closed signal from live signals
-                    self.live_signals = [s for s in self.live_signals if s.get('paper_trade_id') != paper_trade_id]
-                    
-                    # Add to completed trades
-                    self.completed_paper_trades.append(journal_entry)
-                    self.trading_journal.append(journal_entry)
-                    
-                    logger.info(f"🌙 EOD CLOSED: {crypto} {direction} | Price: ${current_price:.4f} | PnL: ${pnl:.2f}")
-                    closed_count += 1
-                
+                    journal_entry, pnl = self._close_eod_trade(position, current_prices, now, cursor)
+                    if journal_entry:
+                        closed_count += 1
                 conn.commit()
-                
-                # Mark that we've done EOD closure for today
                 self.last_eod_check_date = current_date
-                
                 if closed_count > 0:
                     logger.info(f"✅ EOD CLOSURE COMPLETE: {closed_count} positions closed | New Balance: ${self.paper_balance:.2f}")
-                
                 conn.close()
                 return closed_count
-            
             conn.close()
-            
         except Exception as e:
             logger.error(f"❌ EOD Closure Error: {e}")
             if 'conn' in locals():
                 conn.close()
-        
         return 0
         
     async def get_real_time_prices(self):
@@ -2494,119 +2465,6 @@ class ICTSignalGenerator:
                 'close': [crypto_price_data['price']],
                 'volume': [crypto_price_data.get('volume_24h', 1000000)]
             }, index=[datetime.now()])
-    
-    def _convert_bias_signal_to_trading_signal(self, bias_signal: Dict, crypto: str, price_data: Dict) -> Optional[Dict]:
-        """Convert directional bias signal to our trading signal format"""
-        try:
-            entry_price = price_data['price']
-            action = bias_signal['recommended_action']
-            
-            if action not in ['BUY', 'SELL']:
-                return None
-            
-            # Use bias engine's calculated levels
-            # Remove unused variable
-            # entry_range = bias_signal.get('entry_price_range', {'min': entry_price, 'max': entry_price})
-            stop_loss = bias_signal.get('stop_loss_level', 0)
-            take_profit_targets = bias_signal.get('take_profit_targets', [1.5, 2.5, 4.0])
-            
-            # Calculate stop loss if not provided by bias engine
-            if stop_loss == 0:
-                if action == 'BUY':
-                    stop_loss = entry_price * 0.985  # 1.5% stop loss
-                else:
-                    stop_loss = entry_price * 1.015  # 1.5% stop loss
-            
-            # Calculate take profit (use first target from bias engine)
-            if take_profit_targets:
-                tp_ratio = take_profit_targets[0]  # Use first target
-                stop_distance = abs(entry_price - stop_loss)
-                if action == 'BUY':
-                    take_profit = entry_price + (stop_distance * tp_ratio)
-                else:
-                    take_profit = entry_price - (stop_distance * tp_ratio)
-            else:
-                # Fallback to 3:1 ratio
-                if action == 'BUY':
-                    take_profit = entry_price + (abs(entry_price - stop_loss) * 3)
-                else:
-                    take_profit = entry_price - (abs(entry_price - stop_loss) * 3)
-            
-            # Extract confluence factors from bias signal
-            confluence_factors = []
-            
-            # NY Open Bias
-            if bias_signal.get('ny_open_bias'):
-                ny_bias = bias_signal['ny_open_bias']
-                confluence_factors.append(f"NY Open {ny_bias.directional_bias.value}")
-                confluence_factors.append(f"Bias Strength {ny_bias.bias_strength:.1f}")
-            
-            # Change of Character
-            if bias_signal.get('change_of_character'):
-                choch_signals = bias_signal['change_of_character']
-                for choch in choch_signals:
-                    confluence_factors.append(f"ChoCH {choch.choch_type.value}")
-            
-            # Retest Opportunities  
-            if bias_signal.get('retest_opportunities'):
-                retests = bias_signal['retest_opportunities']
-                for retest in retests:
-                    confluence_factors.append(f"{retest.retest_type} ({retest.retest_quality})")
-            
-            # Smart Money Areas
-            if bias_signal.get('smart_money_areas'):
-                areas = bias_signal['smart_money_areas']
-                for area in areas:
-                    confluence_factors.append(f"Smart Money {area.area_type.value}")
-            
-            # Fibonacci Elliott Wave
-            fib_elliott = bias_signal.get('fibonacci_elliott_confluence', {})
-            if fib_elliott.get('combined_confluence', 0) > 0.3:
-                confluence_factors.append(f"Fib+Elliott {fib_elliott['combined_confluence']:.1f}")
-            
-            # Risk calculation (1% of account)
-            risk_amount = 1.0  # Fixed $1.00 risk per trade
-            stop_distance = abs(entry_price - stop_loss)
-            position_size = risk_amount / stop_distance if stop_distance > 0 else 0
-            
-            signal = {
-                'id': f"{crypto}_BIAS_{int(time.time())}",
-                'symbol': f"{crypto}USDT",
-                'crypto': crypto,
-                'action': action,
-                'entry_price': entry_price,
-                'stop_loss': stop_loss,
-                'take_profit': take_profit,
-                'timeframe': 'M15',
-                'confidence': min(bias_signal['overall_confluence_score'], 0.95),
-                'ict_confidence': bias_signal['overall_confluence_score'],
-                'ml_boost': 0.0,  # Bias engine doesn't use ML
-                'risk_amount': risk_amount,
-                'position_size': position_size,
-                'stop_distance': stop_distance,
-                'risk_reward_ratio': abs(take_profit - entry_price) / abs(entry_price - stop_loss) if stop_distance > 0 else 3.0,
-                'confluences': confluence_factors,
-                'confluence_score': bias_signal['overall_confluence_score'],
-                'signal_strength': 'High' if bias_signal['overall_confluence_score'] >= 0.8 else 'Medium-High',
-                'timestamp': datetime.now().isoformat(),
-                'status': 'PENDING',
-                'pnl': 0.0,
-                
-                # Enhanced ICT data
-                'directional_bias': bias_signal['directional_bias'],
-                'bias_methodology': 'DIRECTIONAL_ANALYSIS',
-                'ny_open_analysis': bool(bias_signal.get('ny_open_bias')),
-                'choch_confirmed': bool(bias_signal.get('change_of_character')),
-                'retest_quality': retests[0].retest_quality if bias_signal.get('retest_opportunities') else 'N/A',
-                'fibonacci_confluence': fib_elliott.get('fibonacci_score', 0),
-                'elliott_wave_confluence': fib_elliott.get('elliott_wave_score', 0)
-            }
-            
-            return signal
-            
-        except Exception as e:
-            logger.error(f"❌ Error converting bias signal: {e}")
-            return None
     
     def _convert_crypto_signal_to_trading_signal(self, signal: Dict) -> Optional[Dict]:
         """Convert crypto-specific ICT signal to trading signal format"""
@@ -3111,61 +2969,77 @@ class ICTSignalGenerator:
         
         return validated_blocks
     
+    def _check_bullish_structure_break(self, block, change_24h, volatility_threshold):
+        """Helper to check bullish structure break and ChoCH"""
+        if block['type'] != 'bullish_ob' or change_24h <= volatility_threshold:
+            return False, False, 'Weak', 0
+        
+        bos_confirmed = True
+        strength_ratio = change_24h / volatility_threshold
+        choch_confirmed = change_24h > volatility_threshold * 1.5
+        
+        if strength_ratio > 2.0:
+            choch_strength = 'Very Strong'
+        elif strength_ratio > 1.5:
+            choch_strength = 'Strong'
+        else:
+            choch_strength = 'Medium'
+        
+        return bos_confirmed, choch_confirmed, choch_strength, strength_ratio
+    
+    def _check_bearish_structure_break(self, block, change_24h, volatility_threshold):
+        """Helper to check bearish structure break and ChoCH"""
+        if block['type'] != 'bearish_ob' or change_24h >= -volatility_threshold:
+            return False, False, 'Weak', 0
+        
+        bos_confirmed = True
+        strength_ratio = abs(change_24h) / volatility_threshold
+        choch_confirmed = change_24h < -volatility_threshold * 1.5
+        
+        if strength_ratio > 2.0:
+            choch_strength = 'Very Strong'
+        elif strength_ratio > 1.5:
+            choch_strength = 'Strong'
+        else:
+            choch_strength = 'Medium'
+        
+        return bos_confirmed, choch_confirmed, choch_strength, strength_ratio
+    
+    def _apply_structure_confirmation(self, block, bos_confirmed, choch_confirmed, choch_strength, change_24h, structure_config):
+        """Helper to apply structure confirmation to block"""
+        if not bos_confirmed:
+            return None
+        
+        block['bos_confirmed'] = True
+        block['actual_change_24h'] = change_24h
+        block['total_confluence'] += structure_config['bos_confluence_weight']
+        
+        if choch_confirmed:
+            block['choch_confirmed'] = True
+            block['choch_strength'] = choch_strength
+            block['total_confluence'] += structure_config['choch_confluence_weight']
+        
+        return block
+    
     def wait_for_structure_break_and_choch(self, crypto: str, validated_blocks: List[Dict], price_data: Dict) -> List[Dict]:
         """Step 5: Wait for break of structure and change of character with strength indicators"""
         structure_config = self.ict_methodology['market_structure']
-        
         confirmed_blocks = []
         
         for block in validated_blocks:
-            # Use actual price movement data for BOS and ChoCH confirmation
             change_24h = price_data.get('change_24h', 0)
             crypto_config = self.crypto_characteristics.get(crypto, self.crypto_characteristics['BTC'])
-            
-            # Check for structure break based on actual volatility and price change
-            bos_confirmed = False
-            choch_confirmed = False
-            choch_strength = 'Weak'
-            
             volatility_threshold = 2.0 * crypto_config['volatility_factor']
             
-            if block['type'] == 'bullish_ob' and change_24h > volatility_threshold:
-                bos_confirmed = True
-                strength_ratio = change_24h / volatility_threshold
-                
-                if change_24h > volatility_threshold * 1.5:  # Strong move
-                    choch_confirmed = True
-                    if strength_ratio > 2.0:
-                        choch_strength = 'Very Strong'
-                    elif strength_ratio > 1.5:
-                        choch_strength = 'Strong'
-                    else:
-                        choch_strength = 'Medium'
-                        
-            elif block['type'] == 'bearish_ob' and change_24h < -volatility_threshold:
-                bos_confirmed = True
-                strength_ratio = abs(change_24h) / volatility_threshold
-                
-                if change_24h < -volatility_threshold * 1.5:  # Strong move
-                    choch_confirmed = True
-                    if strength_ratio > 2.0:
-                        choch_strength = 'Very Strong'
-                    elif strength_ratio > 1.5:
-                        choch_strength = 'Strong'
-                    else:
-                        choch_strength = 'Medium'
+            # Check bullish or bearish structure break
+            bos_confirmed, choch_confirmed, choch_strength, _ = self._check_bullish_structure_break(block, change_24h, volatility_threshold)
+            if not bos_confirmed:
+                bos_confirmed, choch_confirmed, choch_strength, _ = self._check_bearish_structure_break(block, change_24h, volatility_threshold)
             
-            if bos_confirmed:
-                block['bos_confirmed'] = True
-                block['actual_change_24h'] = change_24h  # Actual price movement
-                block['total_confluence'] += structure_config['bos_confluence_weight']
-                
-                if choch_confirmed:
-                    block['choch_confirmed'] = True
-                    block['choch_strength'] = choch_strength  # Strength indicator
-                    block['total_confluence'] += structure_config['choch_confluence_weight']
-                
-                confirmed_blocks.append(block)
+            # Apply confirmation if structure break detected
+            confirmed_block = self._apply_structure_confirmation(block, bos_confirmed, choch_confirmed, choch_strength, change_24h, structure_config)
+            if confirmed_block:
+                confirmed_blocks.append(confirmed_block)
         
         return confirmed_blocks
     
@@ -3884,6 +3758,134 @@ class ICTWebMonitor:
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.async_analysis_cycle())
     
+    def _process_new_signal(self, signal):
+        """Helper to process and validate a new signal"""
+        symbol = signal.get('symbol', '')
+        crypto = signal.get('crypto', '')
+        entry_price = signal.get('entry_price', 0)
+        
+        can_accept, reason = self.crypto_monitor.can_accept_new_signal(symbol, entry_price)
+        
+        if not can_accept:
+            logger.info(f"❌ Signal rejected: {crypto} - {reason}")
+            return False
+        
+        logger.info(f"✅ Signal approved: {crypto} - {reason}")
+        signal['timestamp'] = datetime.now().isoformat()
+        signal['age_minutes'] = 0
+        signal['age_category'] = 'fresh'
+        self.crypto_monitor.update_signal_cache(crypto)
+        
+        return True
+    
+    def _save_signal_and_journal(self, signal):
+        """Helper to save signal to database and journal"""
+        crypto = signal.get('crypto', '')
+        self.crypto_monitor.save_signal_to_database(signal)
+        
+        journal_entry = {
+            'type': 'TRADE',
+            'action': signal['action'],
+            'details': f"{crypto} {signal['action']} signal at ${signal['entry_price']:.4f}",
+            'id': signal['id'],
+            'symbol': signal['symbol'],
+            'entry_price': signal['entry_price'],
+            'crypto': crypto,
+            'confidence': signal['confidence'],
+            'timestamp': datetime.now().isoformat()
+        }
+        self.crypto_monitor.save_trading_journal_entry(journal_entry)
+    
+    def _add_approved_signal(self, signal):
+        """Helper to add approved signal to live signals"""
+        self.crypto_monitor.live_signals.append(signal)
+        self.crypto_monitor.signals_today += 1
+        self.crypto_monitor.total_signals += 1
+        logger.info("📈 NEW SIGNAL: %s %s @ $%.4f (%.1f%% confidence)", 
+                   signal['crypto'], signal['action'], signal['entry_price'], signal['confidence']*100)
+    
+    async def async_analysis_cycle(self):
+        """Async analysis cycle"""
+        while self.is_running:
+            try:
+                logger.info("� Running ICT Trading Analysis...")
+                scan_start_time = datetime.now()
+                
+                self.current_prices = await self.crypto_monitor.get_real_time_prices()
+                self.crypto_monitor.save_price_history(self.current_prices)
+                self.crypto_monitor.scan_count += 1
+                self.crypto_monitor.last_scan_time = datetime.now()
+                
+                new_signals = self.signal_generator.generate_trading_signals(self.current_prices)
+                
+                approved_signals = 0
+                rejected_signals = 0
+                
+                for signal in new_signals:
+                    if self._process_new_signal(signal):
+                        self._save_signal_and_journal(signal)
+                        self._add_approved_signal(signal)
+                        approved_signals += 1
+                    else:
+                        rejected_signals += 1
+                
+                if new_signals:
+                    logger.info(f"📊 Signal Processing: {approved_signals} approved, {rejected_signals} rejected")
+                
+                self._update_paper_trades_and_eod()
+                self._perform_periodic_maintenance(scan_start_time, new_signals, approved_signals, rejected_signals)
+                
+                logger.info(f"✅ Analysis Complete - Scan #{self.crypto_monitor.scan_count} | Signals: {self.crypto_monitor.signals_today}")
+                
+                await asyncio.sleep(30)
+                
+            except Exception as e:
+                logger.error(f"❌ Error in analysis cycle: {e}")
+                await asyncio.sleep(5)
+    
+    def _update_paper_trades_and_eod(self):
+        """Helper to update paper trades and check end of day positions"""
+        if not self.crypto_monitor.paper_trading_enabled:
+            return
+        
+        closed_trades = self.crypto_monitor.update_paper_trades(self.current_prices)
+        if closed_trades > 0:
+            logger.info(f"📄 Paper Trading: Closed {closed_trades} trades")
+        
+        eod_closed = self.crypto_monitor.check_and_close_eod_positions(self.current_prices)
+        if eod_closed > 0:
+            logger.info(f"🌙 End of Day: Closed {eod_closed} positions (NO OVERNIGHT TRADING)")
+    
+    def _perform_periodic_maintenance(self, scan_start_time, new_signals, approved_signals, rejected_signals):
+        """Helper to perform periodic maintenance tasks"""
+        archived_count = self.crypto_monitor.manage_signal_lifecycle()
+        if archived_count > 0:
+            logger.info(f"📋 Signal Management: Archived {archived_count} expired signals")
+        
+        if len(self.crypto_monitor.trading_journal) > 50:
+            self.crypto_monitor.trading_journal = self.crypto_monitor.trading_journal[-50:]
+        
+        if self.crypto_monitor.scan_count % 10 == 0:
+            self.crypto_monitor.save_system_statistics()
+        
+        session_status = self.session_tracker.get_sessions_status()
+        self.crypto_monitor.save_session_status(session_status)
+        
+        scan_end_time = datetime.now()
+        scan_duration_ms = int((scan_end_time - scan_start_time).total_seconds() * 1000)
+        scan_data = {
+            'scan_number': self.crypto_monitor.scan_count,
+            'signals_generated': len(new_signals),
+            'signals_approved': approved_signals,
+            'signals_rejected': rejected_signals,
+            'market_volatility': self.signal_generator._calculate_market_volatility(self.current_prices) if self.current_prices else 0.0,
+            'session_multiplier': self.signal_generator._get_session_multiplier(),
+            'effective_probability': 0.0,
+            'scan_duration_ms': scan_duration_ms
+        }
+        self.crypto_monitor.save_scan_history(scan_data)
+        self.broadcast_update()
+    
     async def async_analysis_cycle(self):
         """Async analysis cycle"""
         while self.is_running:
@@ -3891,130 +3893,32 @@ class ICTWebMonitor:
                 logger.info("🔍 Running ICT Trading Analysis...")
                 scan_start_time = datetime.now()
                 
-                # Get real-time prices
                 self.current_prices = await self.crypto_monitor.get_real_time_prices()
-                
-                # Save price data to database for historical tracking
                 self.crypto_monitor.save_price_history(self.current_prices)
-                
-                # Update scan count
                 self.crypto_monitor.scan_count += 1
                 self.crypto_monitor.last_scan_time = datetime.now()
                 
-                # Generate trading signals (like previous monitor)
                 new_signals = self.signal_generator.generate_trading_signals(self.current_prices)
                 
-                # Process new signals with deduplication and risk management
                 approved_signals = 0
                 rejected_signals = 0
                 
                 for signal in new_signals:
-                    symbol = signal.get('symbol', '')
-                    crypto = signal.get('crypto', '')
-                    entry_price = signal.get('entry_price', 0)
-                    
-                    # Apply deduplication and risk management checks
-                    can_accept, reason = self.crypto_monitor.can_accept_new_signal(symbol, entry_price)
-                    
-                    if not can_accept:
-                        logger.info(f"❌ Signal rejected: {crypto} - {reason}")
+                    if self._process_new_signal(signal):
+                        self._save_signal_and_journal(signal)
+                        self._add_approved_signal(signal)
+                        approved_signals += 1
+                    else:
                         rejected_signals += 1
-                        continue
-                    
-                    # Signal approved - process it
-                    logger.info(f"✅ Signal approved: {crypto} - {reason}")
-                    
-                    # Add timestamp for lifecycle management
-                    signal['timestamp'] = datetime.now().isoformat()
-                    signal['age_minutes'] = 0
-                    signal['age_category'] = 'fresh'
-                    
-                    # Update signal cache to prevent duplicates
-                    self.crypto_monitor.update_signal_cache(crypto)
-                    
-                    # Execute paper trade automatically
-                    if self.crypto_monitor.paper_trading_enabled:
-                        # Remove unused variable
-                        # paper_trade = self.crypto_monitor.execute_paper_trade(signal)
-                        pass
-                    
-                    # Save signal to database for persistence
-                    self.crypto_monitor.save_signal_to_database(signal)
-                    
-                    # Save trading journal entry for this signal
-                    journal_entry = {
-                        'type': 'TRADE',
-                        'action': signal['action'],  # Use signal action directly
-                        'details': f"{crypto} {signal['action']} signal at ${signal['entry_price']:.4f}",
-                        'id': signal['id'],
-                        'symbol': signal['symbol'],
-                        'entry_price': signal['entry_price'],
-                        'crypto': crypto,
-                        'confidence': signal['confidence'],
-                        'timestamp': datetime.now().isoformat()
-                    }
-                    self.crypto_monitor.save_trading_journal_entry(journal_entry)
-                    
-                    self.crypto_monitor.live_signals.append(signal)
-                    self.crypto_monitor.signals_today += 1
-                    self.crypto_monitor.total_signals += 1
-                    approved_signals += 1
-                    
-                    logger.info("📈 NEW SIGNAL: %s %s @ $%.4f (%.1f%% confidence)", signal['crypto'], signal['action'], signal['entry_price'], signal['confidence']*100)
                 
-                # Log signal processing summary
                 if new_signals:
                     logger.info(f"📊 Signal Processing: {approved_signals} approved, {rejected_signals} rejected")
                 
-                # Update paper trades with current prices
-                if self.crypto_monitor.paper_trading_enabled:
-                    closed_trades = self.crypto_monitor.update_paper_trades(self.current_prices)
-                    if closed_trades > 0:
-                        logger.info(f"📄 Paper Trading: Closed {closed_trades} trades")
-                    
-                    # Check and close positions at end of day (NO OVERNIGHT HOLDS)
-                    eod_closed = self.crypto_monitor.check_and_close_eod_positions(self.current_prices)
-                    if eod_closed > 0:
-                        logger.info(f"🌙 End of Day: Closed {eod_closed} positions (NO OVERNIGHT TRADING)")
-                
-                # Manage signal lifecycle (5-minute expiry, max 3 display)
-                archived_count = self.crypto_monitor.manage_signal_lifecycle()
-                if archived_count > 0:
-                    logger.info(f"📋 Signal Management: Archived {archived_count} expired signals")
-                
-                # Keep only last 50 journal entries
-                if len(self.crypto_monitor.trading_journal) > 50:
-                    self.crypto_monitor.trading_journal = self.crypto_monitor.trading_journal[-50:]
-                
-                # Save system statistics periodically (every 10 scans)
-                if self.crypto_monitor.scan_count % 10 == 0:
-                    self.crypto_monitor.save_system_statistics()
-                
-                # Save session status
-                session_status = self.session_tracker.get_sessions_status()
-                self.crypto_monitor.save_session_status(session_status)
-                
-                # Save detailed scan history
-                scan_end_time = datetime.now()
-                scan_duration_ms = int((scan_end_time - scan_start_time).total_seconds() * 1000)
-                scan_data = {
-                    'scan_number': self.crypto_monitor.scan_count,
-                    'signals_generated': len(new_signals),
-                    'signals_approved': approved_signals,
-                    'signals_rejected': rejected_signals,
-                    'market_volatility': self.signal_generator._calculate_market_volatility(self.current_prices) if self.current_prices else 0.0,
-                    'session_multiplier': self.signal_generator._get_session_multiplier(),
-                    'effective_probability': 0.0,  # Will be calculated by signal generator
-                    'scan_duration_ms': scan_duration_ms
-                }
-                self.crypto_monitor.save_scan_history(scan_data)
-                
-                # Broadcast update to connected clients
-                self.broadcast_update()
+                self._update_paper_trades_and_eod()
+                self._perform_periodic_maintenance(scan_start_time, new_signals, approved_signals, rejected_signals)
                 
                 logger.info(f"✅ Analysis Complete - Scan #{self.crypto_monitor.scan_count} | Signals: {self.crypto_monitor.signals_today}")
                 
-                # Wait before next cycle (30 seconds like previous monitor)
                 await asyncio.sleep(30)
                 
             except Exception as e:
