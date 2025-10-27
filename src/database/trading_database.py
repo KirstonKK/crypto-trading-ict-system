@@ -11,6 +11,8 @@ from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 import os
 
+logger = logging.getLogger(__name__)
+
 class TradingDatabase:
     def __init__(self, db_path: str = "data/trading.db"):
         """Initialize the trading database"""
@@ -22,9 +24,24 @@ class TradingDatabase:
         self.logger = logging.getLogger(__name__)
         self._init_database()
     
+    def _get_connection(self):
+        """Get database connection with proper settings to avoid locks"""
+        conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
+        conn.execute('PRAGMA journal_mode=WAL')  # Write-Ahead Logging for better concurrency
+        conn.execute('PRAGMA busy_timeout=30000')  # 30 second timeout
+        conn.execute('PRAGMA synchronous=NORMAL')  # Faster writes
+        return conn
+    
+    def _get_read_connection(self):
+        """Get READ-ONLY database connection for dashboard queries (won't block on writes)"""
+        # Use URI mode with read-only flag - perfect for WAL mode
+        conn = sqlite3.connect(f'file:{self.db_path}?mode=ro', uri=True, timeout=30.0, check_same_thread=False)
+        conn.execute('PRAGMA query_only=1')  # Extra safety: prevent any writes
+        return conn
+    
     def _init_database(self):
         """Initialize database tables"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS signals (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +121,7 @@ class TradingDatabase:
         """Add a new signal to database"""
         signal_id = signal_data.get('signal_id', f"SIG_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.execute('''
                 INSERT OR REPLACE INTO signals 
                 (signal_id, symbol, direction, entry_price, stop_loss, take_profit,
@@ -135,9 +152,41 @@ class TradingDatabase:
         self._update_daily_stats('signals_generated', 1)
         return signal_id
     
+    def add_paper_trade(self, signal_id: str, symbol: str, direction: str, 
+                        entry_price: float, position_size: float, stop_loss: float, 
+                        take_profit: float, risk_amount: float) -> int:
+        """Add a new paper trade to the paper_trades table"""
+        with self._get_connection() as conn:
+            cursor = conn.execute('''
+                INSERT INTO paper_trades 
+                (signal_id, symbol, direction, entry_price, position_size, 
+                 stop_loss, take_profit, status, risk_amount, 
+                 entry_time, current_price, unrealized_pnl, created_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                signal_id,
+                symbol,
+                direction,
+                entry_price,
+                position_size,
+                stop_loss,
+                take_profit,
+                'OPEN',  # Initial status
+                risk_amount,
+                datetime.now().isoformat(),
+                entry_price,  # current_price starts at entry_price
+                0.0,  # unrealized_pnl starts at 0
+                datetime.now().date().isoformat()
+            ))
+            paper_trade_id = cursor.lastrowid
+            conn.commit()
+        
+        self._update_daily_stats('active_trades', 1)
+        return paper_trade_id
+    
     def add_trade(self, signal_id: str, trade_data: Dict[str, Any]) -> int:
         """Add a new trade to database"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             cursor = conn.execute('''
                 INSERT INTO trades 
                 (signal_id, trade_type, status, entry_price, current_price,
@@ -167,7 +216,7 @@ class TradingDatabase:
     
     def update_trade(self, trade_id: int, updates: Dict[str, Any]):
         """Update trade status and PnL"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             # Get current trade data
             current = conn.execute(
                 'SELECT status, pnl FROM trades WHERE id = ?', (trade_id,)
@@ -205,7 +254,7 @@ class TradingDatabase:
         """Get all signals generated today"""
         today = date.today().isoformat()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute('''
                 SELECT * FROM signals 
@@ -224,7 +273,7 @@ class TradingDatabase:
     
     def get_active_trades(self) -> List[Dict[str, Any]]:
         """Get all active trades"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute('''
                 SELECT t.*, s.symbol, s.direction 
@@ -236,11 +285,117 @@ class TradingDatabase:
             
             return [dict(row) for row in cursor.fetchall()]
     
+    def get_active_signals(self) -> List[Dict[str, Any]]:
+        """Get all ACTIVE signals (regardless of date) - for open positions"""
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM signals 
+                WHERE status = 'ACTIVE'
+                ORDER BY entry_time DESC
+            ''')
+            
+            signals = []
+            for row in cursor.fetchall():
+                signal = dict(row)
+                signal['timeframes'] = json.loads(signal['timeframes'])
+                signal['ict_concepts'] = json.loads(signal['ict_concepts'])
+                signals.append(signal)
+            
+            return signals
+    
+    def close_signal(self, signal_id: str, exit_price: float, close_reason: str):
+        """Close an active signal with exit details"""
+        with self._get_connection() as conn:
+            # Update signal status
+            conn.execute('''
+                UPDATE signals 
+                SET status = ?, 
+                    exit_price = ?,
+                    exit_time = ?
+                WHERE signal_id = ?
+            ''', (close_reason, exit_price, datetime.now().isoformat(), signal_id))
+            conn.commit()
+            
+            logger.info(f"✅ Closed signal {signal_id} in database: {close_reason} @ ${exit_price}")
+    
+    def get_closed_signals_today(self) -> List[Dict[str, Any]]:
+        """Get all closed signals that were CREATED today (for completed trades display)"""
+        today = date.today().isoformat()
+        
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM signals 
+                WHERE created_date = ? 
+                AND status IN ('STOP_LOSS', 'TAKE_PROFIT', 'SESSION_CLOSE')
+                ORDER BY exit_time DESC
+            ''', (today,))
+            
+            signals = []
+            for row in cursor.fetchall():
+                signal = dict(row)
+                signal['timeframes'] = json.loads(signal['timeframes'])
+                signal['ict_concepts'] = json.loads(signal['ict_concepts'])
+                signals.append(signal)
+            
+            return signals
+    
+    def add_journal_entry(self, entry: Dict[str, Any]):
+        """Add a trading journal entry"""
+        with self._get_connection() as conn:
+            conn.execute('''
+                INSERT INTO journal_entries 
+                (signal_id, crypto, action, entry_price, exit_price, stop_loss, 
+                 take_profit, position_size, pnl, entry_time, exit_time, status, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                entry.get('id', ''),
+                entry.get('crypto', ''),
+                entry.get('action', ''),
+                entry.get('entry_price', 0),
+                entry.get('exit_price', 0),
+                entry.get('stop_loss', 0),
+                entry.get('take_profit', 0),
+                entry.get('position_size', 0),
+                entry.get('pnl', 0),
+                entry.get('entry_time', datetime.now().isoformat()),
+                entry.get('exit_time', datetime.now().isoformat()),
+                entry.get('status', ''),
+                entry.get('notes', '')
+            ))
+            conn.commit()
+    
+    def get_journal_entries_today(self) -> List[Dict[str, Any]]:
+        """Get today's journal entries"""
+        today = date.today().isoformat()
+        
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM journal_entries 
+                WHERE date(entry_time) = ?
+                ORDER BY exit_time DESC
+                LIMIT 50
+            ''', (today,))
+            
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def update_signal_pnl(self, signal_id: str, pnl: float):
+        """Update the current PnL for an active signal"""
+        with self._get_connection() as conn:
+            conn.execute('''
+                UPDATE signals 
+                SET pnl = ?
+                WHERE signal_id = ?
+            ''', (pnl, signal_id))
+            conn.commit()
+    
     def _check_and_reset_for_new_day(self):
         """Check if it's a new day and reset daily counters while preserving balance"""
         today = datetime.now().date()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             # Check if today's record exists
             cursor = conn.execute(
                 'SELECT paper_balance, live_balance FROM daily_stats WHERE date = ?', 
@@ -276,7 +431,7 @@ class TradingDatabase:
         
         today = datetime.now().date()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             cursor = conn.execute(
                 'SELECT * FROM daily_stats WHERE date = ?', 
                 (today,)
@@ -310,7 +465,7 @@ class TradingDatabase:
     
     def _ensure_daily_stats_exists(self, target_date: str):
         """Ensure daily stats record exists for given date"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.execute('''
                 INSERT OR IGNORE INTO daily_stats (date) VALUES (?)
             ''', (target_date,))
@@ -323,7 +478,7 @@ class TradingDatabase:
         
         today = datetime.now().date()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.execute(f'''
                 UPDATE daily_stats 
                 SET {field} = {field} + ?, updated_at = CURRENT_TIMESTAMP
@@ -333,7 +488,7 @@ class TradingDatabase:
     
     def add_journal_entry(self, entry_type: str, title: str, content: str, signal_id: str = None):
         """Add journal entry"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.execute('''
                 INSERT INTO journal_entries (entry_type, title, content, signal_id)
                 VALUES (?, ?, ?, ?)
@@ -342,7 +497,7 @@ class TradingDatabase:
     
     def get_journal_entries(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get recent journal entries"""
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute('''
                 SELECT * FROM journal_entries 
@@ -365,7 +520,7 @@ class TradingDatabase:
             perf = session_data.get('system_performance', {})
             today = date.today().isoformat()
             
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_connection() as conn:
                 conn.execute('''
                     INSERT OR REPLACE INTO daily_stats 
                     (date, scan_count, signals_generated, trades_executed, 
@@ -416,7 +571,7 @@ class TradingDatabase:
         field = f'{balance_type}_balance'
         today = datetime.now().date()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             conn.execute(f'''
                 UPDATE daily_stats 
                 SET {field} = ?, updated_at = CURRENT_TIMESTAMP
@@ -428,7 +583,7 @@ class TradingDatabase:
         """Get all signals generated today"""
         today = date.today().isoformat()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             cursor = conn.execute('''
                 SELECT * FROM signals 
                 WHERE DATE(entry_time) = ?
@@ -461,7 +616,7 @@ class TradingDatabase:
         """Get all trades from today"""
         today = date.today().isoformat()
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection() as conn:
             cursor = conn.execute('''
                 SELECT t.*, s.symbol 
                 FROM trades t
@@ -478,3 +633,155 @@ class TradingDatabase:
                 trades.append(trade_dict)
             
             return trades
+    
+    # ============ USER MANAGEMENT ============
+    
+    def _init_users_table(self):
+        """Initialize users table if it doesn't exist"""
+        with self._get_connection() as conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash BLOB NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+    
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email"""
+        self._init_users_table()
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('SELECT * FROM users WHERE email = ?', (email,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    
+    def create_user(self, email: str, password_hash: bytes) -> int:
+        """Create a new user"""
+        self._init_users_table()
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                'INSERT INTO users (email, password_hash) VALUES (?, ?)',
+                (email, password_hash)
+            )
+            user_id = cursor.lastrowid
+            conn.commit()
+            return user_id
+    
+    def get_closed_trades(self) -> List[Dict[str, Any]]:
+        """Get all closed paper trades"""
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM paper_trades 
+                WHERE status IN ('TAKE_PROFIT', 'STOP_LOSS', 'CLOSED')
+                ORDER BY exit_time DESC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_signal_stats(self) -> Dict[str, Any]:
+        """Get signal distribution statistics"""
+        with self._get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT 
+                    SUM(CASE WHEN direction = 'BUY' THEN 1 ELSE 0 END) as buySignals,
+                    SUM(CASE WHEN direction = 'SELL' THEN 1 ELSE 0 END) as sellSignals,
+                    SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as wins,
+                    SUM(CASE WHEN pnl < 0 THEN 1 ELSE 0 END) as losses
+                FROM signals
+                WHERE status IN ('TAKE_PROFIT', 'STOP_LOSS', 'CLOSED')
+            ''')
+            row = cursor.fetchone()
+            return {
+                'buySignals': row[0] or 0,
+                'sellSignals': row[1] or 0,
+                'wins': row[2] or 0,
+                'losses': row[3] or 0
+            }
+    
+    # ============================================================
+    # READ-ONLY METHODS FOR DASHBOARD (Won't block on writes!)
+    # ============================================================
+    
+    def get_daily_stats_readonly(self) -> Dict[str, Any]:
+        """Get today's statistics (READ-ONLY for dashboard - no write lock)"""
+        today = datetime.now().date()
+        
+        with self._get_read_connection() as conn:
+            cursor = conn.execute(
+                'SELECT * FROM daily_stats WHERE date = ?', 
+                (today,)
+            )
+            row = cursor.fetchone()
+            
+            if row:
+                return {
+                    'date': row[1],
+                    'scan_count': row[2],
+                    'signals_generated': row[3],
+                    'trades_executed': row[4],
+                    'active_trades': row[5],
+                    'completed_trades': row[6],
+                    'total_pnl': row[7],
+                    'win_rate': row[8],
+                    'paper_balance': row[9],
+                    'live_balance': row[10]
+                }
+            else:
+                # Fallback if no record exists
+                return {
+                    'date': today.isoformat(),
+                    'scan_count': 0,
+                    'signals_generated': 0,
+                    'trades_executed': 0,
+                    'active_trades': 0,
+                    'completed_trades': 0,
+                    'total_pnl': 0.0,
+                    'win_rate': 0.0,
+                    'paper_balance': 100.0,
+                    'live_balance': 0.0
+                }
+    
+    def get_closed_trades_readonly(self) -> List[Dict[str, Any]]:
+        """Get all closed paper trades (READ-ONLY for dashboard)"""
+        with self._get_read_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM paper_trades 
+                WHERE status IN ('TAKE_PROFIT', 'STOP_LOSS', 'CLOSED')
+                ORDER BY exit_time DESC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_signal_stats_readonly(self) -> Dict[str, Any]:
+        """Get signal distribution statistics (READ-ONLY for dashboard)"""
+        with self._get_read_connection() as conn:
+            cursor = conn.execute('''
+                SELECT 
+                    SUM(CASE WHEN direction = 'BUY' THEN 1 ELSE 0 END) as buySignals,
+                    SUM(CASE WHEN direction = 'SELL' THEN 1 ELSE 0 END) as sellSignals,
+                    SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as wins,
+                    SUM(CASE WHEN pnl < 0 THEN 1 ELSE 0 END) as losses
+                FROM signals
+                WHERE status IN ('TAKE_PROFIT', 'STOP_LOSS', 'CLOSED')
+            ''')
+            row = cursor.fetchone()
+            return {
+                'buySignals': row[0] or 0,
+                'sellSignals': row[1] or 0,
+                'wins': row[2] or 0,
+                'losses': row[3] or 0
+            }
+    
+    def get_active_trades_readonly(self) -> List[Dict[str, Any]]:
+        """Get all active trades (READ-ONLY for dashboard)"""
+        with self._get_read_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM paper_trades 
+                WHERE status = 'OPEN'
+                ORDER BY entry_time DESC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]

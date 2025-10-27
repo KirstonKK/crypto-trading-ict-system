@@ -1,0 +1,41 @@
+{
+  "improvements": {
+    "total_return": {
+      "baseline": -34.471377298289,
+      "enhanced": 6.187246003444695,
+      "improvement_pct": 117.94893760671353
+    },
+    "sharpe_ratio": {
+      "baseline": -19.50645179047371,
+      "enhanced": 0.6748667132098937,
+      "improvement_pct": 103.45971025617008
+    },
+    "win_rate": {
+      "baseline": 0.0,
+      "enhanced": 58.139534883720934,
+      "improvement_pct": 0
+    },
+    "profit_factor": {
+      "baseline": 0.0,
+      "enhanced": 1.115603001942227,
+      "improvement_pct": 0
+    },
+    "max_drawdown": {
+      "baseline": 2982.4319723690332,
+      "enhanced": 2180.610735999507,
+      "improvement_pct": -26.884812253827068
+    },
+    "avg_win": {
+      "baseline": 0,
+      "enhanced": 238.83498176448742,
+      "improvement_pct": 0
+    },
+    "avg_loss": {
+      "baseline": -861.784432457225,
+      "enhanced": -297.3416635426509,
+      "improvement_pct": 65.49697901889061
+    }
+  },
+  "baseline_summary": "PerformanceMetrics(total_return=np.float64(-34.471377298289), cagr=np.float64(-95.71784891285276), volatility=np.float64(145.49992275523638), sharpe_ratio=np.float64(-19.50645179047371), sortino_ratio=np.float64(-19.50645179047371), calmar_ratio=np.float64(-0.03209389176337902), max_drawdown=np.float64(2982.4319723690332), avg_drawdown=np.float64(1899.550734556092), max_drawdown_duration=3, total_trades=4, win_rate=0.0, profit_factor=np.float64(0.0), expectancy=np.float64(-861.784432457225), best_trade=np.float64(-376.1143380942658), worst_trade=np.float64(-1963.9915551107115), avg_trade=np.float64(-861.784432457225), avg_win=0, avg_loss=np.float64(-861.784432457225), largest_losing_streak=4, largest_winning_streak=0, monthly_returns={'2024-01': -2804.811650664844, '2024-03': -642.326079164056}, yearly_returns={'2024': -3447.1377298289})",
+  "enhanced_summary": "PerformanceMetrics(total_return=np.float64(6.187246003444695), cagr=np.float64(6.661727520847482), volatility=np.float64(179.34923233827823), sharpe_ratio=np.float64(0.6748667132098937), sortino_ratio=np.float64(0.9519495979177616), calmar_ratio=np.float64(0.003054982446371386), max_drawdown=np.float64(2180.610735999507), avg_drawdown=np.float64(784.2583395655689), max_drawdown_duration=25, total_trades=43, win_rate=58.139534883720934, profit_factor=np.float64(1.115603001942227), expectancy=np.float64(14.38894419405743), best_trade=np.float64(1026.4303663738688), worst_trade=np.float64(-933.136260201511), avg_trade=np.float64(14.388944194057432), avg_win=np.float64(238.83498176448742), avg_loss=np.float64(-297.3416635426509), largest_losing_streak=3, largest_winning_streak=4, monthly_returns={'2024-01': 115.82615141676797, '2024-02': -325.7619341547331, '2024-03': -320.85695767917355, '2024-04': 87.57361466422117, '2024-05': -153.8403120655862, '2024-06': 1621.0251573272853, '2024-07': -798.7700184696055, '2024-08': 224.87629100152253, '2024-09': -295.18658681854276, '2024-10': -7.632916200469026, '2024-11': -1183.8531975195647, '2024-12': 1655.325308842347}, yearly_returns={'2024': 618.7246003444693})"
+}

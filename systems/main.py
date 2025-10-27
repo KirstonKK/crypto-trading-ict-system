@@ -33,6 +33,7 @@ import json
 import signal
 import sys
 import numpy as np
+import aiofiles
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
@@ -99,7 +100,7 @@ class TradingAlgorithmController:
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.system_running = False
     
-    async def run_backtest(self, symbol: str = "BTC/USDT", timeframe: str = "1h", 
+    def run_backtest(self, symbol: str = "BTC/USDT", timeframe: str = "1h", 
                           days: int = 30) -> Dict:
         """
         Run comprehensive backtesting analysis.
@@ -136,8 +137,7 @@ class TradingAlgorithmController:
                 save_results=True
             )
             
-            # Display results
-            summary = results['summary']
+            # Display results (removed unused summary variable)
             print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                       BACKTEST RESULTS                          ║
@@ -310,18 +310,18 @@ class TradingAlgorithmController:
 ╚══════════════════════════════════════════════════════════════════╝
 """)
             
-            # Start ICT dashboard if enabled
+            # Start ICT dashboard if enabled (keep reference to prevent GC)
             if enable_dashboard:
-                dashboard_task = asyncio.create_task(self.ict_dashboard.run_dashboard())
+                self._dashboard_task = asyncio.create_task(self.ict_dashboard.run_dashboard())
             
-            # Start ICT monitoring in background
-            monitor_task = asyncio.create_task(self.ict_monitor.run_ict_monitoring())
+            # Start ICT monitoring in background (keep reference to prevent GC)
+            self._monitor_task = asyncio.create_task(self.ict_monitor.run_ict_monitoring())
             
             # Main paper trading loop
             while self.system_running:
                 try:
                     # Print periodic status
-                    await self._print_paper_trading_status()
+                    self._print_paper_trading_status()
                     
                     # Wait for next status update
                     await asyncio.sleep(30)  # Status update every 30 seconds
@@ -337,7 +337,7 @@ class TradingAlgorithmController:
             logger.error(f"ICT Paper trading system failed: {e}")
             raise
     
-    async def _handle_ict_paper_signal(self, signal) -> None:
+    def _handle_ict_paper_signal(self, signal) -> None:
         """
         Handle ICT signal in paper trading mode.
         
@@ -443,7 +443,7 @@ class TradingAlgorithmController:
             logger.error(f"Paper trade execution error: {e}")
             return None
     
-    async def _print_paper_trading_status(self) -> None:
+    def _print_paper_trading_status(self) -> None:
         """
         Print current paper trading status and performance.
         """
@@ -487,13 +487,8 @@ class TradingAlgorithmController:
             stats = self.paper_portfolio['statistics']
             duration = datetime.now() - self.paper_portfolio['start_time']
             
-            # Calculate final metrics
-            total_trades = stats['total_trades']
-            ict_signals = stats['ict_signals_processed']
-            quality_breakdown = stats['institutional_quality_breakdown']
-            
-            # Print comprehensive results
-            print("""
+            # Print comprehensive results with f-string for proper variable interpolation
+            print(f"""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                ICT PAPER TRADING RESULTS                        ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -504,15 +499,15 @@ class TradingAlgorithmController:
 ║     Total P&L: ${stats['total_pnl']:,.2f}                                ║
 ║                                                                  ║
 ║  🎯 ICT Signal Analysis:                                         ║
-║     ICT Signals Processed: {ict_signals}                                   ║
-║     Trades Executed: {total_trades}                                    ║
-║     Signal→Trade Rate: {(total_trades/max(1, ict_signals)*100):.1f}%                          ║
+║     ICT Signals Processed: {stats['ict_signals_processed']}                                   ║
+║     Trades Executed: {stats['total_trades']}                                    ║
+║     Signal→Trade Rate: {(stats['total_trades']/max(1, stats['ict_signals_processed'])*100):.1f}%                          ║
 ║                                                                  ║
 ║  🏆 Institutional Quality Breakdown:                             ║
-║     PREMIUM Signals: {quality_breakdown['PREMIUM']}                                   ║
-║     HIGH Signals: {quality_breakdown['HIGH']}                                      ║
-║     MEDIUM Signals: {quality_breakdown['MEDIUM']}                                    ║
-║     LOW Signals: {quality_breakdown['LOW']}                                       ║
+║     PREMIUM Signals: {stats['institutional_quality_breakdown']['PREMIUM']}                                   ║
+║     HIGH Signals: {stats['institutional_quality_breakdown']['HIGH']}                                      ║
+║     MEDIUM Signals: {stats['institutional_quality_breakdown']['MEDIUM']}                                    ║
+║     LOW Signals: {stats['institutional_quality_breakdown']['LOW']}                                       ║
 ║                                                                  ║
 ║  📈 Performance Metrics:                                         ║
 ║     Win Rate: {stats['win_rate']:.1f}%                                    ║
@@ -539,14 +534,14 @@ class TradingAlgorithmController:
 ╚══════════════════════════════════════════════════════════════════╝
 """)
             
-            # Save results to file
+            # Save results to file asynchronously
             results_file = f"ict_paper_trading_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(results_file, 'w') as f:
-                json.dump({
+            async with aiofiles.open(results_file, 'w') as f:
+                await f.write(json.dumps({
                     'portfolio': self.paper_portfolio,
                     'session_duration': str(duration),
                     'final_timestamp': datetime.now().isoformat()
-                }, f, indent=2, default=str)
+                }, indent=2, default=str))
             
             logger.info(f"📁 Results saved to: {results_file}")
             
@@ -636,7 +631,7 @@ class TradingAlgorithmController:
         except Exception as e:
             logger.error(f"Error handling webhook alert: {e}")
     
-    async def _handle_webhook_alert_standalone(self, alert) -> None:
+    def _handle_webhook_alert_standalone(self, alert) -> None:
         """Handle webhook alert in standalone mode (testing)."""
         print("📡 Webhook Alert Received:")
         print(f"   Symbol: {alert.symbol}")
@@ -765,7 +760,7 @@ def main():
     try:
         if args.mode == 'backtest':
             # Run backtesting
-            results = asyncio.run(controller.run_backtest(
+            asyncio.run(controller.run_backtest(
                 symbol=args.symbol,
                 timeframe=args.timeframe,
                 days=args.days

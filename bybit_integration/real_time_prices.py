@@ -305,7 +305,7 @@ class BybitRealTimePrices:
     def _log_price_change(self, symbol, price_data, old_price):
         """Log significant price changes"""
         if old_price <= 0 or price_data['price'] <= 0:
-            return
+            return 0.0  # Return 0.0 instead of None
         
         price_change = ((price_data['price'] - old_price) / old_price) * 100
         

@@ -15,10 +15,16 @@ echo "🔍 Fundamental Analysis: Long-term investment analysis (Port 5002)"
 echo "==============================="
 
 # Check if we're in the right directory
-if [ ! -f "core/monitors/ict_enhanced_monitor.py" ]; then
+if [ ! -f "src/monitors/ict_enhanced_monitor.py" ]; then
     echo "❌ Not in the correct directory. Please run from Trading Algorithm folder."
     echo "💡 Current directory: $(pwd)"
-    echo "💡 Expected file: core/monitors/ict_enhanced_monitor.py"
+    echo "💡 Expected file: src/monitors/ict_enhanced_monitor.py"
+    exit 1
+fi
+
+# Check if virtual environment exists
+if [ ! -f ".venv/bin/python" ]; then
+    echo "❌ Virtual environment not found. Please run: python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
     exit 1
 fi
 
@@ -37,9 +43,15 @@ echo "🔍 Checking ports..."
 check_port 5001 || echo "   ICT Monitor may already be running"
 check_port 5002 || echo "   Fundamental Analysis may already be running"
 
+# Set Flask secret key if not already set
+if [ -z "$FLASK_SECRET_KEY" ]; then
+    export FLASK_SECRET_KEY="trading-system-secret-$(openssl rand -hex 32)"
+    echo "🔐 Generated Flask secret key"
+fi
+
 # Start ICT Enhanced Monitor
-echo "🎯 Starting ICT Enhanced Monitor..."
-python3 core/monitors/ict_enhanced_monitor.py > /dev/null 2>&1 &
+echo "🎯 Starting ICT Enhanced Monitor (single-flow mode)..."
+.venv/bin/python src/monitors/ict_enhanced_monitor.py &
 ICT_PID=$!
 sleep 3
 
@@ -50,31 +62,48 @@ else
     echo "❌ Failed to start ICT Enhanced Monitor"
 fi
 
-# Start Demo Trading System
-echo "📊 Starting Demo Trading System..."
-python3 systems/demo_trading/demo_trading_system.py --auto-trading > /dev/null 2>&1 &
-DEMO_PID=$!
-sleep 3
+# By default we now start only the ICT monitor to enforce a single authoritative
+# monitoring -> signal generation -> execution -> persistence flow.
+# To start the demo trading system and the fundamental analysis system as well,
+# either set environment variable START_EXTRAS=true or pass --include-extras
+# Example: START_EXTRAS=true ./start_all_systems.sh
 
-# Check if Demo Trading started successfully
-if kill -0 $DEMO_PID 2>/dev/null; then
-    echo "✅ Demo Trading System started (PID: $DEMO_PID)"
-else
-    echo "❌ Failed to start Demo Trading System"
+# Parse optional argument --include-extras
+INCLUDE_EXTRAS="false"
+if [ "$1" = "--include-extras" ]; then
+    INCLUDE_EXTRAS="true"
+fi
+if [ "$START_EXTRAS" = "true" ]; then
+    INCLUDE_EXTRAS="true"
 fi
 
-# Start Fundamental Analysis System
-echo "🔍 Starting Enhanced Fundamental Analysis System..."
-./scripts/setup/start_enhanced_fundamental.sh > /dev/null 2>&1 &
-FUND_PID=$!
-sleep 5
+if [ "$INCLUDE_EXTRAS" = "true" ]; then
+    echo "📊 Starting Demo Trading System (extras enabled)..."
+    .venv/bin/python src/trading/demo_trading_system.py --dry-run &
+    DEMO_PID=$!
+    sleep 3
 
-# Check if Fundamental Analysis started successfully
-if kill -0 $FUND_PID 2>/dev/null; then
-    echo "✅ Enhanced Fundamental Analysis System started (PID: $FUND_PID)"
-    echo "📡 WatcherGuru Telegram monitoring capability: ENABLED"
+    if kill -0 $DEMO_PID 2>/dev/null; then
+        echo "✅ Demo Trading System started (PID: $DEMO_PID)"
+    else
+        echo "❌ Failed to start Demo Trading System"
+    fi
+
+    echo "🔍 Starting Enhanced Fundamental Analysis System (extras enabled)..."
+    ./scripts/setup/start_enhanced_fundamental.sh > /dev/null 2>&1 &
+    FUND_PID=$!
+    sleep 5
+
+    if kill -0 $FUND_PID 2>/dev/null; then
+        echo "✅ Enhanced Fundamental Analysis System started (PID: $FUND_PID)"
+        echo "📡 WatcherGuru Telegram monitoring capability: ENABLED"
+    else
+        echo "❌ Failed to start Enhanced Fundamental Analysis System"
+    fi
 else
-    echo "❌ Failed to start Enhanced Fundamental Analysis System"
+    echo "ℹ️  Extras (Demo Trading + Fundamental Analysis) skipped by default." 
+    echo "   To include them: START_EXTRAS=true ./scripts/setup/start_all_systems.sh"
+    echo "   Or: ./scripts/setup/start_all_systems.sh --include-extras"
 fi
 
 echo ""

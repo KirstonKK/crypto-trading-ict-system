@@ -37,7 +37,7 @@ sleep 2
 
 # Start the enhanced system
 echo "🚀 Starting enhanced fundamental analysis server..."
-python3 systems/fundamental_analysis/fundamental_analysis_server.py &
+.venv/bin/python systems/fundamental_analysis/fundamental_analysis_server.py &
 
 FUND_PID=$!
 sleep 5

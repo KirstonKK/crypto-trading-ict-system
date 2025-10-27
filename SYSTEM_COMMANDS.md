@@ -6,7 +6,9 @@
 
 ```bash
 cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
-./scripts/setup/start_all_systems.sh    # Starts ICT Monitor + Demo Trading + Fundamental Analysis
+./scripts/setup/start_all_systems.sh    # Starts ICT Monitor only by default (single-flow). To include demo/fundamental, run:
+# START_EXTRAS=true ./scripts/setup/start_all_systems.sh  OR
+# ./scripts/setup/start_all_systems.sh --include-extras
 # OR use new professional launcher:
 python3 trade_system.py --start-all
 ```
@@ -407,19 +409,20 @@ cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
 ./scripts/setup/start_all_systems.sh    # ✅ FIXED & TESTED!
 ```
 
-**Latest Test Results (October 17, 2025):**
+**Latest Test Results (October 20, 2025):**
 
-- ✅ ICT Enhanced Monitor: Ready to start
-- ✅ Demo Trading System: Ready to start
+- ✅ ICT Enhanced Monitor: ✅ ACTIVE (Port 5001)
+- ✅ Demo Trading System: ✅ ACTIVE (dry-run mode)
 - ✅ **Enhanced Fundamental Analysis**: ✅ ACTIVE (Port 5002)
   - **News Sources**: ✅ FIXED (using reliable demo data when APIs fail)
-  - **Bitcoin Price Monitoring**: ✅ $104,024 (close to $105K alert level!)
+  - **Bitcoin Price Monitoring**: ✅ $129,567 (live prices via Bybit)
   - **WatcherGuru Telegram Capability**: ✅ Ready (requires token to activate)
   - **Dashboard**: ✅ http://localhost:5002
   - **Background Analysis**: ✅ Hourly updates active
 - ✅ All systems architecture working
 - ✅ News fallback system operational
 - ✅ Real-time price monitoring active
+- ✅ **ICT Signal Monitoring Error FIXED**: 'list' object error resolved
 
 **🎯 Enhanced Features Now Active:**
 
@@ -461,7 +464,11 @@ sqlite3 databases/trading_data.db "PRAGMA integrity_check;"
 - Always use `python3` (not `python`) for compatibility
 - ICT Monitor runs on port 5001 with web interface
 - Demo Trading System runs as background process with auto-trading
-- Data persistence is now working correctly
+- **Data persistence**: Only TODAY's data is shown and persisted
+  - Scan counts reset to #1 each day at midnight
+  - Signal history shows only today's signals
+  - Balance carries over (never resets)
+  - Journal entries show only today's activity
 - All systems support graceful shutdown with Ctrl+C
 - Logs are saved in the main directory and logs/ folder
 - Database is automatically backed up during critical operations

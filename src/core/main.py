@@ -99,7 +99,7 @@ class TradingAlgorithmController:
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.system_running = False
     
-    async def run_backtest(self, symbol: str = "BTC/USDT", timeframe: str = "1h", 
+    def run_backtest(self, symbol: str = "BTC/USDT", timeframe: str = "1h", 
                           days: int = 30) -> Dict:
         """
         Run comprehensive backtesting analysis.
@@ -136,23 +136,29 @@ class TradingAlgorithmController:
                 save_results=True
             )
             
-            # Display results
-            summary = results['summary']
-            print("""
+            # Display results  
+            total_return = results['summary'].get('total_return', 0)
+            cagr = results['summary'].get('cagr', 0)
+            sharpe_ratio = results['summary'].get('sharpe_ratio', 0)
+            max_drawdown = results['summary'].get('max_drawdown', 0)
+            win_rate = results['summary'].get('win_rate', 0)
+            total_trades = results['summary'].get('total_trades', 0)
+            
+            print(f"""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                       BACKTEST RESULTS                          ║
-║                    {symbol} {timeframe} - {days} days                    ║
+║                    {symbol} {timeframe} - {days} days            ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  📊 Performance Metrics:                                         ║
-║     Total Return:     {summary['total_return']:>8.2f}%                       ║
-║     CAGR:            {summary['cagr']:>8.2f}%                       ║
-║     Sharpe Ratio:    {summary['sharpe_ratio']:>8.2f}                        ║
-║     Max Drawdown:    {summary['max_drawdown']:>8.2f}%                       ║
+║     Total Return:     {total_return:>8.2f}%                     ║
+║     CAGR:            {cagr:>8.2f}%                               ║
+║     Sharpe Ratio:    {sharpe_ratio:>8.2f}                       ║
+║     Max Drawdown:    {max_drawdown:>8.2f}%                      ║
 ║                                                                  ║
-║  🎯 Trading Statistics:                                          ║
-║     Total Trades:    {summary['total_trades']:>8}                         ║
-║     Win Rate:        {summary['win_rate']:>8.1f}%                       ║
-║     Profit Factor:   {summary['profit_factor']:>8.2f}                        ║
+║  📈 Trading Metrics:                                             ║
+║     Total Trades:    {total_trades:>8}                          ║
+║     Win Rate:        {win_rate:>8.1f}%                          ║
+║     Profit Factor:   {results['summary'].get('profit_factor', 0):>8.2f}   ║
 ╚══════════════════════════════════════════════════════════════════╝
 """)
             
@@ -311,11 +317,17 @@ class TradingAlgorithmController:
 """)
             
             # Start ICT dashboard if enabled
+            dashboard_task = None
             if enable_dashboard:
                 dashboard_task = asyncio.create_task(self.ict_dashboard.run_dashboard())
             
             # Start ICT monitoring in background
             monitor_task = asyncio.create_task(self.ict_monitor.run_ict_monitoring())
+            
+            # Store tasks to prevent garbage collection
+            active_tasks = [monitor_task]
+            if dashboard_task:
+                active_tasks.append(dashboard_task)
             
             # Main paper trading loop
             while self.system_running:
@@ -337,7 +349,7 @@ class TradingAlgorithmController:
             logger.error(f"ICT Paper trading system failed: {e}")
             raise
     
-    async def _handle_ict_paper_signal(self, signal) -> None:
+    def _handle_ict_paper_signal(self, signal) -> None:
         """
         Handle ICT signal in paper trading mode.
         
@@ -386,8 +398,8 @@ class TradingAlgorithmController:
                 logger.info(f"Position already exists for {signal.symbol}, skipping")
                 return None
             
-            # Calculate position size (2% risk)
-            risk_amount = self.paper_portfolio['balance'] * 0.02
+            # Calculate position size (1% fixed risk per user's requirement)
+            risk_amount = self.paper_portfolio['balance'] * 0.01
             stop_distance = abs(signal.validated_price - signal.stop_loss)
             position_size = risk_amount / stop_distance if stop_distance > 0 else 0
             
@@ -443,7 +455,7 @@ class TradingAlgorithmController:
             logger.error(f"Paper trade execution error: {e}")
             return None
     
-    async def _print_paper_trading_status(self) -> None:
+    def _print_paper_trading_status(self) -> None:
         """
         Print current paper trading status and performance.
         """
@@ -477,7 +489,7 @@ class TradingAlgorithmController:
         except Exception as e:
             logger.error(f"Error printing paper trading status: {e}")
     
-    async def _finalize_paper_trading(self) -> None:
+    def _finalize_paper_trading(self) -> None:
         """
         Finalize paper trading session and display comprehensive results.
         """
@@ -488,9 +500,7 @@ class TradingAlgorithmController:
             duration = datetime.now() - self.paper_portfolio['start_time']
             
             # Calculate final metrics
-            total_trades = stats['total_trades']
-            ict_signals = stats['ict_signals_processed']
-            quality_breakdown = stats['institutional_quality_breakdown']
+            # No unused variables needed for display
             
             # Print comprehensive results
             print("""
@@ -636,7 +646,7 @@ class TradingAlgorithmController:
         except Exception as e:
             logger.error(f"Error handling webhook alert: {e}")
     
-    async def _handle_webhook_alert_standalone(self, alert) -> None:
+    def _handle_webhook_alert_standalone(self, alert) -> None:
         """Handle webhook alert in standalone mode (testing)."""
         print("📡 Webhook Alert Received:")
         print(f"   Symbol: {alert.symbol}")
@@ -765,7 +775,7 @@ def main():
     try:
         if args.mode == 'backtest':
             # Run backtesting
-            results = asyncio.run(controller.run_backtest(
+            asyncio.run(controller.run_backtest(
                 symbol=args.symbol,
                 timeframe=args.timeframe,
                 days=args.days
