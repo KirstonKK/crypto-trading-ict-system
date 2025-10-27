@@ -30,6 +30,9 @@ class TradingDatabase:
         conn.execute('PRAGMA journal_mode=WAL')  # Write-Ahead Logging for better concurrency
         conn.execute('PRAGMA busy_timeout=30000')  # 30 second timeout
         conn.execute('PRAGMA synchronous=NORMAL')  # Faster writes
+        conn.execute('PRAGMA cache_size=-64000')  # 64MB cache for better performance
+        conn.execute('PRAGMA temp_store=MEMORY')  # Use memory for temp tables
+        conn.row_factory = sqlite3.Row  # Access columns by name
         return conn
     
     def _get_read_connection(self):
@@ -37,6 +40,9 @@ class TradingDatabase:
         # Use URI mode with read-only flag - perfect for WAL mode
         conn = sqlite3.connect(f'file:{self.db_path}?mode=ro', uri=True, timeout=30.0, check_same_thread=False)
         conn.execute('PRAGMA query_only=1')  # Extra safety: prevent any writes
+        conn.execute('PRAGMA cache_size=-32000')  # 32MB cache for reads
+        conn.execute('PRAGMA temp_store=MEMORY')  # Use memory for temp tables
+        conn.row_factory = sqlite3.Row  # Access columns by name
         return conn
     
     def _init_database(self):

@@ -22,10 +22,13 @@ if [ ! -f "src/monitors/ict_enhanced_monitor.py" ]; then
     exit 1
 fi
 
-# Check if virtual environment exists
-if [ ! -f ".venv/bin/python" ]; then
-    echo "❌ Virtual environment not found. Please run: python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
-    exit 1
+# Check for Python - use virtual environment if available, otherwise use system python3
+if [ -f ".venv/bin/python" ]; then
+    PYTHON_CMD=".venv/bin/python"
+    echo "✅ Using virtual environment Python"
+else
+    PYTHON_CMD="python3"
+    echo "✅ Using system Python3"
 fi
 
 # Function to check if a port is in use
@@ -51,7 +54,7 @@ fi
 
 # Start ICT Enhanced Monitor
 echo "🎯 Starting ICT Enhanced Monitor (single-flow mode)..."
-.venv/bin/python src/monitors/ict_enhanced_monitor.py &
+$PYTHON_CMD src/monitors/ict_enhanced_monitor.py &
 ICT_PID=$!
 sleep 3
 
@@ -79,7 +82,7 @@ fi
 
 if [ "$INCLUDE_EXTRAS" = "true" ]; then
     echo "📊 Starting Demo Trading System (extras enabled)..."
-    .venv/bin/python src/trading/demo_trading_system.py --dry-run &
+    $PYTHON_CMD src/trading/demo_trading_system.py --dry-run &
     DEMO_PID=$!
     sleep 3
 

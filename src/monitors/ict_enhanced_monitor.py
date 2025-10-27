@@ -14,6 +14,7 @@ import time
 import logging
 import threading
 import asyncio
+import sqlite3
 
 # Constants
 TIMEZONE_OFFSET = '+00:00'  # UTC timezone identifier for ISO format conversion
@@ -406,94 +407,103 @@ class ICTCryptoMonitor:
             return 0
         
         closed_count = 0
-        import sqlite3
         
-        # Query paper_trades table for OPEN trades
-        with sqlite3.connect(self.db.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('SELECT * FROM paper_trades WHERE status = "OPEN"')
-            open_trades = cursor.fetchall()
-            
-            for trade_row in open_trades:
-                trade = dict(trade_row)
-                crypto = trade['symbol'].replace('USDT', '')
+        # Use database method with proper connection management
+        try:
+            # Query paper_trades table for OPEN trades using database connection
+            with self.db._get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute('SELECT * FROM paper_trades WHERE status = "OPEN"')
+                open_trades = cursor.fetchall()
                 
-                if crypto not in current_prices:
-                    continue
-                
-                current_price = current_prices[crypto]['price']
-                entry_price = trade['entry_price']
-                stop_loss = trade['stop_loss']
-                take_profit = trade['take_profit']
-                position_size = trade['position_size']
-                direction = trade['direction']
-                trade_id = trade['id']
-                
-                # Calculate unrealized PnL
-                if direction == 'BUY':
-                    unrealized_pnl = (current_price - entry_price) * position_size
-                else:  # SELL
-                    unrealized_pnl = (entry_price - current_price) * position_size
-                
-                # Update current_price and unrealized_pnl in database
-                conn.execute('''
-                    UPDATE paper_trades 
-                    SET current_price = ?, unrealized_pnl = ?
-                    WHERE id = ?
-                ''', (current_price, unrealized_pnl, trade_id))
-                
-                # Check for TP/SL hits
-                should_close = False
-                close_reason = ""
-                
-                if direction == 'BUY':
-                    if current_price <= stop_loss:
-                        should_close = True
-                        close_reason = "STOP_LOSS"
-                    elif current_price >= take_profit:
-                        should_close = True
-                        close_reason = "TAKE_PROFIT"
-                else:  # SELL
-                    if current_price >= stop_loss:
-                        should_close = True
-                        close_reason = "STOP_LOSS"
-                    elif current_price <= take_profit:
-                        should_close = True
-                        close_reason = "TAKE_PROFIT"
-                
-                # Close trade if TP/SL hit
-                if should_close:
-                    # Update paper_trades table
+                for trade_row in open_trades:
+                    trade = dict(trade_row)
+                    crypto = trade['symbol'].replace('USDT', '')
+                    
+                    if crypto not in current_prices:
+                        continue
+                    
+                    current_price = current_prices[crypto]['price']
+                    entry_price = trade['entry_price']
+                    stop_loss = trade['stop_loss']
+                    take_profit = trade['take_profit']
+                    position_size = trade['position_size']
+                    direction = trade['direction']
+                    trade_id = trade['id']
+                    
+                    # Calculate unrealized PnL
+                    if direction == 'BUY':
+                        unrealized_pnl = (current_price - entry_price) * position_size
+                    else:  # SELL
+                        unrealized_pnl = (entry_price - current_price) * position_size
+                    
+                    # Update current_price and unrealized_pnl in database
                     conn.execute('''
                         UPDATE paper_trades 
-                        SET status = ?, exit_price = ?, exit_time = datetime('now'), realized_pnl = ?
+                        SET current_price = ?, unrealized_pnl = ?
                         WHERE id = ?
-                    ''', (close_reason, current_price, unrealized_pnl, trade_id))
+                    ''', (current_price, unrealized_pnl, trade_id))
+                    conn.commit()  # Commit after each update to release lock
                     
-                    # Close signal in signals table
-                    signal_id = trade['signal_id']
-                    self.db.close_signal(signal_id, current_price, close_reason)
+                    # Check for TP/SL hits
+                    should_close = False
+                    close_reason = ""
                     
-                    # Update paper balance
-                    self.paper_balance += unrealized_pnl
-                    closed_count += 1
+                    if direction == 'BUY':
+                        if current_price <= stop_loss:
+                            should_close = True
+                            close_reason = "STOP_LOSS"
+                        elif current_price >= take_profit:
+                            should_close = True
+                            close_reason = "TAKE_PROFIT"
+                    else:  # SELL
+                        if current_price >= stop_loss:
+                            should_close = True
+                            close_reason = "STOP_LOSS"
+                        elif current_price <= take_profit:
+                            should_close = True
+                            close_reason = "TAKE_PROFIT"
                     
-                    logger.info(f"📄 PAPER TRADE CLOSED: {crypto} {direction} | {close_reason} | PnL: ${unrealized_pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
-                    
-                    # Add to journal
-                    journal_entry = {
-                        'signal_id': signal_id,
-                        'crypto': crypto,
-                        'action': direction,
-                        'entry_price': entry_price,
-                        'exit_price': current_price,
-                        'pnl': unrealized_pnl,
-                        'status': close_reason,
-                        'notes': f"{close_reason} at ${current_price:.2f}"
-                    }
-                    self.db.add_journal_entry(journal_entry)
-            
-            conn.commit()
+                    # Close trade if TP/SL hit
+                    if should_close:
+                        # Update paper_trades table
+                        conn.execute('''
+                            UPDATE paper_trades 
+                            SET status = ?, exit_price = ?, exit_time = datetime('now'), realized_pnl = ?
+                            WHERE id = ?
+                        ''', (close_reason, current_price, unrealized_pnl, trade_id))
+                        conn.commit()  # Commit close immediately
+                        
+                        # Close signal in signals table
+                        signal_id = trade['signal_id']
+                        self.db.close_signal(signal_id, current_price, close_reason)
+                        
+                        # Update paper balance
+                        self.paper_balance += unrealized_pnl
+                        closed_count += 1
+                        
+                        logger.info(f"📄 PAPER TRADE CLOSED: {crypto} {direction} | {close_reason} | PnL: ${unrealized_pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
+                        
+                        # Add to journal
+                        journal_entry = {
+                            'signal_id': signal_id,
+                            'crypto': crypto,
+                            'action': direction,
+                            'entry_price': entry_price,
+                            'exit_price': current_price,
+                            'pnl': unrealized_pnl,
+                            'status': close_reason,
+                            'notes': f"{close_reason} at ${current_price:.2f}"
+                        }
+                        self.db.add_journal_entry(journal_entry)
+                
+        except sqlite3.OperationalError as e:
+            logger.warning(f"⚠️  Database busy during paper trade update: {e}")
+            # Don't fail the entire cycle, just skip this update
+            return 0
+        except Exception as e:
+            logger.error(f"❌ Error updating paper trades: {e}")
+            return 0
         
         return closed_count
         
