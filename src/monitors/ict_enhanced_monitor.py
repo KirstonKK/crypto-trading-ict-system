@@ -1326,7 +1326,7 @@ class ICTWebMonitor:
                 logger.error(f"❌ Diagnostic error: {e}", exc_info=True)
                 return jsonify({
                     'status': 'error',
-                    'message': str(e),
+                    'message': 'An error occurred while running diagnostics',
                     'timestamp': datetime.now().isoformat()
                 }), 500
         
@@ -1361,7 +1361,7 @@ class ICTWebMonitor:
                 logger.error(f"❌ SOL analysis error: {e}", exc_info=True)
                 return jsonify({
                     'status': 'error',
-                    'message': str(e),
+                    'message': 'An error occurred while analyzing SOL',
                     'timestamp': datetime.now().isoformat()
                 }), 500
         

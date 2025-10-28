@@ -10,6 +10,7 @@ import sys
 import os
 import tempfile
 import sqlite3
+from datetime import date
 
 # Add paths
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -18,6 +19,9 @@ sys.path.insert(0, os.path.join(project_root, 'core'))
 
 from diagnostics.system_diagnostic import create_diagnostic_checker
 from analysis.sol_trade_analyzer import create_sol_analyzer
+
+# Constants
+EXPECTED_DIAGNOSTIC_CHECKS = 6  # Number of diagnostic checks to expect
 
 
 def setup_test_database():
@@ -80,7 +84,6 @@ def setup_test_database():
     ''')
     
     # Insert sample data
-    from datetime import date
     today = date.today().isoformat()
     
     cursor.execute('''
@@ -132,7 +135,7 @@ def test_diagnostic_endpoint():
         
         assert results['overall_status'] in ['HEALTHY', 'WARNING', 'ERROR']
         assert 'checks' in results
-        assert len(results['checks']) == 6
+        assert len(results['checks']) == EXPECTED_DIAGNOSTIC_CHECKS
         
         print("\n✅ Diagnostic test PASSED")
         return True
