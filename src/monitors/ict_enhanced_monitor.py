@@ -67,6 +67,12 @@ from utils.correlation_matrix import CorrelationAnalyzer
 from utils.signal_quality import SignalQualityAnalyzer
 from utils.mean_reversion import MeanReversionAnalyzer
 
+# 🔧 DIAGNOSTIC AND ANALYSIS - Import diagnostic and SOL analyzer
+core_path = os.path.join(project_root, 'core')
+sys.path.append(core_path)
+from diagnostics.system_diagnostic import create_diagnostic_checker
+from analysis.sol_trade_analyzer import create_sol_analyzer
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -1296,6 +1302,68 @@ class ICTWebMonitor:
             except Exception as e:
                 logger.error(f"❌ Error resetting account: {e}")
                 return jsonify({'error': 'Failed to reset account'}), 500
+        
+        # ============ DIAGNOSTIC AND ANALYSIS ROUTES ============
+        
+        @self.app.route('/api/diagnostic', methods=['GET'])
+        def run_diagnostic():
+            """Run comprehensive system diagnostic check"""
+            try:
+                logger.info("🔍 Running system diagnostic...")
+                
+                # Create diagnostic checker
+                diagnostic = create_diagnostic_checker(
+                    db_path=os.path.join(project_root, "data", "trading.db")
+                )
+                
+                # Run full diagnostic
+                results = diagnostic.run_full_diagnostic()
+                
+                logger.info(f"✅ Diagnostic complete: {results['overall_status']}")
+                return jsonify(results)
+                
+            except Exception as e:
+                logger.error(f"❌ Diagnostic error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': str(e),
+                    'timestamp': datetime.now().isoformat()
+                }), 500
+        
+        @self.app.route('/api/analysis/sol', methods=['GET'])
+        def analyze_sol():
+            """Analyze SOL trading opportunity with liquidity zones and FVGs"""
+            try:
+                logger.info("🌟 Analyzing SOL trade opportunity...")
+                
+                # Get current SOL price
+                current_price = None
+                for crypto_data in self.crypto_monitor.crypto_prices.values():
+                    if crypto_data.get('symbol') == 'SOL':
+                        current_price = crypto_data.get('current_price', 0)
+                        break
+                
+                if not current_price:
+                    # Fallback to a reasonable default if price not available
+                    current_price = 150.0  # Default SOL price
+                    logger.warning(f"⚠️ SOL price not found, using default: ${current_price}")
+                
+                # Create SOL analyzer
+                sol_analyzer = create_sol_analyzer()
+                
+                # Run analysis
+                analysis = sol_analyzer.analyze_sol_opportunity(current_price)
+                
+                logger.info(f"✅ SOL analysis complete: {analysis.get('status', 'unknown')}")
+                return jsonify(analysis)
+                
+            except Exception as e:
+                logger.error(f"❌ SOL analysis error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': str(e),
+                    'timestamp': datetime.now().isoformat()
+                }), 500
         
         # ============ STATIC FILE SERVING FOR REACT ============
         
