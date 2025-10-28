@@ -310,6 +310,65 @@ class TradingDatabase:
             
             return signals
     
+    def get_active_paper_trades(self) -> List[Dict[str, Any]]:
+        """Get all OPEN paper trades from paper_trades table"""
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT * FROM paper_trades 
+                WHERE status = 'OPEN'
+                ORDER BY entry_time DESC
+            ''')
+            
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def close_paper_trade(self, trade_id: int, exit_price: float, close_reason: str):
+        """
+        Close a paper trade with exit details
+        
+        Args:
+            trade_id: ID of the paper trade to close
+            exit_price: Exit price
+            close_reason: Reason for closing (TAKE_PROFIT, STOP_LOSS, TIME_LIMIT, SESSION_CLOSE, etc.)
+        """
+        with self._get_connection() as conn:
+            # Get trade details for PnL calculation
+            cursor = conn.execute('''
+                SELECT symbol, direction, entry_price, position_size
+                FROM paper_trades 
+                WHERE id = ?
+            ''', (trade_id,))
+            
+            trade = cursor.fetchone()
+            if not trade:
+                logger.warning(f"⚠️  Trade {trade_id} not found in database")
+                return
+            
+            symbol, direction, entry_price, position_size = trade
+            
+            # Calculate realized PnL
+            if direction == 'SELL':
+                realized_pnl = (entry_price - exit_price) * position_size
+            else:  # BUY
+                realized_pnl = (exit_price - entry_price) * position_size
+            
+            # Update trade status
+            conn.execute('''
+                UPDATE paper_trades 
+                SET status = ?,
+                    exit_price = ?,
+                    exit_time = ?,
+                    realized_pnl = ?,
+                    current_price = ?
+                WHERE id = ?
+            ''', (close_reason, exit_price, datetime.now().isoformat(), realized_pnl, exit_price, trade_id))
+            conn.commit()
+            
+            logger.info(
+                f"✅ Closed paper trade #{trade_id} ({symbol} {direction}) "
+                f"@ ${exit_price:.2f} - {close_reason} | PnL: ${realized_pnl:.2f}"
+            )
+    
     def close_signal(self, signal_id: str, exit_price: float, close_reason: str):
         """Close an active signal with exit details"""
         with self._get_connection() as conn:
@@ -347,8 +406,8 @@ class TradingDatabase:
             
             return signals
     
-    def add_journal_entry(self, entry: Dict[str, Any]):
-        """Add a trading journal entry"""
+    def add_detailed_journal_entry(self, entry: Dict[str, Any]):
+        """Add a detailed trading journal entry with full trade data"""
         with self._get_connection() as conn:
             conn.execute('''
                 INSERT INTO journal_entries 

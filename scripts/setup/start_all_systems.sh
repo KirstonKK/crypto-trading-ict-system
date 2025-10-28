@@ -52,9 +52,17 @@ if [ -z "$FLASK_SECRET_KEY" ]; then
     echo "🔐 Generated Flask secret key"
 fi
 
+# Set PYTHONPATH to include the project root
+export PYTHONPATH="$(pwd):$PYTHONPATH"
+echo "📂 Set PYTHONPATH to: $(pwd)"
+
+# Ensure logs directory exists
+mkdir -p logs
+echo "📁 Logs directory ready"
+
 # Start ICT Enhanced Monitor
 echo "🎯 Starting ICT Enhanced Monitor (single-flow mode)..."
-$PYTHON_CMD src/monitors/ict_enhanced_monitor.py &
+$PYTHON_CMD src/monitors/ict_enhanced_monitor.py > logs/ict_monitor.log 2>&1 &
 ICT_PID=$!
 sleep 3
 

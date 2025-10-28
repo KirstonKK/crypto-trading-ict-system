@@ -9,7 +9,7 @@ from flask_socketio import SocketIO
 from functools import wraps
 import jwt
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import os
 from dotenv import load_dotenv
@@ -38,8 +38,7 @@ def generate_token(user_id, email):
     """Generate JWT token"""
     payload = {
         'user_id': user_id,
-        'email': email,
-        'exp': datetime.utcnow() + timedelta(days=7)
+        'exp': datetime.now(timezone.utc) + timedelta(days=7)
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
