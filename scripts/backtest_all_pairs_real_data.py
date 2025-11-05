@@ -21,7 +21,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 import gc
 
 # Add project root to path
@@ -129,7 +129,7 @@ class MultiPairRealDataBacktest:
                         
                         logger.info(f"   Fetched {len(candles)} candles (total: {len(all_candles)})")
                     else:
-                        logger.warning(f"   No more data available")
+                        logger.warning("   No more data available")
                         break
                 else:
                     logger.error(f"   API error: {response.status_code}")
@@ -167,7 +167,7 @@ class MultiPairRealDataBacktest:
             logger.error(f"❌ Error fetching data for {symbol}: {e}")
             return pd.DataFrame()
     
-    def run_pair_backtest(self, symbol: str, symbol_name: str) -> Dict:
+    def run_pair_backtest(self, symbol: str, symbol_name: str) -> Optional[Dict]:
         """
         Run backtest for a single trading pair.
         
@@ -225,7 +225,7 @@ class MultiPairRealDataBacktest:
         )
         
         # Analyze performance
-        logger.info(f"📈 Analyzing performance...")
+        logger.info("📈 Analyzing performance...")
         performance = self.performance_analyzer.analyze_trades(
             backtest_results['trades']
         )
@@ -251,18 +251,11 @@ class MultiPairRealDataBacktest:
         
         return results
     
-    def run_full_backtest(self) -> Dict:
-        """
-        Run backtest for all trading pairs.
-        MEMORY OPTIMIZED: Processes one pair at a time, saves checkpoint after each.
-        
-        Returns:
-            Dictionary with all results
-        """
-        logger.info(f"\n{'='*80}")
-        logger.info(f"🚀 STARTING MULTI-PAIR BACKTEST WITH REAL TRADINGVIEW DATA")
-        logger.info(f"🧠 MEMORY-OPTIMIZED: Processing pairs sequentially")
-        logger.info(f"{'='*80}\n")
+    def run_backtest(self):
+        """Main entry point for multi-pair backtest."""
+        logger.info("🚀 STARTING MULTI-PAIR BACKTEST WITH REAL TRADINGVIEW DATA")
+        logger.info("🧠 MEMORY-OPTIMIZED: Processing pairs sequentially")
+        logger.info(f"Starting Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         all_results = {}
         checkpoint_dir = os.path.join(project_root, 'results', 'checkpoints')
@@ -302,7 +295,8 @@ class MultiPairRealDataBacktest:
                 
             except MemoryError:
                 logger.error(f"❌ Out of memory while processing {symbol}")
-                logger.info(f"💡 Progress saved. You can resume by running the script again.")
+                                
+                logger.info("💡 Progress saved. You can resume by running the script again.")
                 break
             except Exception as e:
                 logger.error(f"❌ Error backtesting {symbol}: {e}")
@@ -395,7 +389,7 @@ class MultiPairRealDataBacktest:
     def generate_comparison_report(self, results: Dict):
         """Generate comparison report across all pairs."""
         logger.info(f"\n{'='*80}")
-        logger.info(f"📊 MULTI-PAIR PERFORMANCE COMPARISON")
+        logger.info("📊 MULTI-PAIR PERFORMANCE COMPARISON")
         logger.info(f"{'='*80}\n")
         
         # Create comparison table
@@ -427,13 +421,13 @@ class MultiPairRealDataBacktest:
         if total_trades > 0:
             portfolio_win_rate = (total_wins / total_trades) * 100
             
-            logger.info(f"\n📈 PORTFOLIO AGGREGATE METRICS:")
+            logger.info("\n📈 PORTFOLIO AGGREGATE METRICS:")
             logger.info(f"   Total Trades: {total_trades}")
             logger.info(f"   Portfolio Win Rate: {portfolio_win_rate:.2f}%")
             logger.info(f"   Pairs Tested: {len(results)}")
         
         # Best performers
-        logger.info(f"\n🏆 TOP PERFORMERS:")
+        logger.info("\n🏆 TOP PERFORMERS:")
         
         if results:
             # Best by return

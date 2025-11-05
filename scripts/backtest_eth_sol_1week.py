@@ -16,6 +16,7 @@ import os
 import logging
 import pandas as pd
 from datetime import datetime, timedelta
+from typing import Optional, Dict
 import json
 
 # Add project root to path
@@ -109,7 +110,7 @@ class QuickWeekBacktest:
             logger.error(f"  Error: {e}")
             return pd.DataFrame()
     
-    def backtest_symbol(self, symbol: str, name: str) -> dict:
+    def backtest_symbol(self, symbol: str, name: str) -> Optional[Dict]:
         """Run backtest for one symbol."""
         logger.info("\n" + "=" * 80)
         logger.info(f"BACKTESTING {name} ({symbol})")
@@ -224,7 +225,7 @@ class QuickWeekBacktest:
             avg_win_rate = sum(r['metrics'].win_rate for r in results.values()) / len(results)
             avg_return = sum(r['metrics'].total_return for r in results.values()) / len(results)
             
-            logger.info(f"\n📈 Portfolio Statistics:")
+            logger.info("\n📈 Portfolio Statistics:")
             logger.info(f"  Total Trades: {total_trades}")
             logger.info(f"  Average Win Rate: {avg_win_rate:.2f}%")
             logger.info(f"  Average Return: {avg_return:.2f}%")

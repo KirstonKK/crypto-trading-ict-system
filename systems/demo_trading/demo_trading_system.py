@@ -46,22 +46,18 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-
-# Custom Exception Classes
+# Custom Exceptions
 class ConfigurationError(Exception):
-    """Raised when system configuration is invalid or missing"""
+    """Raised when configuration is invalid"""
     pass
-
 
 class ConnectionError(Exception):
-    """Raised when connection to external service fails"""
+    """Raised when connection fails"""
     pass
-
 
 class ValidationError(Exception):
-    """Raised when data validation fails"""
+    """Raised when validation fails"""
     pass
-
 
 class DemoTradingSystem:
     """
@@ -113,11 +109,6 @@ class DemoTradingSystem:
         self.price_monitor = None
         self.bybit_client = None
         self.ict_session = None
-        self.demo_mode = False  # Flag for demo mode without API calls
-        
-        # Background tasks (prevent garbage collection)
-        self._price_monitor_task = None
-        self._shutdown_task = None
         
         # Trading state
         self.active_positions = {}
@@ -147,17 +138,76 @@ class DemoTradingSystem:
         try:
             logger.info("🔧 Initializing Demo Trading System...")
             
-            # Load and validate configuration
-            self._initialize_config()
+            # Load configuration
+            self.config = load_config_from_env()
             
-            # Setup price monitoring
-            await self._initialize_price_monitor()
+            if not self.dry_run:
+                is_valid, errors = validate_config(self.config)
+                
+                if not is_valid:
+                    logger.error("❌ Configuration validation failed:")
+                    for error in errors:
+                        logger.error(f"   - {error}")
+                    raise ConfigurationError("Invalid configuration")
+            else:
+                # In dry run mode, create minimal config
+                logger.info("🧪 Dry run mode - using default configuration")
+                from bybit_integration.config import BybitConfig, TradingConfig, ICTConfig, WebSocketConfig, IntegrationConfig
+                
+                self.config = IntegrationConfig(
+                    bybit=BybitConfig(api_key="dry_run", api_secret="dry_run", testnet=True),
+                    trading=TradingConfig(),
+                    ict=ICTConfig(),
+                    websocket=WebSocketConfig()
+                )
             
-            # Setup Bybit client if needed
-            await self._initialize_bybit_client()
+            # Initialize price monitor
+            logger.info("📊 Starting real-time price monitoring...")
+            self.price_monitor = BybitRealTimePrices(
+                symbols=self.symbols,
+                testnet=self.config.bybit.testnet if self.config else True
+            )
             
-            # Setup ICT monitor connection
-            await self._initialize_ict_session()
+            # Add price update callback
+            self.price_monitor.add_price_callback(self._on_price_update)
+            
+            # Start price monitoring in background
+            self.price_monitor_task = asyncio.create_task(self.price_monitor.start())
+            
+            # Wait for initial prices
+            await asyncio.sleep(3)
+            
+            # Initialize Bybit client (if not dry run)
+            if not self.dry_run and self.config:
+                logger.info("🏪 Initializing Bybit demo client...")
+                self.bybit_client = BybitDemoClient(
+                    api_key=self.config.bybit.api_key,
+                    api_secret=self.config.bybit.api_secret,
+                    testnet=self.config.bybit.testnet
+                )
+                
+                # Test connection
+                connection_test = await self.bybit_client.test_connection()
+                if not connection_test:
+                    raise ConnectionError("Bybit connection test failed")
+                
+                # Setup leverage and margin mode for all symbols
+                self._setup_leverage_and_margin()
+                
+                logger.info("✅ Bybit demo client ready")
+            
+            # Initialize ICT monitor session with explicit connector
+            connector = aiohttp.TCPConnector(
+                ssl=False,
+                enable_cleanup_closed=True
+            )
+            self.ict_session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=aiohttp.ClientTimeout(total=10)
+            )
+            
+            # Test ICT monitor connection
+            await self._test_ict_connection()
             
             logger.info("✅ Demo Trading System initialization complete")
             
@@ -165,96 +215,6 @@ class DemoTradingSystem:
             logger.error(f"❌ Initialization failed: {e}")
             if not self.dry_run:
                 raise
-
-    def _initialize_config(self):
-        """Load and validate configuration"""
-        self.config = load_config_from_env()
-        
-        if not self.dry_run:
-            is_valid, errors = validate_config(self.config)
-            
-            if not is_valid:
-                logger.error("❌ Configuration validation failed:")
-                for error in errors:
-                    logger.error(f"   - {error}")
-                logger.info("🎮 Continuing in demo mode with available configuration")
-                self.demo_mode = True
-            else:
-                logger.info("✅ Configuration validated successfully")
-                self.demo_mode = False
-        else:
-            # In dry run mode, create minimal config
-            logger.info("🧪 Dry run mode - using default configuration")
-            from bybit_integration.config import BybitConfig, TradingConfig, ICTConfig, WebSocketConfig, IntegrationConfig
-            
-            self.config = IntegrationConfig(
-                bybit=BybitConfig(api_key="dry_run", api_secret="dry_run", testnet=True),
-                trading=TradingConfig(),
-                ict=ICTConfig(),
-                websocket=WebSocketConfig()
-            )
-            self.demo_mode = True
-
-    async def _initialize_price_monitor(self):
-        """Setup real-time price monitoring"""
-        logger.info("📊 Starting real-time price monitoring...")
-        self.price_monitor = BybitRealTimePrices(
-            symbols=self.symbols,
-            testnet=self.config.bybit.testnet if self.config else True
-        )
-        
-        # Add price update callback
-        self.price_monitor.add_price_callback(self._on_price_update)
-        
-        # Start price monitoring in background
-        self._price_monitor_task = asyncio.create_task(self.price_monitor.start())
-        
-        # Wait for initial prices
-        await asyncio.sleep(3)
-
-    async def _initialize_bybit_client(self):
-        """Setup Bybit client for trading"""
-        if not self.dry_run and self.config and not self.demo_mode:
-            logger.info("🏪 Initializing Bybit demo client...")
-            use_demo = getattr(self.config.bybit, 'demo', False)
-            self.bybit_client = BybitDemoClient(
-                api_key=self.config.bybit.api_key,
-                api_secret=self.config.bybit.api_secret,
-                testnet=self.config.bybit.testnet,
-                demo=use_demo
-            )
-            
-            # Test connection
-            try:
-                connection_test = await self.bybit_client.test_connection()
-                if not connection_test:
-                    logger.warning("⚠️  Bybit connection test failed, continuing in demo mode")
-                    self.demo_mode = True
-                    self.bybit_client = None
-                else:
-                    await self._setup_leverage_and_margin()
-                    logger.info("✅ Bybit demo client ready")
-            except Exception as e:
-                logger.warning(f"⚠️  Bybit connection failed: {e}")
-                logger.info("🎮 Continuing in demo mode without API calls")
-                self.demo_mode = True
-                self.bybit_client = None
-        else:
-            logger.info("🎮 Running in demo mode - price monitoring only")
-
-    async def _initialize_ict_session(self):
-        """Setup ICT monitor session"""
-        connector = aiohttp.TCPConnector(
-            ssl=False,
-            enable_cleanup_closed=True
-        )
-        self.ict_session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=aiohttp.ClientTimeout(total=10)
-        )
-        
-        # Test ICT monitor connection
-        await self._test_ict_connection()
 
     async def _test_ict_connection(self):
         """Test ICT Enhanced Monitor connection"""
@@ -345,28 +305,33 @@ class DemoTradingSystem:
             return current_price >= take_profit
         return current_price <= take_profit
 
+    async def _fetch_and_process_signals(self, last_check_time):
+        """Fetch latest signals from ICT monitor and process new ones"""
+        try:
+            async with self.ict_session.get("http://localhost:5001/api/signals/latest") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    signals = data if isinstance(data, list) else data.get('signals', [])
+                    
+                    # Process new signals
+                    for signal in signals:
+                        if isinstance(signal, dict) and 'timestamp' in signal:
+                            signal_time = datetime.fromisoformat(signal.get('timestamp', ''))
+                            if signal_time > last_check_time:
+                                await self._process_ict_signal(signal)
+        except Exception as e:
+            logger.error(f"❌ Error fetching ICT signals: {e}")
+
     async def monitor_ict_signals(self):
         """Monitor ICT Enhanced Trading Monitor for new signals"""
         logger.info("📡 Starting ICT signal monitoring...")
-        # Start from beginning of today to catch all signals from today
-        last_check_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        last_check_time = datetime.now()
         
         while self.running:
             try:
-                # Get latest signals from ICT monitor
-                async with self.ict_session.get("http://localhost:5001/api/signals/latest") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        # ICT monitor returns list directly, not dict with 'signals' key
-                        signals = data if isinstance(data, list) else data.get('signals', [])
-                        
-                        # Process new signals
-                        for signal in signals:
-                            signal_time = datetime.fromisoformat(signal.get('entry_time', ''))
-                            if signal_time > last_check_time:
-                                await self._process_ict_signal(signal)
-                        
-                        last_check_time = datetime.now()
+                # Get latest signals from ICT monitor and process them
+                await self._fetch_and_process_signals(last_check_time)
+                last_check_time = datetime.now()
                 
                 # Update performance from ICT monitor
                 await self._update_ict_performance()
@@ -383,14 +348,14 @@ class DemoTradingSystem:
             self.performance_data['signals_received'] += 1
             
             symbol = signal.get('symbol', '')
-            action = signal.get('direction', '')  # ICT uses 'direction' not 'action'
-            confidence = signal.get('confluence_score', 0)  # ICT uses 'confluence_score'
+            action = signal.get('action', '')
+            confidence = signal.get('confidence', 0)
             price = signal.get('entry_price', 0)
             
             logger.info(f"📡 New ICT Signal: {symbol} {action}")
-            logger.info(f"   Raw Confidence: {confidence} (type: {type(confidence)})")
+            logger.info(f"   Confidence: {confidence*100:.1f}%")
             logger.info(f"   Price: ${price:,.4f}")
-            logger.info(f"   Signal ID: {signal.get('signal_id', 'N/A')}")
+            logger.info(f"   Confluences: {len(signal.get('confluence_factors', []))}")
             
             # Store signal history
             self.signal_history.append({
@@ -415,39 +380,29 @@ class DemoTradingSystem:
         """Validate signal for execution"""
         try:
             # Check confidence threshold
-            confidence = signal.get('confluence_score', 0)
-            
-            # Convert percentage to decimal if needed (ICT sends 85.4, we need 0.854)
-            if confidence > 1.0:
-                confidence = confidence / 100.0
-                
+            confidence = signal.get('confidence', 0)
             min_confidence = self.config.trading.min_confidence if self.config else 0.6
-            logger.info(f"🔍 Validating signal - Confidence: {confidence:.3f}, Threshold: {min_confidence:.3f}")
-            
             if confidence < min_confidence:
-                logger.info(f"⚠️  Confidence {confidence:.1%} below threshold {min_confidence:.1%}")
+                logger.debug(f"⚠️  Confidence {confidence:.1%} below threshold {min_confidence:.1%}")
                 return False
             
             # Check if symbol is being tracked
             symbol = signal.get('symbol', '')
-            logger.info(f"🔍 Symbol check - Symbol: {symbol}, Tracked: {self.symbols}")
-            # ICT sends BTCUSDT format, demo system tracks BTCUSDT format
-            if symbol not in self.symbols:
-                logger.info(f"⚠️  Symbol {symbol} not in tracked symbols")
+            if symbol not in [s.replace('USDT', '') for s in self.symbols]:
+                logger.debug(f"⚠️  Symbol {symbol} not in tracked symbols")
                 return False
             
             # Check for existing position
             formatted_symbol = symbol + 'USDT' if not symbol.endswith('USDT') else symbol
             if formatted_symbol in self.active_positions:
-                logger.info(f"⚠️  Already have position in {formatted_symbol}")
+                logger.debug(f"⚠️  Already have position in {formatted_symbol}")
                 return False
             
-            # Check required fields - ICT uses different field names
-            required_fields = ['symbol', 'direction', 'entry_price', 'confluence_score']  # ICT field names
-            logger.info(f"🔍 Field check - Available fields: {list(signal.keys())}")
+            # Check required fields
+            required_fields = ['symbol', 'action', 'entry_price', 'confidence']
             for field in required_fields:
                 if field not in signal or signal[field] is None:
-                    logger.info(f"⚠️  Missing required field: {field}")
+                    logger.debug(f"⚠️  Missing required field: {field}")
                     return False
             
             # Check max positions
@@ -466,116 +421,77 @@ class DemoTradingSystem:
         """Execute signal as demo trade"""
         try:
             symbol = signal.get('symbol', '')
-            action = signal.get('direction', '')
-            confidence = signal.get('confluence_score', 0)
+            action = signal.get('action', '')
+            confidence = signal.get('confidence', 0)
             entry_price = signal.get('entry_price', 0)
             
-            # Format symbol and get market price
+            # Format symbol for Bybit
             bybit_symbol = symbol + 'USDT' if not symbol.endswith('USDT') else symbol
+            
+            # Get current market price
             market_price = self.price_monitor.get_price(bybit_symbol) if self.price_monitor else entry_price
             
-            # Validate trade
-            if not self._validate_trade_params(market_price, bybit_symbol):
-                return
+            # Calculate position size based on confidence and risk management
+            position_size = self._calculate_position_size(confidence, market_price)
             
-            # Calculate position size
-            position_size = self._calculate_and_validate_position_size(
-                confidence, market_price, bybit_symbol
-            )
-            
-            if position_size <= 0:
-                logger.error(f"❌ Invalid position size calculated: {position_size}")
-                return
-            
-            # Execute trade
             if self.dry_run:
-                self._execute_dry_run_trade(signal, bybit_symbol, market_price, position_size, action)
+                # Simulate execution
+                logger.info("🧪 DRY RUN - Simulated Trade Execution:")
+                logger.info(f"   Symbol: {bybit_symbol}")
+                logger.info(f"   Action: {action}")
+                logger.info(f"   Size: {position_size:.6f}")
+                logger.info(f"   Market Price: ${market_price:,.4f}")
+                logger.info(f"   Entry Price: ${entry_price:,.4f}")
+                
+                # Create simulated position
+                self._create_demo_position(signal, bybit_symbol, market_price, position_size, 'simulated')
+                
             else:
-                await self._execute_live_trade(signal, bybit_symbol, market_price, position_size, action)
+                # Execute on Bybit
+                logger.info("🚀 Executing signal on Bybit demo...")
+                
+                side = "Buy" if action.upper() == "BUY" else "Sell"
+                
+                # Apply slippage adjustment for realistic execution
+                adjusted_price = self._apply_slippage(market_price, side)
+                logger.info(f"💰 Market Price: ${market_price:.4f} → Adjusted: ${adjusted_price:.4f} (slippage: {self.slippage_tolerance*100:.1f}%)")
+                
+                # Calculate leveraged position size
+                leveraged_position_size = position_size * self.leverage
+                logger.info(f"⚡ Leverage: {self.leverage}x | Position Size: {position_size:.6f} → {leveraged_position_size:.6f}")
+                
+                order_result = await self.bybit_client.place_order(
+                    symbol=bybit_symbol,
+                    side=side,
+                    qty=leveraged_position_size,  # Use leveraged size
+                    order_type=self.order_type,
+                    price=adjusted_price if self.order_type == "Limit" else None,
+                    time_in_force=self.time_in_force,
+                    reduce_only=self.reduce_only,
+                    close_on_trigger=self.close_on_trigger,
+                    stop_loss=signal.get('stop_loss'),
+                    take_profit=signal.get('take_profit')
+                )
+                
+                if order_result:
+                    logger.info("✅ Order placed successfully")
+                    logger.info(f"   Order ID: {order_result.get('orderId')}")
+                    
+                    # Create position record
+                    self._create_demo_position(signal, bybit_symbol, market_price, position_size, 'executed')
+                else:
+                    logger.error("❌ Order placement failed")
             
             self.performance_data['signals_executed'] += 1
             
         except Exception as e:
             logger.error(f"❌ Error executing signal: {e}")
 
-    def _validate_trade_params(self, market_price: float, symbol: str) -> bool:
-        """Validate trade parameters"""
-        if market_price <= 0:
-            logger.error(f"❌ Invalid market price: {market_price} for {symbol} - skipping signal")
-            return False
-        return True
-
-    def _calculate_and_validate_position_size(self, confidence: float, market_price: float, symbol: str) -> float:
-        """Calculate and validate position size with margin checks"""
-        position_size = self._calculate_position_size_for_symbol(confidence, market_price, symbol)
-        
-        if position_size <= 0:
-            return 0
-        
-        # Check margin requirements
-        estimated_margin = (position_size * market_price) / self.leverage
-        max_demo_margin = 1000.0
-        
-        if estimated_margin > max_demo_margin:
-            logger.warning(f"⚠️ Large trade - estimated margin: ${estimated_margin:.2f}")
-            max_position_size = (max_demo_margin * self.leverage) / market_price
-            position_size = min(position_size, max_position_size)
-            logger.info(f"📉 Adjusted position size to: {position_size:.6f}")
-        else:
-            logger.info(f"✅ Trade size acceptable - estimated margin: ${estimated_margin:.2f}")
-        
-        return position_size
-
-    def _execute_dry_run_trade(self, signal: Dict, symbol: str, price: float, size: float, action: str):
-        """Execute simulated trade in dry run mode"""
-        logger.info("🧪 DRY RUN - Simulated Trade Execution:")
-        logger.info(f"   Symbol: {symbol}")
-        logger.info(f"   Action: {action}")
-        logger.info(f"   Size: {size:.6f}")
-        logger.info(f"   Market Price: ${price:,.4f}")
-        logger.info(f"   Entry Price: ${signal.get('entry_price', 0):,.4f}")
-        
-        self._create_demo_position(signal, symbol, price, size, 'simulated')
-
-    async def _execute_live_trade(self, signal: Dict, symbol: str, price: float, size: float, action: str):
-        """Execute real trade on Bybit"""
-        logger.info("🚀 Executing signal on Bybit demo...")
-        
-        side = "Buy" if action.upper() == "BUY" else "Sell"
-        adjusted_price = self._apply_slippage(price, side)
-        leveraged_size = size * self.leverage
-        
-        logger.info(f"💰 Market Price: ${price:.4f} → Adjusted: ${adjusted_price:.4f} (slippage: {self.slippage_tolerance*100:.1f}%)")
-        logger.info(f"⚡ Leverage: {self.leverage}x | Position Size: {size:.6f} → {leveraged_size:.6f}")
-        
-        order_result = await self.bybit_client.place_order(
-            symbol=symbol,
-            side=side,
-            qty=leveraged_size,
-            order_type=self.order_type,
-            price=adjusted_price if self.order_type == "Limit" else None,
-            time_in_force=self.time_in_force,
-            stop_loss=signal.get('stop_loss'),
-            take_profit=signal.get('take_profit')
-        )
-        
-        if order_result:
-            logger.info("✅ Order placed successfully")
-            logger.info(f"   Order ID: {order_result.get('orderId')}")
-            self._create_demo_position(signal, symbol, price, size, 'executed')
-        else:
-            logger.error("❌ Order placement failed")
-
     def _calculate_position_size(self, confidence: float, price: float) -> float:
         """Calculate position size based on confidence, risk management, and leverage"""
         try:
-            # Validate price to prevent division by zero
-            if price <= 0:
-                logger.error(f"❌ Invalid price for position calculation: {price}")
-                return 0.001
-            
-            # Increased base position size since demo account has sufficient funds ($224k equity)
-            base_size_usd = 50.0  # $50 base position (account can handle this)
+            # Base position size (adjust based on demo balance and leverage)
+            base_size_usd = 1000.0  # $1000 base position
             
             # Adjust by confidence (0.5x to 1.5x)
             confidence_multiplier = 0.5 + confidence
@@ -588,22 +504,9 @@ class DemoTradingSystem:
             # Convert to quantity
             quantity = effective_size / price
             
-            # Get minimum for current symbol (simplified approach)
-            min_qty = 0.001  # Conservative default
-            
-            # Round to appropriate precision for each symbol
-            if 'BTC' in str(price):  # Approximate symbol detection
-                quantity = round(quantity, 5)
-                min_qty = 0.00001
-            elif 'ETH' in str(price):
-                quantity = round(quantity, 3)  
-                min_qty = 0.001
-            elif 'SOL' in str(price):
-                quantity = round(quantity, 2)
-                min_qty = 0.01
-            elif 'XRP' in str(price):
-                quantity = round(quantity, 1)
-                min_qty = 1.0
+            # Round to reasonable precision
+            if quantity > 1:
+                quantity = round(quantity, 3)
             else:
                 quantity = round(quantity, 6)
                 
@@ -614,82 +517,12 @@ class DemoTradingSystem:
             logger.info(f"   Leverage: {self.leverage}x")
             logger.info(f"   Effective Size: ${effective_size:.2f}")
             logger.info(f"   Final Quantity: {quantity:.6f}")
-            logger.info(f"   Minimum Required: {min_qty}")
             
-            final_qty = max(quantity, min_qty)  # Ensure minimum size
-            logger.info(f"   Using Quantity: {final_qty:.6f}")
-            
-            return final_qty
+            return max(quantity, 0.001)  # Minimum size
             
         except Exception as e:
             logger.error(f"❌ Error calculating position size: {e}")
             return 0.001
-
-    def _calculate_position_size_for_symbol(self, confidence: float, price: float, symbol: str) -> float:
-        """Calculate position size with symbol-specific minimums"""
-        try:
-            # Validate price to prevent division by zero
-            if price <= 0:
-                logger.error(f"❌ Invalid price for position calculation: {price}")
-                return self._get_min_quantity_for_symbol(symbol)
-            
-            # Increased base position size since demo account has sufficient funds ($224k equity)
-            base_size_usd = 50.0  # $50 base position
-            
-            # Adjust by confidence (0.5x to 1.5x)
-            confidence_multiplier = 0.5 + confidence
-            adjusted_size = base_size_usd * confidence_multiplier
-            
-            # Account for leverage in position sizing
-            effective_size = adjusted_size / self.leverage
-            
-            # Convert to quantity
-            quantity = effective_size / price
-            
-            # Apply symbol-specific formatting and minimums
-            quantity = self._format_quantity_for_symbol(quantity, symbol)
-            min_qty = self._get_min_quantity_for_symbol(symbol)
-            
-            logger.info(f"📊 Position Calculation for {symbol}:")
-            logger.info(f"   Base Size: ${base_size_usd}")
-            logger.info(f"   Confidence Multiplier: {confidence_multiplier:.2f}")
-            logger.info(f"   Adjusted Size: ${adjusted_size:.2f}")
-            logger.info(f"   Leverage: {self.leverage}x")
-            logger.info(f"   Effective Size: ${effective_size:.2f}")
-            logger.info(f"   Calculated Quantity: {quantity}")
-            logger.info(f"   Minimum Required: {min_qty}")
-            
-            final_qty = max(quantity, min_qty)
-            logger.info(f"   Final Quantity: {final_qty}")
-            
-            return final_qty
-            
-        except Exception as e:
-            logger.error(f"❌ Error calculating position size for {symbol}: {e}")
-            return self._get_min_quantity_for_symbol(symbol)
-    
-    def _get_min_quantity_for_symbol(self, symbol: str) -> float:
-        """Get minimum order quantity for symbol"""
-        minimums = {
-            'BTCUSDT': 0.00001,  # ~$1.20
-            'ETHUSDT': 0.001,    # ~$4.50
-            'SOLUSDT': 0.01,     # ~$2.30
-            'XRPUSDT': 1.0,      # ~$3.00
-        }
-        return minimums.get(symbol, 0.001)
-    
-    def _format_quantity_for_symbol(self, quantity: float, symbol: str) -> float:
-        """Format quantity with appropriate precision for symbol"""
-        if symbol == 'BTCUSDT':
-            return round(quantity, 5)
-        elif symbol == 'ETHUSDT':
-            return round(quantity, 3)
-        elif symbol == 'SOLUSDT':
-            return round(quantity, 2)
-        elif symbol == 'XRPUSDT':
-            return round(quantity, 1)
-        else:
-            return round(quantity, 6)
 
     def _apply_slippage(self, price: float, side: str) -> float:
         """Apply realistic slippage to market orders"""
@@ -707,7 +540,7 @@ class DemoTradingSystem:
             logger.error(f"❌ Error applying slippage: {e}")
             return price
 
-    async def _setup_leverage_and_margin(self):
+    def _setup_leverage_and_margin(self):
         """Setup leverage and margin mode for all trading symbols"""
         try:
             logger.info("⚙️ Setting up leverage and margin for demo trading...")
@@ -718,12 +551,12 @@ class DemoTradingSystem:
             for symbol in self.symbols:
                 try:
                     # Set leverage for each symbol
-                    leverage_result = await self._set_symbol_leverage(symbol, self.leverage)
+                    leverage_result = self._set_symbol_leverage(symbol, self.leverage)
                     if leverage_result:
                         logger.info(f"✅ {symbol}: Leverage set to {self.leverage}x")
                     
                     # Set margin mode
-                    margin_result = await self._set_margin_mode(symbol)
+                    margin_result = self._set_margin_mode(symbol)
                     if margin_result:
                         logger.info(f"✅ {symbol}: Margin mode set to {self.margin_mode}")
                         
@@ -765,10 +598,10 @@ class DemoTradingSystem:
             position = {
                 'signal_id': signal.get('id') or f"{symbol}_{int(datetime.now().timestamp())}",
                 'symbol': symbol,
-                'side': signal.get('direction', '').upper(),
+                'side': signal.get('action', '').upper(),
                 'entry_price': price,
                 'size': size,
-                'confidence': signal.get('confluence_score', 0),
+                'confidence': signal.get('confidence', 0),
                 'confluence_factors': signal.get('confluence_factors', []),
                 'stop_loss': signal.get('stop_loss'),
                 'take_profit': signal.get('take_profit'),
@@ -862,18 +695,18 @@ class DemoTradingSystem:
             logger.info(f"   Return: {demo_return:+.2f}%")
             logger.info(f"   Total Trades: {total_trades}")
             logger.info(f"   Win Rate: {win_rate:.1f}%")
-            logger.info("")
+            logger.info()
             logger.info("📊 Paper Trading (ICT):")
             logger.info(f"   Current Balance: ${paper_balance:.2f}")
             logger.info(f"   Return: {paper_return:+.2f}%")
-            logger.info("")
+            logger.info()
             logger.info("📡 Signal Processing:")
             logger.info(f"   Signals Received: {self.performance_data['signals_received']}")
             logger.info(f"   Signals Executed: {self.performance_data['signals_executed']}")
             if self.performance_data['signals_received'] > 0:
                 execution_rate = (self.performance_data['signals_executed'] / self.performance_data['signals_received']) * 100
                 logger.info(f"   Execution Rate: {execution_rate:.1f}%")
-            logger.info("")
+            logger.info()
             logger.info(f"📊 Active Positions: {len(self.active_positions)}")
             for symbol, position in self.active_positions.items():
                 pnl = position['current_pnl']
@@ -883,7 +716,7 @@ class DemoTradingSystem:
             # Price monitoring stats
             if self.price_monitor:
                 price_stats = self.price_monitor.get_stats()
-                logger.info("")
+                logger.info()
                 logger.info("📡 Price Monitoring:")
                 logger.info(f"   WebSocket Connected: {'✅' if price_stats['connected'] else '❌'}")
                 logger.info(f"   Updates/min: {price_stats['updates_per_minute']}")
@@ -909,7 +742,7 @@ class DemoTradingSystem:
             async def periodic_reports():
                 while self.running:
                     await asyncio.sleep(300)  # 5 minutes
-                    await self.generate_performance_report()
+                    self.generate_performance_report()
             
             tasks.append(asyncio.create_task(periodic_reports()))
             
@@ -941,7 +774,7 @@ class DemoTradingSystem:
                 await self.bybit_client.close()
             
             # Final performance report
-            await self.generate_performance_report()
+            self.generate_performance_report()
             
             logger.info("✅ Demo Trading System shutdown complete")
             
@@ -980,9 +813,7 @@ async def main():
     # Setup signal handler for graceful shutdown
     def signal_handler(signum, frame):
         logger.info(f"🛑 Received signal {signum}, shutting down...")
-        # Store task to prevent garbage collection
         shutdown_task = asyncio.create_task(system.shutdown())
-        # Keep reference until completion
         shutdown_task.add_done_callback(lambda t: sys.exit(0))
     
     signal.signal(signal.SIGINT, signal_handler)

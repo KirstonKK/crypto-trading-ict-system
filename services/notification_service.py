@@ -95,7 +95,7 @@ class NotificationService:
             print(f"❌ Failed to send SMS: {e}")
             return False
     
-    def send_push(self, user_id: str, title: str, body: str, data: Dict = None):
+    def send_push(self, title: str, body: str):
         """Send push notification (placeholder for Firebase/OneSignal integration)"""
         if not self.push_enabled:
             return False

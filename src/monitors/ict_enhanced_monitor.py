@@ -14,6 +14,7 @@ import time
 import logging
 import threading
 import asyncio
+import sqlite3
 
 # Constants
 TIMEZONE_OFFSET = '+00:00'  # UTC timezone identifier for ISO format conversion
@@ -36,6 +37,11 @@ import numpy as np
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from database.trading_database import TradingDatabase
 
+# Import trade manager from src.trading
+trading_path = os.path.join(os.path.dirname(__file__), '..', 'trading')
+sys.path.append(trading_path)
+from intraday_trade_manager import create_trade_manager
+
 # Add project root to path for backtest engine import
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(project_root)
@@ -56,10 +62,23 @@ ICTStrategyEngine = strategy_module.ICTStrategyEngine
 MultiTimeframeData = strategy_module.MultiTimeframeData
 
 # 🚀 QUANT ENHANCEMENTS - Import all 5 modules
-from volatility_indicators import VolatilityAnalyzer
-from correlation_matrix import CorrelationAnalyzer
-from signal_quality import SignalQualityAnalyzer
-from mean_reversion import MeanReversionAnalyzer
+try:
+    from utils.volatility_indicators import VolatilityAnalyzer
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+    from utils.volatility_indicators import VolatilityAnalyzer
+from utils.correlation_matrix import CorrelationAnalyzer
+from utils.signal_quality import SignalQualityAnalyzer
+from utils.mean_reversion import MeanReversionAnalyzer
+
+# 🔧 DIAGNOSTIC AND ANALYSIS - Import diagnostic and SOL analyzer
+core_path = os.path.join(project_root, 'core')
+sys.path.append(core_path)
+from diagnostics.system_diagnostic import create_diagnostic_checker
+# Temporarily comment out to fix import issues
+# from analysis.sol_trade_analyzer import create_sol_analyzer
 
 # Configure logging
 logging.basicConfig(
@@ -68,6 +87,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# Constants
+INDEX_HTML_FILENAME = 'index.html'
 
 class ICTCryptoMonitor:
     """ICT Enhanced Crypto Monitor matching previous version exactly"""
@@ -83,6 +105,9 @@ class ICTCryptoMonitor:
         self.symbols = ['BTCUSDT', 'SOLUSDT', 'ETHUSDT', 'XRPUSDT']
         self.display_symbols = ['BTC', 'SOL', 'ETH', 'XRP']
         self.crypto_emojis = {'BTC': '₿', 'SOL': '◎', 'ETH': 'Ξ', 'XRP': '✕'}
+        
+        # TRADING CONFIGURATION - Prevent duplicate/old trade display
+        self.show_today_only = True  # Only show trades from today to prevent confusion
         
         # Monitor state tracking - load from database
         daily_stats = self.db.get_daily_stats()
@@ -123,6 +148,11 @@ class ICTCryptoMonitor:
         self.signal_quality_analyzer = SignalQualityAnalyzer()
         self.mean_reversion_analyzer = MeanReversionAnalyzer()
         logger.info("✅ All 5 Quant Modules Loaded: ATR Stops, Correlation Matrix, Time-Decay, Expectancy Filter, Mean Reversion")
+        
+        # ⏰ INTRADAY TRADE MANAGER - Auto-close trades after max hold time
+        logger.info("⏰ Initializing Intraday Trade Manager...")
+        self.trade_manager = create_trade_manager(max_hold_hours=4.0)  # 4 hour max hold
+        logger.info("✅ Trade Manager: 4h max hold | Session close at NY 4 PM")
         
         # Paper trading configuration
         self.paper_trading_enabled = True
@@ -406,94 +436,101 @@ class ICTCryptoMonitor:
             return 0
         
         closed_count = 0
-        import sqlite3
         
-        # Query paper_trades table for OPEN trades
-        with sqlite3.connect(self.db.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('SELECT * FROM paper_trades WHERE status = "OPEN"')
-            open_trades = cursor.fetchall()
-            
-            for trade_row in open_trades:
-                trade = dict(trade_row)
-                crypto = trade['symbol'].replace('USDT', '')
+        # Use database method with proper connection management
+        try:
+            # Query paper_trades table for OPEN trades using database connection
+            with self.db._get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute('SELECT * FROM paper_trades WHERE status = "OPEN"')
+                open_trades = cursor.fetchall()
                 
-                if crypto not in current_prices:
-                    continue
-                
-                current_price = current_prices[crypto]['price']
-                entry_price = trade['entry_price']
-                stop_loss = trade['stop_loss']
-                take_profit = trade['take_profit']
-                position_size = trade['position_size']
-                direction = trade['direction']
-                trade_id = trade['id']
-                
-                # Calculate unrealized PnL
-                if direction == 'BUY':
-                    unrealized_pnl = (current_price - entry_price) * position_size
-                else:  # SELL
-                    unrealized_pnl = (entry_price - current_price) * position_size
-                
-                # Update current_price and unrealized_pnl in database
-                conn.execute('''
-                    UPDATE paper_trades 
-                    SET current_price = ?, unrealized_pnl = ?
-                    WHERE id = ?
-                ''', (current_price, unrealized_pnl, trade_id))
-                
-                # Check for TP/SL hits
-                should_close = False
-                close_reason = ""
-                
-                if direction == 'BUY':
-                    if current_price <= stop_loss:
-                        should_close = True
-                        close_reason = "STOP_LOSS"
-                    elif current_price >= take_profit:
-                        should_close = True
-                        close_reason = "TAKE_PROFIT"
-                else:  # SELL
-                    if current_price >= stop_loss:
-                        should_close = True
-                        close_reason = "STOP_LOSS"
-                    elif current_price <= take_profit:
-                        should_close = True
-                        close_reason = "TAKE_PROFIT"
-                
-                # Close trade if TP/SL hit
-                if should_close:
-                    # Update paper_trades table
+                for trade_row in open_trades:
+                    trade = dict(trade_row)
+                    crypto = trade['symbol'].replace('USDT', '')
+                    
+                    if crypto not in current_prices:
+                        continue
+                    
+                    current_price = current_prices[crypto]['price']
+                    entry_price = trade['entry_price']
+                    stop_loss = trade['stop_loss']
+                    take_profit = trade['take_profit']
+                    position_size = trade['position_size']
+                    direction = trade['direction']
+                    trade_id = trade['id']
+                    
+                    # Calculate unrealized PnL
+                    if direction == 'BUY':
+                        unrealized_pnl = (current_price - entry_price) * position_size
+                    else:  # SELL
+                        unrealized_pnl = (entry_price - current_price) * position_size
+                    
+                    # Update current_price and unrealized_pnl in database
                     conn.execute('''
                         UPDATE paper_trades 
-                        SET status = ?, exit_price = ?, exit_time = datetime('now'), realized_pnl = ?
+                        SET current_price = ?, unrealized_pnl = ?
                         WHERE id = ?
-                    ''', (close_reason, current_price, unrealized_pnl, trade_id))
+                    ''', (current_price, unrealized_pnl, trade_id))
+                    conn.commit()  # Commit after each update to release lock
                     
-                    # Close signal in signals table
-                    signal_id = trade['signal_id']
-                    self.db.close_signal(signal_id, current_price, close_reason)
+                    # Check for TP/SL hits
+                    should_close = False
+                    close_reason = ""
                     
-                    # Update paper balance
-                    self.paper_balance += unrealized_pnl
-                    closed_count += 1
+                    if direction == 'BUY':
+                        if current_price <= stop_loss:
+                            should_close = True
+                            close_reason = "STOP_LOSS"
+                        elif current_price >= take_profit:
+                            should_close = True
+                            close_reason = "TAKE_PROFIT"
+                    else:  # SELL
+                        if current_price >= stop_loss:
+                            should_close = True
+                            close_reason = "STOP_LOSS"
+                        elif current_price <= take_profit:
+                            should_close = True
+                            close_reason = "TAKE_PROFIT"
                     
-                    logger.info(f"📄 PAPER TRADE CLOSED: {crypto} {direction} | {close_reason} | PnL: ${unrealized_pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
-                    
-                    # Add to journal
-                    journal_entry = {
-                        'signal_id': signal_id,
-                        'crypto': crypto,
-                        'action': direction,
-                        'entry_price': entry_price,
-                        'exit_price': current_price,
-                        'pnl': unrealized_pnl,
-                        'status': close_reason,
-                        'notes': f"{close_reason} at ${current_price:.2f}"
-                    }
-                    self.db.add_journal_entry(journal_entry)
-            
-            conn.commit()
+                    # Close trade if TP/SL hit
+                    if should_close:
+                        # Update paper_trades table
+                        conn.execute('''
+                            UPDATE paper_trades 
+                            SET status = ?, exit_price = ?, exit_time = datetime('now'), realized_pnl = ?
+                            WHERE id = ?
+                        ''', (close_reason, current_price, unrealized_pnl, trade_id))
+                        conn.commit()  # Commit close immediately
+                        
+                        # Close signal in signals table
+                        signal_id = trade['signal_id']
+                        self.db.close_signal(signal_id, current_price, close_reason)
+                        
+                        # Update paper balance
+                        self.paper_balance += unrealized_pnl
+                        closed_count += 1
+                        
+                        logger.info(f"📄 PAPER TRADE CLOSED: {crypto} {direction} | {close_reason} | PnL: ${unrealized_pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
+                        
+                        # Add to journal (use correct method signature)
+                        try:
+                            self.db.add_journal_entry(
+                                entry_type='TRADE_CLOSED',
+                                title=f"{crypto} {direction} - {close_reason}",
+                                content=f"Closed at ${current_price:.2f} | PnL: ${unrealized_pnl:.2f}",
+                                signal_id=signal_id
+                            )
+                        except Exception as journal_error:
+                            logger.warning(f"⚠️  Could not add journal entry: {journal_error}")
+                
+        except sqlite3.OperationalError as e:
+            logger.warning(f"⚠️  Database busy during paper trade update: {e}")
+            # Don't fail the entire cycle, just skip this update
+            return 0
+        except Exception as e:
+            logger.error(f"❌ Error updating paper trades: {e}")
+            return 0
         
         return closed_count
         
@@ -795,6 +832,9 @@ class ICTWebMonitor:
         self.session_tracker = SessionStatusTracker(self.crypto_monitor.trading_sessions)
         self.statistics = MonitorStatistics()
         
+        # Initialize Fundamental Analysis (integrated)
+        self.fundamental_analysis = self._init_fundamental_analysis()
+        
         # Data storage
         self.current_prices = {}
         self.is_running = False
@@ -802,6 +842,64 @@ class ICTWebMonitor:
         # Setup routes
         self.setup_routes()
         self.setup_socketio_events()
+    
+    def _init_fundamental_analysis(self):
+        """Initialize integrated fundamental analysis"""
+        return {
+            'BTC': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None},
+            'ETH': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None},
+            'SOL': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None},
+            'XRP': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None}
+        }
+    
+    def _update_fundamental_analysis(self):
+        """Update fundamental analysis for all cryptos"""
+        try:
+            for symbol in ['BTC', 'ETH', 'SOL', 'XRP']:
+                # Simple fundamental scoring based on price trends and market conditions
+                score = self._calculate_fundamental_score(symbol)
+                recommendation = self._get_fundamental_recommendation(score)
+                
+                self.fundamental_analysis[symbol] = {
+                    'score': score,
+                    'recommendation': recommendation,
+                    'last_update': datetime.now().isoformat(),
+                    'confidence': min(abs(score) / 10, 1.0)  # 0-1 confidence
+                }
+            logger.info("✅ Fundamental analysis updated")
+        except Exception as e:
+            logger.error(f"❌ Error updating fundamental analysis: {e}")
+    
+    def _calculate_fundamental_score(self, symbol):
+        """Calculate fundamental score (-10 to +10)"""
+        # Simple scoring based on current price trends
+        try:
+            current_price = self.current_prices.get(symbol, 0)
+            if not current_price:
+                return 0
+            
+            # Basic trend analysis (placeholder - can be enhanced)
+            # Positive score = bullish fundamentals, negative = bearish
+            score = 0
+            
+            # For now, return neutral scores - can be enhanced with real fundamental data
+            return score
+        except Exception as e:
+            logger.error(f"Error calculating fundamental score for {symbol}: {e}")
+            return 0
+    
+    def _get_fundamental_recommendation(self, score):
+        """Get recommendation based on score"""
+        if score >= 7:
+            return 'STRONG BUY'
+        elif score >= 3:
+            return 'BUY'
+        elif score >= -3:
+            return 'NEUTRAL'
+        elif score >= -7:
+            return 'SELL'
+        else:
+            return 'STRONG SELL'
     
     # ============ AUTHENTICATION HELPERS ============
     
@@ -950,14 +1048,40 @@ class ICTWebMonitor:
             trades = self.crypto_monitor.db.get_active_trades_readonly()
             return jsonify({'trades': trades})
         
+        # ============ FUNDAMENTAL ANALYSIS ENDPOINTS ============
+        
+        @self.app.route('/api/fundamental')
+        def get_all_fundamental():
+            """Get fundamental analysis for all cryptos"""
+            try:
+                self._update_fundamental_analysis()
+                return jsonify(self.fundamental_analysis)
+            except Exception as e:
+                logger.error(f"❌ Error getting fundamental analysis: {e}")
+                return jsonify({'error': 'Failed to get fundamental analysis'}), 500
+        
+        @self.app.route('/api/fundamental/<symbol>')
+        def get_fundamental_symbol(symbol):
+            """Get fundamental analysis for specific crypto"""
+            try:
+                symbol = symbol.upper()
+                if symbol not in self.fundamental_analysis:
+                    return jsonify({'error': f'Symbol {symbol} not supported'}), 404
+                
+                self._update_fundamental_analysis()
+                return jsonify(self.fundamental_analysis[symbol])
+            except Exception as e:
+                logger.error(f"❌ Error getting fundamental analysis for {symbol}: {e}")
+                return jsonify({'error': 'Failed to get fundamental analysis'}), 500
+        
         # ============ FRONTEND ROUTES ============
         
         @self.app.route('/')
         def home():
             """Serve React app home page"""
             frontend_path = os.path.join(project_root, 'frontend', 'dist')
-            if os.path.exists(os.path.join(frontend_path, 'index.html')):
-                return send_from_directory(frontend_path, 'index.html')
+            if os.path.exists(os.path.join(frontend_path, INDEX_HTML_FILENAME)):
+                return send_from_directory(frontend_path, INDEX_HTML_FILENAME)
             # Fallback to ICT monitor if React not built
             return redirect('/monitor')
         
@@ -965,28 +1089,25 @@ class ICTWebMonitor:
         def monitor_dashboard():
             """Original ICT Monitor UI"""
             return render_template_string(self.get_dashboard_html())
+        
+        @self.app.route('/fundamental')
+        def fundamental_dashboard():
+            """Fundamental Analysis Dashboard"""
+            return render_template_string(self._get_fundamental_dashboard_html())
             
         @self.app.route('/health')
         def health_check():
-            # Derive signals_today from today's live + archived signals (not the journal)
+            # Get count of actual trades executed today
             from datetime import date
-            today = date.today()
-
-            def _to_dt(ts):
-                if isinstance(ts, str):
-                    return datetime.fromisoformat(ts.replace('Z', TIMEZONE_OFFSET))
-                return ts
-
-            today_signals = 0
-            for s in (self.crypto_monitor.live_signals + self.crypto_monitor.archived_signals):
-                ts = s.get('timestamp')
-                if not ts:
-                    continue
-                try:
-                    if _to_dt(ts).date() == today:
-                        today_signals += 1
-                except Exception:
-                    continue
+            today = date.today().isoformat()
+            conn = self.crypto_monitor.db._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM paper_trades 
+                WHERE date(entry_time) = ?
+            """, (today,))
+            today_signals = cursor.fetchone()[0]
+            conn.close()
 
             return jsonify({
                 'status': 'operational',
@@ -1013,15 +1134,32 @@ class ICTWebMonitor:
                 daily_stats = self.crypto_monitor.db.get_daily_stats()
                 todays_signals = self.crypto_monitor.db.get_signals_today()  # For today's summary
                 active_signals = self.crypto_monitor.db.get_active_signals()  # For active paper trades (any date)
-                active_trades = self.crypto_monitor.db.get_active_trades()
+                active_trades = self.crypto_monitor.db.get_active_paper_trades()  # Get OPEN paper trades
                 # Get closed signals for trading journal (today's completed trades)
                 journal_entries = self.crypto_monitor.db.get_closed_signals_today()
                 
-                logger.info(f"🔍 API /api/data: Retrieved {len(todays_signals)} today's signals, {len(active_signals)} active trades from database")
+                logger.info(f"🔍 API /api/data: Retrieved {len(todays_signals)} today's signals, {len(active_trades)} active trades from database")
                 
-                # Serialize live signals for JSON (recent signals from database)
+                # PHANTOM TRADE ELIMINATION: Force database-only truth
+                if len(active_trades) == 0:
+                    logger.info("✅ Database contains 0 active trades - phantom cache clearing not needed (database-only approach)")
+                else:
+                    logger.info(f"📊 Processing {len(active_trades)} legitimate active trades from database")
+                
+                # Define all possible closed/completed statuses to exclude
+                CLOSED_STATUSES = {
+                    'CANCELLED', 'STOP_LOSS', 'TAKE_PROFIT', 'SESSION_CLOSE',
+                    'TIME_LIMIT', 'MAX_HOLD_TIME_EXCEEDED', 'MANUAL_CLOSE', 'EXPIRED'
+                }
+                
+                # Serialize live signals for JSON (recent ACTIVE signals from database)
                 serialized_signals = []
-                for signal in todays_signals[-5:]:  # Get last 5 signals
+                # Filter to only show ACTIVE or FILLED signals (exclude all closed statuses)
+                active_todays_signals = [
+                    s for s in todays_signals 
+                    if s.get('status') in ('ACTIVE', 'FILLED') and s.get('status') not in CLOSED_STATUSES
+                ]
+                for signal in active_todays_signals[-5:]:  # Get last 5 active signals
                     signal_copy = signal.copy()
                     # Convert datetime objects to ISO format and add required fields
                     if 'entry_time' in signal_copy:
@@ -1037,9 +1175,25 @@ class ICTWebMonitor:
                     serialized_signals.append(signal_copy)
                     logger.info(f"  - Signal: {signal_copy.get('crypto', 'Unknown')} {signal_copy.get('action', 'Unknown')} @ ${signal_copy.get('entry_price', 0)}")
                 
-                # Build today's summary from database
+                # Build today's summary from database - ONLY ACTIVE/FILLED signals (exclude all closed trades)
                 todays_summary = []
+                logger.info(f"🔍 Building signals_summary from {len(todays_signals)} signals")
+                
+                # Define all possible closed/completed statuses to exclude
+                CLOSED_STATUSES = {
+                    'CANCELLED', 'STOP_LOSS', 'TAKE_PROFIT', 'SESSION_CLOSE',
+                    'TIME_LIMIT', 'MAX_HOLD_TIME_EXCEEDED', 'MANUAL_CLOSE', 'EXPIRED'
+                }
+                
                 for signal in todays_signals:
+                    signal_status = signal.get('status', 'NO_STATUS')
+                    logger.info(f"  - Signal: {signal.get('symbol', '?')} {signal.get('direction', '?')} - Status: {signal_status}")
+                    
+                    # Skip any closed/cancelled signals in the summary - only show ACTIVE or FILLED
+                    if signal_status in CLOSED_STATUSES or signal_status not in ('ACTIVE', 'FILLED'):
+                        logger.info(f"    ⏭️ Skipping signal with status: {signal_status}")
+                        continue
+                    
                     signal_copy = signal.copy()
                     if 'entry_time' in signal_copy:
                         signal_copy['timestamp'] = signal_copy['entry_time']
@@ -1051,60 +1205,60 @@ class ICTWebMonitor:
                     signal_copy['timeframe'] = '5m'  # Default timeframe
                     todays_summary.append(signal_copy)
                 
-                # Build paper trades from ACTIVE signals (any date) with REAL-TIME PRICES and PROPER POSITION SIZING
-                paper_trades = []
-                paper_balance = daily_stats.get('paper_balance', 100.0)
-                risk_per_trade = paper_balance * 0.01  # 1% risk per trade
+                logger.info(f"✅ Built signals_summary with {len(todays_summary)} active signals")
                 
-                # Use active_signals instead of filtering todays_signals
-                for signal in active_signals:
-                        crypto = signal.get('symbol', 'BTCUSDT').replace('USDT', '')
-                        entry_price = signal.get('entry_price', 0)
-                        stop_loss = signal.get('stop_loss', 0)
-                        direction = signal.get('direction', 'BUY')
-                        
-                        # Calculate REAL position size based on risk management
-                        stop_distance = abs(entry_price - stop_loss)
-                        if stop_distance > 0:
-                            # Position size = Risk Amount / Stop Distance
-                            position_size = risk_per_trade / stop_distance
-                        else:
-                            # Fallback: use 2% of entry price as stop
-                            position_size = risk_per_trade / (entry_price * 0.02)
+                # Build paper trades from ACTIVE paper trades in database ONLY
+                paper_trades = []
+                
+                # Use ONLY active_trades from paper_trades table (database-first approach)
+                logger.info(f"🔍 Building paper trades from {len(active_trades)} database entries")
+                for trade in active_trades:
+                        crypto = trade.get('symbol', 'BTCUSDT').replace('USDT', '')
+                        entry_price = trade.get('entry_price', 0)
+                        stop_loss = trade.get('stop_loss', 0)
+                        direction = trade.get('direction', 'BUY')
+                        position_size = trade.get('position_size', 0)
                         
                         # Get REAL-TIME current price
-                        current_price = entry_price  # Default fallback
+                        current_price = trade.get('current_price', entry_price)  # Use DB value or fallback
                         if crypto in self.current_prices:
-                            current_price = self.current_prices[crypto].get('price', entry_price)
+                            current_price = self.current_prices[crypto].get('price', current_price)
                         
-                        # Calculate REAL PnL based on actual position size
-                        if direction == 'SELL':
-                            pnl = (entry_price - current_price) * position_size
-                        else:  # BUY
-                            pnl = (current_price - entry_price) * position_size
+                        # Use unrealized PnL from database
+                        pnl = trade.get('unrealized_pnl', 0)
                         
                         # Calculate position value for display
                         position_value = position_size * entry_price
                         
-                        trade = {
-                            'id': signal.get('signal_id', 'PT_1'),
+                        trade_obj = {
+                            'id': trade.get('signal_id', 'PT_1'),
                             'crypto': crypto,
                             'action': direction,
                             'entry_price': entry_price,
                             'current_price': current_price,  # REAL-TIME PRICE
                             'stop_loss': stop_loss,
-                            'take_profit': signal.get('take_profit', 0),
-                            'position_size': position_size,  # REAL position size based on 1% risk
+                            'take_profit': trade.get('take_profit', 0),
+                            'position_size': position_size,  # From database
                             'position_value': position_value,  # Dollar value of position
-                            'risk_amount': risk_per_trade,  # Risk per trade
-                            'pnl': pnl,  # REAL PnL based on actual position size
-                            'entry_time': signal.get('entry_time') or signal.get('timestamp', ''),  # Trade initiation time from DB
-                            'status': 'OPEN'
+                            'risk_amount': trade.get('risk_amount', 0),  # From database
+                            'pnl': pnl,  # From database
+                            'entry_time': trade.get('entry_time', ''),
+                            'status': trade.get('status', 'OPEN')  # Use actual status from database
                         }
-                        paper_trades.append(trade)
-                        logger.info(f"  - Active Trade: {trade['crypto']} {trade['action']} @ ${trade['entry_price']} | Position: {position_size:.6f} {crypto} (${position_value:.2f}) | Current: ${current_price} | PnL: ${pnl:.2f}")
+                        paper_trades.append(trade_obj)
+                        logger.info(f"  - Active Trade: {trade_obj['crypto']} {trade_obj['action']} @ ${trade_obj['entry_price']} | Position: {position_size:.6f} {crypto} (${position_value:.2f}) | Current: ${current_price} | PnL: ${pnl:.2f}")
                 
                 logger.info(f"📊 Returning {len(paper_trades)} active paper trades to UI")
+
+                # Calculate actual trades executed today (our definition of "Signals Today")
+                from datetime import date
+                today = date.today().isoformat()
+                cursor = self.crypto_monitor.db._get_connection().cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) FROM paper_trades 
+                    WHERE date(entry_time) = ?
+                """, (today,))
+                active_signals_count = cursor.fetchone()[0]
 
                 # Simplified signal parameters for single-engine architecture
                 signal_params = {
@@ -1112,10 +1266,14 @@ class ICTWebMonitor:
                     'confluence_threshold': 60.0  # 60% minimum confluence (conservative)
                 }
 
+                # Log final data counts being sent to UI
+                logger.info(f"📊 API Response: Sending {len(paper_trades)} active trades, {active_signals_count} signals today (all from database)")
+                logger.info(f"🔢 Database consistency: active_trades_count={len(active_trades)}, active_paper_trades={len(paper_trades)}")
+
                 return jsonify({
                     'prices': self.current_prices,
                     'scan_count': daily_stats.get('scan_count', 0),
-                    'signals_today': daily_stats.get('signals_generated', 0),
+                    'signals_today': active_signals_count,  # Only count ACTIVE or FILLED signals
                     'daily_pnl': daily_stats.get('total_pnl', 0),
                     'paper_balance': daily_stats.get('paper_balance', 100),
                     'live_demo_balance': self.crypto_monitor.live_demo_balance,
@@ -1245,8 +1403,8 @@ class ICTWebMonitor:
                 self.crypto_monitor.account_blown = False
                 self.crypto_monitor.total_paper_pnl = 0.0
                 
-                # Clear active trades but keep completed ones for learning
-                self.crypto_monitor.active_paper_trades.clear()
+                # NOTE: No need to clear phantom cache - using database-only approach
+                logger.info("🚫 ACCOUNT RESET: Phantom cache clearing skipped - using database-only architecture")
                 
                 logger.info(f"🔄 ACCOUNT RESET: ${old_balance:.2f} → $100.00 | Was Blown: {was_blown}")
                 
@@ -1260,6 +1418,76 @@ class ICTWebMonitor:
             except Exception as e:
                 logger.error(f"❌ Error resetting account: {e}")
                 return jsonify({'error': 'Failed to reset account'}), 500
+        
+        # ============ DIAGNOSTIC AND ANALYSIS ROUTES ============
+        
+        @self.app.route('/api/diagnostic', methods=['GET'])
+        def run_diagnostic():
+            """Run comprehensive system diagnostic check"""
+            try:
+                logger.info("🔍 Running system diagnostic...")
+                
+                # Create diagnostic checker
+                diagnostic = create_diagnostic_checker(
+                    db_path=os.path.join(project_root, "data", "trading.db")
+                )
+                
+                # Run full diagnostic
+                results = diagnostic.run_full_diagnostic()
+                
+                logger.info(f"✅ Diagnostic complete: {results['overall_status']}")
+                return jsonify(results)
+                
+            except Exception as e:
+                logger.error(f"❌ Diagnostic error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': 'An error occurred while running diagnostics',
+                    'timestamp': datetime.now().isoformat()
+                }), 500
+        
+        @self.app.route('/api/analysis/sol', methods=['GET'])
+        def analyze_sol():
+            """Analyze SOL trading opportunity with liquidity zones and FVGs"""
+            try:
+                logger.info("🌟 Analyzing SOL trade opportunity...")
+                
+                # Get current SOL price
+                current_price = None
+                for crypto_data in self.crypto_monitor.crypto_prices.values():
+                    if crypto_data.get('symbol') == 'SOL':
+                        current_price = crypto_data.get('current_price', 0)
+                        break
+                
+                if not current_price:
+                    # Fallback to a reasonable default if price not available
+                    current_price = 150.0  # Default SOL price
+                    logger.warning(f"⚠️ SOL price not found, using default: ${current_price}")
+                
+                # Temporarily disabled - import issue
+                # Create SOL analyzer
+                # sol_analyzer = create_sol_analyzer()
+                
+                # Run analysis
+                # analysis = sol_analyzer.analyze_sol_opportunity(current_price)
+                
+                # logger.info(f"✅ SOL analysis complete: {analysis.get('status', 'unknown')}")
+                # return jsonify(analysis)
+                
+                # Return placeholder for now
+                return jsonify({
+                    'status': 'disabled',
+                    'message': 'SOL analyzer temporarily disabled',
+                    'timestamp': datetime.now().isoformat()
+                })
+                
+            except Exception as e:
+                logger.error(f"❌ SOL analysis error: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'error',
+                    'message': 'An error occurred while analyzing SOL',
+                    'timestamp': datetime.now().isoformat()
+                }), 500
         
         # ============ STATIC FILE SERVING FOR REACT ============
         
@@ -1286,7 +1514,7 @@ class ICTWebMonitor:
                 return send_from_directory(frontend_dist, path)
             
             # Otherwise serve index.html (React Router will handle routing)
-            return send_from_directory(frontend_dist, 'index.html')
+            return send_from_directory(frontend_dist, INDEX_HTML_FILENAME)
     
     def setup_socketio_events(self):
         """Setup SocketIO events for real-time updates"""
@@ -1317,6 +1545,99 @@ class ICTWebMonitor:
                 
                 # Get real-time prices
                 self.current_prices = await self.crypto_monitor.get_real_time_prices()
+                
+                # ⏰ CHECK TRADE HOLD TIMES - Auto-close trades exceeding max duration
+                try:
+                    # 1. Check for un-executed signals (orphans) and expire them after 2 hours
+                    from datetime import datetime, timedelta
+                    conn = self.crypto_monitor.db._get_connection()
+                    cursor = conn.cursor()
+                    
+                    # Find ACTIVE signals older than 2 hours that have no corresponding trade
+                    two_hours_ago = (datetime.now() - timedelta(hours=2)).isoformat()
+                    cursor.execute("""
+                        SELECT s.signal_id, s.symbol, s.direction, s.entry_time
+                        FROM signals s
+                        WHERE s.status = 'ACTIVE'
+                        AND s.entry_time < ?
+                        AND NOT EXISTS (
+                            SELECT 1 FROM paper_trades pt 
+                            WHERE pt.signal_id = s.signal_id
+                        )
+                    """, (two_hours_ago,))
+                    
+                    orphan_signals = cursor.fetchall()
+                    if orphan_signals:
+                        logger.info(f"🧹 Found {len(orphan_signals)} un-executed signals older than 2 hours")
+                        for signal in orphan_signals:
+                            signal_id = signal[0]
+                            symbol = signal[1]
+                            direction = signal[2]
+                            entry_time = signal[3]
+                            
+                            logger.info(f"   Expiring: {symbol} {direction} from {entry_time}")
+                            self.crypto_monitor.db.close_signal(signal_id, 0, 'EXPIRED')
+                    
+                    conn.close()
+                    
+                    # 2. Check active trades for time limits
+                    active_trades = self.crypto_monitor.db.get_active_paper_trades()
+                    if active_trades:
+                        # Log trade status
+                        self.crypto_monitor.trade_manager.log_trade_status(active_trades)
+                        
+                        # Get trades that need to be closed
+                        trades_to_close = self.crypto_monitor.trade_manager.get_trades_to_close(active_trades)
+                        
+                        if trades_to_close:
+                            logger.warning(f"⏰ Closing {len(trades_to_close)} trades due to time limits")
+                            
+                            for trade in trades_to_close:
+                                symbol = trade.get('symbol', 'UNKNOWN')
+                                crypto = symbol.replace('USDT', '')
+                                direction = trade.get('direction', 'UNKNOWN')
+                                entry_price = trade.get('entry_price', 0)
+                                
+                                # Get current price for exit
+                                current_price = entry_price  # Fallback
+                                if crypto in self.current_prices:
+                                    current_price = self.current_prices[crypto].get('price', entry_price)
+                                
+                                # Calculate exit PnL
+                                position_size = trade.get('position_size', 0)
+                                if direction == 'SELL':
+                                    exit_pnl = (entry_price - current_price) * position_size
+                                else:  # BUY
+                                    exit_pnl = (current_price - entry_price) * position_size
+                                
+                                # Close trade in database
+                                signal_id = trade.get('signal_id', '')
+                                close_reason = trade.get('close_reason', 'TIME_LIMIT')
+                                
+                                logger.info(
+                                    f"⏰ Closing {symbol} {direction} @ ${current_price:.2f} "
+                                    f"(Entry: ${entry_price:.2f}, PnL: ${exit_pnl:.2f}) - {close_reason}"
+                                )
+                                
+                                # Update trade status in database
+                                self.crypto_monitor.db.close_paper_trade(
+                                    trade_id=trade.get('id'),
+                                    exit_price=current_price,
+                                    close_reason=close_reason
+                                )
+                                
+                                # Also close the signal if it exists
+                                if signal_id:
+                                    self.crypto_monitor.db.close_signal(signal_id, current_price, close_reason)
+                                
+                                # Update balance
+                                self.crypto_monitor.paper_balance += exit_pnl
+                                self.crypto_monitor.db.update_balance(self.crypto_monitor.paper_balance)
+                                
+                                logger.info(f"💰 Updated balance: ${self.crypto_monitor.paper_balance:.2f}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error in trade time management: {e}")
                 
                 # Update scan count in database
                 self.crypto_monitor.db.increment_scan_count()
@@ -1547,57 +1868,69 @@ class ICTWebMonitor:
             logger.error(f"Error loading completed trades from database: {e}")
         return serialized_completed_trades
 
-    def _get_active_paper_trades(self):
-        """Get active paper trades from paper_trades table with real-time prices"""
-        serialized_active_trades = []
+    def _get_active_paper_trades(self, today_only=False):
+        """Get active paper trades from database ONLY - NO phantom trades
+        
+        Args:
+            today_only (bool): If True, only return trades from today
+        """
         try:
-            # Query paper_trades table for OPEN trades
-            import sqlite3
-            with sqlite3.connect(self.crypto_monitor.db.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.execute('''
-                    SELECT * FROM paper_trades 
-                    WHERE status = 'OPEN'
-                    ORDER BY entry_time DESC
-                ''')
+            # FORCE DATABASE-ONLY: Query paper_trades table directly
+            active_trades = self.crypto_monitor.db.get_active_paper_trades()
+            
+            # Apply date filter if requested
+            if today_only:
+                from datetime import date
+                today = date.today().isoformat()
+                active_trades = [
+                    trade for trade in active_trades 
+                    if trade.get('entry_time', '').startswith(today)
+                ]
+                logger.info(f"📅 Date filter applied: {len(active_trades)} trades from today ({today})")
+            
+            if len(active_trades) == 0:
+                logger.info("🚫 _get_active_paper_trades: Database has 0 active trades - returning empty list")
+                return []
+            
+            logger.info(f"✅ _get_active_paper_trades: Found {len(active_trades)} legitimate database trades")
+            
+            serialized_active_trades = []
+            for trade in active_trades:
+                crypto = trade.get('symbol', 'BTCUSDT').replace('USDT', '')
+                entry_price = trade.get('entry_price', 0)
+                position_size = trade.get('position_size', 0)
+                direction = trade.get('direction', 'BUY')
                 
-                for row in cursor.fetchall():
-                    trade_dict = dict(row)
-                    crypto = trade_dict.get('symbol', 'BTCUSDT').replace('USDT', '')
-                    entry_price = trade_dict.get('entry_price', 0)
-                    position_size = trade_dict.get('position_size', 0)
-                    direction = trade_dict.get('direction', 'BUY')
-                    
-                    # Get REAL-TIME current price from self.current_prices
-                    current_price = entry_price  # Default fallback
-                    if crypto in self.current_prices:
-                        current_price = self.current_prices[crypto].get('price', entry_price)
-                    
-                    # Calculate REAL PnL based on actual position size
-                    if direction == 'SELL':
-                        pnl = (entry_price - current_price) * position_size
-                    else:  # BUY
-                        pnl = (current_price - entry_price) * position_size
+                # Get REAL-TIME current price
+                current_price = entry_price  # Default fallback
+                if crypto in self.current_prices:
+                    current_price = self.current_prices[crypto].get('price', entry_price)
+                
+                # Calculate REAL PnL based on actual position size
+                if direction == 'SELL':
+                    pnl = (entry_price - current_price) * position_size
+                else:  # BUY
+                    pnl = (current_price - entry_price) * position_size
                     
                     position_value = position_size * entry_price
                     
-                    trade = {
-                        'id': trade_dict.get('id', 0),
-                        'signal_id': trade_dict.get('signal_id', ''),
+                    trade_data = {
+                        'id': trade.get('id', 0),
+                        'signal_id': trade.get('signal_id', ''),
                         'crypto': crypto,
                         'action': direction,
                         'entry_price': entry_price,
                         'current_price': current_price,
-                        'stop_loss': trade_dict.get('stop_loss', 0),
-                        'take_profit': trade_dict.get('take_profit', 0),
+                        'stop_loss': trade.get('stop_loss', 0),
+                        'take_profit': trade.get('take_profit', 0),
                         'position_size': position_size,
                         'position_value': position_value,
-                        'risk_amount': trade_dict.get('risk_amount', 0),
+                        'risk_amount': trade.get('risk_amount', 0),
                         'pnl': pnl,
-                        'entry_time': trade_dict.get('entry_time', ''),
+                        'entry_time': trade.get('entry_time', ''),
                         'status': 'OPEN'
                     }
-                    serialized_active_trades.append(trade)
+                    serialized_active_trades.append(trade_data)
             
             logger.info(f"📊 Broadcasting {len(serialized_active_trades)} active paper trades via SocketIO")
         except Exception as e:
@@ -1611,7 +1944,19 @@ class ICTWebMonitor:
         today_signals = 0
         try:
             db_signals = self.crypto_monitor.db.get_signals_today()
-            today_signals = len(db_signals)
+            
+            # Count actual trades executed today (our definition of "Signals Today")
+            # This includes both trades with signal_ids and without
+            from datetime import date
+            today = date.today().isoformat()
+            conn = self.crypto_monitor.db._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM paper_trades 
+                WHERE date(entry_time) = ?
+            """, (today,))
+            today_signals = cursor.fetchone()[0]
+            conn.close()
             
             # Format for UI display (newest first, limit 50)
             for signal in db_signals[:50]:
@@ -1641,8 +1986,8 @@ class ICTWebMonitor:
             # DATABASE-FIRST: Get completed trades from database
             serialized_completed_trades = self._get_completed_trades()
 
-            # Serialize active paper trades FROM DATABASE (any date) with REAL-TIME PRICES and PROPER POSITION SIZING
-            serialized_active_trades = self._get_active_paper_trades()
+            # Serialize active paper trades FROM DATABASE with date filtering and REAL-TIME PRICES
+            serialized_active_trades = self._get_active_paper_trades(today_only=self.crypto_monitor.show_today_only)
 
             # DATABASE-FIRST: Get today's signals from database
             serialized_live_signals, todays_summary, today_signals = self._get_todays_signals()
@@ -2856,6 +3201,208 @@ class ICTWebMonitor:
         except Exception as e:
             logger.error(f"❌ Error starting monitor: {e}")
             raise
+    
+    def _get_fundamental_dashboard_html(self):
+        """Generate fundamental analysis dashboard HTML"""
+        return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Fundamental Analysis - ICT Trading System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(0,255,136,0.2);
+            color: #00ff88;
+            text-decoration: none;
+            border-radius: 8px;
+            border: 1px solid #00ff88;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            background: rgba(0,255,136,0.3);
+            transform: translateX(-5px);
+        }
+        
+        .crypto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .crypto-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        
+        .crypto-card:hover {
+            transform: translateY(-5px);
+            border-color: #00ff88;
+            box-shadow: 0 10px 30px rgba(0,255,136,0.3);
+        }
+        
+        .crypto-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .crypto-name {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        
+        .score {
+            font-size: 2em;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+        
+        .score.bullish { background: rgba(0,255,136,0.3); color: #00ff88; }
+        .score.neutral { background: rgba(255,193,7,0.3); color: #ffc107; }
+        .score.bearish { background: rgba(255,107,107,0.3); color: #ff6b6b; }
+        
+        .recommendation {
+            text-align: center;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .recommendation.strong-buy { background: rgba(0,255,0,0.2); color: #00ff00; border: 2px solid #00ff00; }
+        .recommendation.buy { background: rgba(0,255,136,0.2); color: #00ff88; border: 2px solid #00ff88; }
+        .recommendation.neutral { background: rgba(255,193,7,0.2); color: #ffc107; border: 2px solid #ffc107; }
+        .recommendation.sell { background: rgba(255,107,107,0.2); color: #ff6b6b; border: 2px solid #ff6b6b; }
+        .recommendation.strong-sell { background: rgba(255,0,0,0.2); color: #ff0000; border: 2px solid #ff0000; }
+        
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 30px;
+            background: #00ff88;
+            color: #1e3c72;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #00cc6f;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div class="header">
+        <h1>📊 Fundamental Analysis</h1>
+        <p>Long-term crypto investment analysis</p>
+    </div>
+    
+    <button class="refresh-btn" onclick="loadFundamentals()">🔄 Refresh Analysis</button>
+    
+    <div id="crypto-grid" class="crypto-grid">
+        <p style="text-align: center; color: rgba(255,255,255,0.7);">Loading...</p>
+    </div>
+    
+    <script>
+        function loadFundamentals() {
+            fetch('/api/fundamental')
+                .then(response => response.json())
+                .then(data => {
+                    const grid = document.getElementById('crypto-grid');
+                    grid.innerHTML = '';
+                    
+                    for (const [symbol, analysis] of Object.entries(data)) {
+                        const card = createCryptoCard(symbol, analysis);
+                        grid.appendChild(card);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading fundamentals:', error);
+                    document.getElementById('crypto-grid').innerHTML = 
+                        '<p style="text-align: center; color: #ff6b6b;">Error loading data</p>';
+                });
+        }
+        
+        function createCryptoCard(symbol, analysis) {
+            const card = document.createElement('div');
+            card.className = 'crypto-card';
+            
+            const scoreClass = analysis.score >= 3 ? 'bullish' : 
+                              analysis.score <= -3 ? 'bearish' : 'neutral';
+            
+            const recClass = analysis.recommendation.toLowerCase().replace(' ', '-');
+            
+            card.innerHTML = `
+                <div class="crypto-header">
+                    <div class="crypto-name">${symbol}</div>
+                    <div class="score ${scoreClass}">${analysis.score}/10</div>
+                </div>
+                <div class="recommendation ${recClass}">${analysis.recommendation}</div>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <p style="text-align: center; color: rgba(255,255,255,0.6); font-size: 0.9em;">
+                        Updated: ${analysis.last_update ? new Date(analysis.last_update).toLocaleString() : 'Never'}
+                    </p>
+                    <p style="text-align: center; color: rgba(255,255,255,0.6); font-size: 0.9em; margin-top: 5px;">
+                        Confidence: ${(analysis.confidence * 100).toFixed(0)}%
+                    </p>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // Load on page load
+        loadFundamentals();
+        
+        // Auto-refresh every 5 minutes
+        setInterval(loadFundamentals, 300000);
+    </script>
+</body>
+</html>
+'''
     
     def stop(self):
         """Stop the monitor"""

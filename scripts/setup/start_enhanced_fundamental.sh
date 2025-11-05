@@ -37,7 +37,15 @@ sleep 2
 
 # Start the enhanced system
 echo "🚀 Starting enhanced fundamental analysis server..."
-.venv/bin/python systems/fundamental_analysis/fundamental_analysis_server.py &
+
+# Use virtual environment if available, otherwise use system python3
+if [ -f ".venv/bin/python" ]; then
+    PYTHON_CMD=".venv/bin/python"
+else
+    PYTHON_CMD="python3"
+fi
+
+$PYTHON_CMD systems/fundamental_analysis/fundamental_analysis_server.py &
 
 FUND_PID=$!
 sleep 5
@@ -63,7 +71,7 @@ if kill -0 $FUND_PID 2>/dev/null; then
     
     echo ""
     echo "📝 To test Bitcoin alert detection:"
-    echo "   python3 check_bitcoin_alert.py"
+    echo "   python3 scripts/testing/check_bitcoin_alert.py"
     echo ""
     echo "🛑 To stop: pkill -f fundamental_analysis_server.py"
     echo "========================================"

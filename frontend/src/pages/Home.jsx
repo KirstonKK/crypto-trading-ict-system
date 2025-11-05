@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Activity, BarChart3, TrendingUp, Zap, Shield, Target } from 'lucide-react'
+import { Activity, BarChart3, TrendingUp, Zap, Shield, Target, PieChart } from 'lucide-react'
 
 export default function Home(){
   return (
@@ -60,11 +60,11 @@ export default function Home(){
               ICT Trading System
             </h1>
             <p className="text-gray-600 text-lg mb-8 font-medium">
-              Choose where you want to go — Monitor or Dashboard
+              Choose where you want to go — Monitor, Dashboard, or Fundamental Analysis
             </p>
             
             {/* Main Action Buttons */}
-            <div className="flex flex-col md:flex-row gap-4 justify-center max-w-2xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-4 justify-center max-w-3xl mx-auto">
               <Link 
                 to="/monitor" 
                 className="flex-1 group relative overflow-hidden bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-bold py-5 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-3"
@@ -79,11 +79,20 @@ export default function Home(){
                 <BarChart3 className="w-6 h-6" />
                 <span>Open Dashboard</span>
               </Link>
+              <a 
+                href="http://localhost:5001/fundamental"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 group relative overflow-hidden bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white font-bold py-5 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-3"
+              >
+                <PieChart className="w-6 h-6" />
+                <span>Fundamental Analysis</span>
+              </a>
             </div>
           </div>
 
           {/* Feature Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Monitor Card */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
               <div className="flex items-center gap-4 mb-6">
@@ -122,6 +131,28 @@ export default function Home(){
                 <span>Open Dashboard</span>
                 <Target className="w-4 h-4" />
               </Link>
+            </div>
+
+            {/* Fundamental Analysis Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-violet-100 to-fuchsia-200 rounded-xl flex items-center justify-center">
+                  <PieChart className="w-7 h-7 text-violet-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900">Fundamental Analysis</h3>
+              </div>
+              <p className="text-gray-600 text-base mb-6 leading-relaxed">
+                Long-term investment insights with scores, recommendations, and confidence levels for each crypto.
+              </p>
+              <a 
+                href="http://localhost:5001/fundamental"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <span>Open Analysis</span>
+                <Target className="w-4 h-4" />
+              </a>
             </div>
           </div>
 

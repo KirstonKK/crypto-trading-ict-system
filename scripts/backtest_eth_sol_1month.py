@@ -16,6 +16,7 @@ import os
 import logging
 import pandas as pd
 from datetime import datetime, timedelta
+from typing import Optional, Dict
 import json
 
 # Add project root to path
@@ -117,7 +118,7 @@ class SimpleMonthBacktest:
                     
                     return df
                 else:
-                    logger.error(f"  ❌ API returned no data")
+                    logger.error("  ❌ API returned no data")
                     return pd.DataFrame()
             else:
                 logger.error(f"  ❌ API error: {response.status_code}")
@@ -127,7 +128,7 @@ class SimpleMonthBacktest:
             logger.error(f"  ❌ Error: {e}")
             return pd.DataFrame()
     
-    def backtest_symbol(self, symbol: str, name: str) -> dict:
+    def backtest_symbol(self, symbol: str, name: str) -> Optional[Dict]:
         """Run backtest for one symbol."""
         logger.info("\n" + "=" * 80)
         logger.info(f"BACKTESTING {name} ({symbol})")
@@ -141,11 +142,11 @@ class SimpleMonthBacktest:
             return None
         
         # Prepare multi-timeframe data
-        logger.info(f"Preparing multi-timeframe data...")
+        logger.info("Preparing multi-timeframe data...")
         mtf_data = self.strategy_engine.prepare_multitimeframe_data(df)
         
         # Generate signals
-        logger.info(f"Generating ICT signals...")
+        logger.info("Generating ICT signals...")
         signals = []
         
         for timestamp in df.index[100:]:  # Skip first 100 for indicators
@@ -162,22 +163,20 @@ class SimpleMonthBacktest:
         logger.info(f"✅ Generated {len(signals)} signals")
         
         if not signals:
-            logger.warning(f"⚠️ No signals generated")
+            logger.warning("⚠️ No signals generated")
             return None
         
-        # Run backtest
-        logger.info(f"Backtesting signals...")
+        # Backtest signals
+        logger.info("Backtesting signals...")
         backtest_results = self.strategy_engine.backtest_ict_signals(
             signals=signals,
-            historical_data=df,
-            starting_balance=self.initial_capital
+            price_data=df,
+            initial_capital=self.initial_capital
         )
         
         # Analyze performance
-        logger.info(f"Analyzing performance...")
-        metrics = self.performance_analyzer.analyze_trades(
-            backtest_results['trades']
-        )
+        logger.info("Analyzing performance...")
+        metrics = self.performance_analyzer.analyze_performance(backtest_results)
         
         # Print results
         logger.info("\n" + "-" * 80)
@@ -244,7 +243,7 @@ class SimpleMonthBacktest:
             avg_win_rate = sum(r['metrics'].win_rate for r in results.values()) / len(results)
             avg_return = sum(r['metrics'].total_return for r in results.values()) / len(results)
             
-            logger.info(f"\n📈 Portfolio Statistics:")
+            logger.info("\n📈 Portfolio Statistics:")
             logger.info(f"  Total Trades: {total_trades}")
             logger.info(f"  Average Win Rate: {avg_win_rate:.2f}%")
             logger.info(f"  Average Return: {avg_return:.2f}%")

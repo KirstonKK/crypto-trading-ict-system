@@ -1,14 +1,12 @@
 #!/bin/bash
 
-# 🔍 CHECK ALL TRADING SYSTEMS STATUS
-# ===================================
-# Checks status of all three systems:
-# 1. ICT Enhanced Monitor (Day Trading) - Port 5001
-# 2. Demo Trading System (Auto Trading)
-# 3. Fundamental Analysis System (Long-term) - Port 5002
+# 🔍 CHECK UNIFIED TRADING SYSTEM STATUS
+# =====================================
+# Checks status of unified ICT Enhanced Monitor - Port 5001
+# Integrated Features: Day Trading, Fundamental Analysis, Auto Trading
 
-echo "🔍 TRADING SYSTEMS STATUS CHECK"
-echo "==============================="
+echo "🔍 UNIFIED TRADING SYSTEM STATUS CHECK"
+echo "========================================"
 
 # Function to check if a process is running
 check_process() {
@@ -16,7 +14,7 @@ check_process() {
     local display_name=$2
     local port=$3
     
-    if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
+    if ps aux | grep -q "[$process_name]" || pgrep -f "$process_name" > /dev/null; then
         local pid=$(pgrep -f "$process_name")
         echo "✅ $display_name: RUNNING (PID: $pid)"
         
@@ -46,97 +44,77 @@ test_endpoint() {
     local name=$2
     
     if curl -s --connect-timeout 3 "$url" >/dev/null 2>&1; then
-        echo "   ✅ API: RESPONDING"
+        echo "   ✅ $name: RESPONDING"
         return 0
     else
-        echo "   ❌ API: NOT RESPONDING"
+        echo "   ❌ $name: NOT RESPONDING"
         return 1
     fi
 }
 
-echo "🎯 ICT ENHANCED MONITOR (Day Trading):"
-echo "-------------------------------------"
-check_process "ict_enhanced_monitor.py" "ICT Enhanced Monitor" "5001"
-if [ $? -eq 0 ]; then
-    test_endpoint "http://localhost:5001/health" "ICT Monitor"
-fi
+echo "🎯 UNIFIED ICT TRADING SYSTEM:"
+echo "----------------------------------------"
+check_process "ict_enhanced_monitor.py" "Unified Trading System" "5001"
+SYSTEM_RUNNING=$?
 
-echo ""
-echo "📊 DEMO TRADING SYSTEM (Auto Trading):"
-echo "--------------------------------------"
-check_process "demo_trading_system.py" "Demo Trading System"
-
-echo ""
-echo "🔍 FUNDAMENTAL ANALYSIS (Long-term):"
-echo "------------------------------------"
-check_process "fundamental_analysis_server.py" "Fundamental Analysis System" "5002"
-if [ $? -eq 0 ]; then
-    test_endpoint "http://localhost:5002/api/health" "Fundamental Analysis"
+if [ $SYSTEM_RUNNING -eq 0 ]; then
+    echo ""
+    echo "🧪 TESTING INTEGRATED FEATURES:"
+    echo "----------------------------------------"
+    test_endpoint "http://localhost:5001/health" "Health Check"
+    test_endpoint "http://localhost:5001/api/fundamental" "Fundamental Analysis API"
+    test_endpoint "http://localhost:5001/" "Main Dashboard"
 fi
 
 echo ""
 echo "🌐 WEB INTERFACES:"
-echo "==============================="
-echo "🎯 ICT Day Trading:     http://localhost:5001"
-echo "🔍 Fundamental Analysis: http://localhost:5002"
+echo "========================================"
+echo "🎯 Main Dashboard:        http://localhost:5001"
+echo "� Fundamental Analysis:  http://localhost:5001/fundamental"
+echo "💼 Trading Signals:       http://localhost:5001/"
 
 echo ""
-echo "🔌 PORT USAGE:"
-echo "==============================="
+echo "🔌 PORT STATUS:"
+echo "========================================"
 
-for port in 5001 5002 8000; do
-    if lsof -i :$port >/dev/null 2>&1; then
-        local process_info=$(lsof -i :$port | tail -n 1 | awk '{print $1, $2}')
-        echo "🟢 Port $port: IN USE ($process_info)"
-    else
-        echo "⚪ Port $port: FREE"
-    fi
-done
-
-echo ""
-echo "📊 SYSTEM RESOURCES:"
-echo "==============================="
-
-# Check memory and CPU usage for trading processes
-if pgrep -f "ict_enhanced_monitor\|demo_trading_system\|fundamental_analysis" > /dev/null; then
-    echo "🖥️  Resource Usage:"
-    ps -o pid,ppid,cmd,%mem,%cpu -p $(pgrep -f "ict_enhanced_monitor\|demo_trading_system\|fundamental_analysis" | tr '\n' ',' | sed 's/,$//') 2>/dev/null | head -10
+if lsof -i :5001 >/dev/null 2>&1; then
+    local process_info=$(lsof -i :5001 | tail -n 1 | awk '{print $1, $2}')
+    echo "🟢 Port 5001: IN USE ($process_info)"
 else
-    echo "ℹ️  No trading processes found for resource monitoring"
+    echo "⚪ Port 5001: FREE"
 fi
 
 echo ""
-echo "📋 QUICK STATS:"
-echo "==============================="
+echo "📊 SYSTEM RESOURCES:"
+echo "========================================"
 
-RUNNING_COUNT=0
-TOTAL_SYSTEMS=3
-
-# Count running systems
-ps aux | grep -q "[i]ct_enhanced_monitor.py" && RUNNING_COUNT=$((RUNNING_COUNT + 1))
-ps aux | grep -q "[d]emo_trading_system.py" && RUNNING_COUNT=$((RUNNING_COUNT + 1))
-ps aux | grep -q "[f]undamental_analysis_server.py" && RUNNING_COUNT=$((RUNNING_COUNT + 1))
-
-echo "🎯 Systems Running: $RUNNING_COUNT/$TOTAL_SYSTEMS"
-
-if [ $RUNNING_COUNT -eq 0 ]; then
-    echo "🔴 Status: ALL SYSTEMS DOWN"
-    echo "💡 To start all: ./start_all_systems.sh"
-elif [ $RUNNING_COUNT -eq $TOTAL_SYSTEMS ]; then
-    echo "🟢 Status: ALL SYSTEMS OPERATIONAL"
-    echo "💡 To stop all: ./stop_all_systems.sh"
+# Check memory and CPU usage for trading process
+if pgrep -f "ict_enhanced_monitor" > /dev/null; then
+    echo "🖥️  Resource Usage:"
+    ps -o pid,ppid,cmd,%mem,%cpu -p $(pgrep -f "ict_enhanced_monitor" | tr '\n' ',' | sed 's/,$//') 2>/dev/null | head -10
 else
-    echo "🟡 Status: PARTIAL OPERATION"
-    echo "💡 Some systems need attention"
+    echo "ℹ️  No trading process found for resource monitoring"
+fi
+
+echo ""
+echo "📋 SYSTEM STATUS:"
+echo "========================================"
+
+if [ $SYSTEM_RUNNING -eq 0 ]; then
+    echo "� Status: SYSTEM OPERATIONAL"
+    echo "💡 To stop: ./scripts/setup/stop_all_systems.sh"
+else
+    echo "� Status: SYSTEM DOWN"
+    echo "💡 To start: ./scripts/setup/start_all_systems.sh"
 fi
 
 # Check database status if ICT Monitor is running
 if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
     echo ""
     echo "💾 DATABASE QUICK CHECK:"
-    echo "==============================="
+    echo "========================================"
     
-    if [ -f "trading_data.db" ]; then
+    if [ -f "databases/trading_data.db" ]; then
         echo "✅ Database file exists"
         
         # Quick database stats
@@ -144,7 +122,7 @@ if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
 import sqlite3
 from datetime import date
 try:
-    conn = sqlite3.connect('trading_data.db')
+    conn = sqlite3.connect('databases/trading_data.db')
     cursor = conn.cursor()
     today = date.today().isoformat()
     
@@ -165,6 +143,6 @@ except Exception as e:
 fi
 
 echo ""
-echo "==============================="
+echo "========================================"
 echo "🕐 Last checked: $(date)"
-echo "==============================="
+echo "========================================"

@@ -9,7 +9,7 @@ from flask_socketio import SocketIO
 from functools import wraps
 import jwt
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import os
 from dotenv import load_dotenv
@@ -22,7 +22,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Database path
-DB_PATH = 'data/trading.db'
+DB_PATH = 'databases/trading_data.db'
 
 # ============ AUTHENTICATION ============
 
@@ -34,12 +34,11 @@ def check_password(password, hashed):
     """Verify a password against a hash"""
     return bcrypt.checkpw(password.encode('utf-8'), hashed)
 
-def generate_token(user_id, email):
+def generate_token(user_id):
     """Generate JWT token"""
     payload = {
         'user_id': user_id,
-        'email': email,
-        'exp': datetime.utcnow() + timedelta(days=7)
+        'exp': datetime.now(timezone.utc) + timedelta(days=7)
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
@@ -97,7 +96,7 @@ def register():
     conn.commit()
     conn.close()
     
-    token = generate_token(user_id, email)
+    token = generate_token(user_id)
     
     return jsonify({
         'message': 'User created successfully',
@@ -124,7 +123,7 @@ def login():
     if not user or not check_password(password, user[2]):
         return jsonify({'message': 'Invalid credentials'}), 401
     
-    token = generate_token(user[0], user[1])
+    token = generate_token(user[0])
     
     return jsonify({
         'token': token,
@@ -355,4 +354,4 @@ if __name__ == '__main__':
     print("   Dashboard: http://localhost:5001")
     print("   API Docs: http://localhost:5001/api/health")
     
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True, allow_unsafe_werkzeug=True)
