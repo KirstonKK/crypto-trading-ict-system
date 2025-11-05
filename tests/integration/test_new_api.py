@@ -10,7 +10,7 @@ import hashlib
 
 def test_new_api_key(api_key, api_secret):
     """Test if new API key works"""
-    print(f"🔍 Testing API Key: {api_key}")
+    print("🔍 Testing API Key: {api_key}")
     
     timestamp = str(int(time.time() * 1000))
     recv_window = '5000'
@@ -49,11 +49,11 @@ def test_new_api_key(api_key, api_secret):
             print("❌ API key invalid/pending activation")
             return False
         else:
-            print(f"❌ Error: {data.get('retMsg')}")
+            print("❌ Error: {data.get('retMsg')}")
             return False
             
     except Exception as e:
-        print(f"❌ Connection error: {e}")
+        print("❌ Connection error: {e}")
         return False
 
 if __name__ == '__main__':
@@ -69,8 +69,8 @@ if __name__ == '__main__':
         
         if result:
             print("\n🎉 Ready to update .env file!")
-            print(f"BYBIT_API_KEY={api_key}")
-            print(f"BYBIT_API_SECRET={api_secret}")
+            print("BYBIT_API_KEY={api_key}")
+            print("BYBIT_API_SECRET={api_secret}")
         else:
             print("\n⏳ API key not yet active. Try again in a few minutes.")
     else:

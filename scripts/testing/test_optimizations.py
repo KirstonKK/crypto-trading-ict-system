@@ -19,7 +19,7 @@ def test_optimization_implementation():
     print("-" * 50)
     
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Check recent signals with confluence scores
@@ -38,21 +38,21 @@ def test_optimization_implementation():
             for signal in recent_signals:
                 symbol, direction, confluence, strength, entry_time = signal
                 status = "✅ PASSED" if confluence >= 0.65 else "❌ FAILED"
-                print(f"   {symbol} {direction} | Confluence: {confluence:.3f} | Strength: {strength} | {status}")
+                print("   {symbol} {direction} | Confluence: {confluence:.3f} | Strength: {strength} | {status}")
         else:
             print("ℹ️  No recent signals found (system may be working correctly by filtering out low-quality signals)")
             
         conn.close()
         
     except Exception as e:
-        print(f"❌ Database test failed: {e}")
+        print("❌ Database test failed: {e}")
     
     # Test 2: Trend Filtering Logic
     print("\n🔄 TEST 2: TREND FILTERING SYSTEM")
     print("-" * 50)
     
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Check for opposing positions on same symbol
@@ -71,7 +71,7 @@ def test_optimization_implementation():
             symbol_directions = {}
             for pos in positions:
                 symbol, direction, count = pos
-                print(f"   {symbol}: {direction} x{count}")
+                print("   {symbol}: {direction} x{count}")
                 
                 if symbol not in symbol_directions:
                     symbol_directions[symbol] = []
@@ -81,7 +81,7 @@ def test_optimization_implementation():
             opposing_found = False
             for symbol, directions in symbol_directions.items():
                 if len(set(directions)) > 1:  # Multiple different directions
-                    print(f"❌ OPPOSING POSITIONS FOUND: {symbol} has {directions}")
+                    print("❌ OPPOSING POSITIONS FOUND: {symbol} has {directions}")
                     opposing_found = True
             
             if not opposing_found:
@@ -92,14 +92,14 @@ def test_optimization_implementation():
         conn.close()
         
     except Exception as e:
-        print(f"❌ Position test failed: {e}")
+        print("❌ Position test failed: {e}")
     
     # Test 3: Dynamic Position Sizing
     print("\n⚖️  TEST 3: DYNAMIC POSITION SIZING")
     print("-" * 50)
     
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         # Check recent trades with different risk amounts
@@ -120,11 +120,11 @@ def test_optimization_implementation():
                 symbol, direction, risk_amount, position_size, entry_time = trade
                 risk_amounts.add(risk_amount)
                 risk_pct = risk_amount * 100  # Convert to percentage
-                print(f"   {symbol} {direction} | Risk: ${risk_amount:.3f} ({risk_pct:.1f}%) | Size: {position_size:.4f}")
+                print("   {symbol} {direction} | Risk: ${risk_amount:.3f} ({risk_pct:.1f}%) | Size: {position_size:.4f}")
             
             if len(risk_amounts) > 1:
                 print("✅ DYNAMIC SIZING ACTIVE: Multiple risk amounts detected")
-                print(f"   Risk range: ${min(risk_amounts):.3f} - ${max(risk_amounts):.3f}")
+                print("   Risk range: ${min(risk_amounts):.3f} - ${max(risk_amounts):.3f}")
             else:
                 print("ℹ️  Single risk amount detected (may indicate uniform signal quality)")
         else:
@@ -133,7 +133,7 @@ def test_optimization_implementation():
         conn.close()
         
     except Exception as e:
-        print(f"❌ Position sizing test failed: {e}")
+        print("❌ Position sizing test failed: {e}")
     
     # Summary
     print("\n📋 OPTIMIZATION SUMMARY")
@@ -151,7 +151,7 @@ def test_optimization_implementation():
     print("   • Risk Management: Better position sizing") 
     print("   • Portfolio: No conflicting positions")
     
-    print(f"\n⏰ Test completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("\n⏰ Test completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("="*70)
 
 if __name__ == "__main__":

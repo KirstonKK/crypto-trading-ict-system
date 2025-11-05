@@ -486,7 +486,7 @@ class FallbackWebhookServer:
     def _load_basic_config(self) -> Dict:
         try:
             return self.config_loader.get_config("webhook")
-        except:
+        except Exception:
             return {'secret_key': 'fallback-key'}
     
     def add_alert_handler(self, handler: Callable) -> None:
@@ -546,13 +546,13 @@ if __name__ == "__main__":
     
     async def test_handler(alert: WebhookAlert):
         """Test alert handler."""
-        print(f"Received alert: {alert.action} {alert.symbol} at {alert.price}")
+        print("Received alert: {alert.action} {alert.symbol} at {alert.price}")
     
     async def main():
         # Initialize webhook server
         try:
             server = WebhookServer(port=8080)
-        except:
+        except Exception:
             # Use fallback if aiohttp not available
             server = FallbackWebhookServer(port=8080)
         

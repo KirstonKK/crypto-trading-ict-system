@@ -40,7 +40,7 @@ class PredictiveTradingSystem:
     
     def process_tradingview_signal(self, webhook_data):
         """Process TradingView signal with predictive analysis"""
-        print(f"📡 Processing TradingView signal: {webhook_data.get('symbol', 'Unknown')}")
+        print("📡 Processing TradingView signal: {webhook_data.get('symbol', 'Unknown')}")
         
         # Add ML prediction to the signal
         enhanced_data = enhanced_webhook_handler(webhook_data)
@@ -216,15 +216,15 @@ def example_predictive_trading():
     
     print("🔮 PREDICTIVE TRADING ANALYSIS")
     print("=" * 40)
-    print(f"📈 Original Signal: {sample_webhook['action']} {sample_webhook['symbol']}")
-    print(f"🤖 ML Prediction: {enhanced_signal.get('ml_prediction', {}).get('direction', 'N/A')}")
-    print(f"🎯 Combined Confidence: {trading_decision['confidence']:.2%}")
-    print(f"⚠️  Risk Level: {trading_decision['risk_level']:.2%}")
-    print(f"💰 Recommended Position: {trading_decision['position_size']:.1%}")
-    print(f"🚀 Expected Return: {trading_decision['expected_return']:.2f}%")
-    print(f"🛑 Stop Loss: ${trading_decision['stop_loss']:.2f}")
-    print(f"🎯 Take Profit: ${trading_decision['take_profit']:.2f}")
-    print(f"📋 Action: {trading_decision['action']}")
+    print("📈 Original Signal: {sample_webhook['action']} {sample_webhook['symbol']}")
+    print("🤖 ML Prediction: {enhanced_signal.get('ml_prediction', {}).get('direction', 'N/A')}")
+    print("🎯 Combined Confidence: {trading_decision['confidence']:.2%}")
+    print("⚠️  Risk Level: {trading_decision['risk_level']:.2%}")
+    print("💰 Recommended Position: {trading_decision['position_size']:.1%}")
+    print("🚀 Expected Return: {trading_decision['expected_return']:.2f}%")
+    print("🛑 Stop Loss: ${trading_decision['stop_loss']:.2f}")
+    print("🎯 Take Profit: ${trading_decision['take_profit']:.2f}")
+    print("📋 Action: {trading_decision['action']}")
 
 if __name__ == "__main__":
     example_predictive_trading()

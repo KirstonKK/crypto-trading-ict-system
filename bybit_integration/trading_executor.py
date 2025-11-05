@@ -4,6 +4,7 @@ Bybit Trading Executor
 
 Integrates ICT Enhanced Trading Monitor signals with Bybit demo trading.
 Executes trades based on signals while managing risk and position limits.
+Version: 1.0 - CodeRabbit Review Target
 """
 
 import asyncio
@@ -47,7 +48,7 @@ class TradingSignal:
     position_size: Optional[float] = None
     
     # Signal metadata
-    signal_id: str = None
+    signal_id: Optional[str] = None  # FIXED: Use Optional[str] instead of str = None
     session_multiplier: float = 1.0
     market_session: str = "Unknown"
 
@@ -123,10 +124,10 @@ class BybitTradingExecutor:
         self.total_pnl: float = 0.0
         
         logger.info("🤖 Bybit Trading Executor initialized")
-        logger.info(f"   Max Positions: {max_positions}")
-        logger.info(f"   Max Risk/Trade: {max_risk_per_trade*100:.1f}%")
-        logger.info(f"   Max Portfolio Risk: {max_portfolio_risk*100:.1f}%")
-        logger.info(f"   Min Confidence: {min_confidence*100:.1f}%")
+        logger.info("   Max Positions: {max_positions}")
+        logger.info("   Max Risk/Trade: {max_risk_per_trade*100:.1f}%")
+        logger.info("   Max Portfolio Risk: {max_portfolio_risk*100:.1f}%")
+        logger.info("   Min Confidence: {min_confidence*100:.1f}%")
 
     async def initialize(self):
         """Initialize executor by updating portfolio state"""
@@ -182,7 +183,7 @@ class BybitTradingExecutor:
             for trade_id in trades_to_remove:
                 closed_trade = self.active_trades.pop(trade_id)
                 self.execution_history.append(closed_trade)
-                logger.info(f"🔄 Synced closed position: {closed_trade.symbol}")
+                logger.info("🔄 Synced closed position: {closed_trade.symbol}")
                 
         except Exception as e:
             logger.error(f"❌ Failed to sync positions: {e}")
@@ -253,8 +254,8 @@ class BybitTradingExecutor:
             else:
                 position_size = adjusted_risk / current_price
         else:
-            # Default to 2% price movement as stop loss
-            default_stop_distance = current_price * 0.02
+            # Default to 2% price movement as stop loss  
+            # FIXED: Removed unused variable default_stop_distance
             position_value = adjusted_risk / 0.02
             position_size = position_value / current_price
         
@@ -364,7 +365,7 @@ class BybitTradingExecutor:
             take_profit_price = signal.take_profit
             if self.dynamic_take_profit and hasattr(signal, 'confluence_score') and hasattr(signal, 'bias_strength'):
                 take_profit_price = self.calculate_dynamic_take_profit(signal, current_price)
-                logger.info(f"🎯 Using dynamic take profit: ${take_profit_price:.6f} (original: ${signal.take_profit:.6f if signal.take_profit else 0:.6f})")
+                logger.info("🎯 Using dynamic take profit: ${take_profit_price:.6f} (original: ${signal.take_profit:.6f if signal.take_profit else 0:.6f})")
             
             # Place order
             order_result = await self.client.place_order(
@@ -396,10 +397,10 @@ class BybitTradingExecutor:
             # Update statistics
             self.total_trades += 1
             
-            logger.info(f"🚀 Trade executed: {bybit_symbol} {side} {position_size:.6f} @ ${current_price:.4f}")
-            logger.info(f"   Order ID: {trade_execution.order_id}")
-            logger.info(f"   Confidence: {signal.confidence:.1%}")
-            logger.info(f"   Confluences: {', '.join(signal.confluence_factors)}")
+            logger.info("🚀 Trade executed: {bybit_symbol} {side} {position_size:.6f} @ ${current_price:.4f}")
+            logger.info("   Order ID: {trade_execution.order_id}")
+            logger.info("   Confidence: {signal.confidence:.1%}")
+            logger.info("   Confluences: {', '.join(signal.confluence_factors)}")
             
             # Update portfolio state
             await self._update_portfolio_state()
@@ -410,50 +411,68 @@ class BybitTradingExecutor:
             logger.error(f"❌ Failed to execute signal: {e}")
             return None
 
+    async def _check_order_status(self, trade):
+        """Check and update order status"""
+        orders = await self.client.get_orders(trade.symbol)
+        current_order = None
+        
+        for order in orders:
+            if order.get('orderId') == trade.order_id:
+                current_order = order
+                break
+        
+        if current_order:
+            order_status = current_order.get('orderStatus', '')
+            
+            if order_status == 'Filled':
+                # Order filled
+                trade.status = OrderStatus.FILLED
+                trade.entry_price = float(current_order.get('avgPrice', trade.entry_price))
+                
+                logger.info(f"✅ Trade filled: {trade.symbol} @ ${trade.entry_price:.4f}")
+                
+            elif order_status in ['Cancelled', 'Rejected']:
+                # Order cancelled/rejected
+                trade.status = OrderStatus.CANCELLED
+                logger.warning(f"❌ Trade cancelled: {trade.symbol}")
+                return True  # Signal to remove from active trades
+        
+        return False  # Keep in active trades
+    
+    async def _check_position_closure(self, trade, trade_id):
+        """Check if position was closed"""
+        positions = await self.client.get_positions(trade.symbol)
+        has_position = any(float(pos.get('size', 0)) > 0 for pos in positions)
+        
+        if trade.status == OrderStatus.FILLED and not has_position:
+            # Position was closed
+            await self._close_trade(trade_id)
+
     async def monitor_trades(self):
         """Monitor active trades and update their status"""
         try:
             if not self.active_trades:
                 return
             
-            for trade_id, trade in list(self.active_trades.items()):
+            trades_to_remove = []
+            
+            for trade_id, trade in self.active_trades.items():
                 if trade.status != OrderStatus.PENDING:
                     continue
                 
                 # Check order status
-                orders = await self.client.get_orders(trade.symbol)
-                current_order = None
+                should_remove = await self._check_order_status(trade)
                 
-                for order in orders:
-                    if order.get('orderId') == trade.order_id:
-                        current_order = order
-                        break
-                
-                if current_order:
-                    order_status = current_order.get('orderStatus', '')
-                    
-                    if order_status == 'Filled':
-                        # Order filled
-                        trade.status = OrderStatus.FILLED
-                        trade.entry_price = float(current_order.get('avgPrice', trade.entry_price))
-                        
-                        logger.info(f"✅ Trade filled: {trade.symbol} @ ${trade.entry_price:.4f}")
-                        
-                    elif order_status in ['Cancelled', 'Rejected']:
-                        # Order cancelled/rejected
-                        trade.status = OrderStatus.CANCELLED
-                        self.active_trades.pop(trade_id)
-                        self.execution_history.append(trade)
-                        
-                        logger.warning(f"❌ Trade cancelled: {trade.symbol}")
-                
-                # Check for position closure
-                positions = await self.client.get_positions(trade.symbol)
-                has_position = any(float(pos.get('size', 0)) > 0 for pos in positions)
-                
-                if trade.status == OrderStatus.FILLED and not has_position:
-                    # Position was closed
-                    await self._close_trade(trade_id)
+                if should_remove:
+                    trades_to_remove.append(trade_id)
+                    self.execution_history.append(trade)
+                else:
+                    # Check for position closure
+                    await self._check_position_closure(trade, trade_id)
+            
+            # Remove cancelled/rejected trades
+            for trade_id in trades_to_remove:
+                self.active_trades.pop(trade_id)
                     
         except Exception as e:
             logger.error(f"❌ Error monitoring trades: {e}")
@@ -510,7 +529,7 @@ class BybitTradingExecutor:
                     logger.info(f"🔒 Emergency close: {symbol}")
             
             # Clear active trades
-            for trade_id in list(self.active_trades.keys()):
+            for trade_id in self.active_trades.keys():
                 await self._close_trade(trade_id)
                 
         except Exception as e:

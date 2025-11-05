@@ -29,7 +29,7 @@ def backup_database():
 def analyze_cleanup_scope():
     """Analyze what data will be affected by cleanup"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         print('🔍 CLEANUP SCOPE ANALYSIS')
@@ -144,7 +144,7 @@ def perform_cleanup(confirm=False):
         print('\\n⚠️  This is a DRY RUN - no data will be deleted')
     
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         today = datetime.now().strftime('%Y-%m-%d')
@@ -182,7 +182,7 @@ def perform_cleanup(confirm=False):
             cursor.execute('SELECT COUNT(*) FROM scan_history')
             scan_history_count = cursor.fetchone()[0]
             print(f'🔍 Scan history records: {scan_history_count} (preserved)')
-        except:
+        except Exception:
             print(f'🔍 Scan history: table not found (ok)')
         
         if confirm:
@@ -200,14 +200,14 @@ def perform_cleanup(confirm=False):
             try:
                 conn.rollback()
                 conn.close()
-            except:
+            except Exception:
                 pass
         return False
 
 def verify_system_integrity():
     """Verify that persistence code and system functionality is intact"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         print('\\n🔍 VERIFYING SYSTEM INTEGRITY')

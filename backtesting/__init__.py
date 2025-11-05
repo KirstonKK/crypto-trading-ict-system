@@ -22,8 +22,8 @@ Date: September 2025
 """
 
 from .data_loader import DataLoader
-from .strategy_engine import StrategyEngine  
+from .strategy_engine import ICTStrategyEngine  
 from .performance_analyzer import PerformanceAnalyzer
 
 __version__ = "1.0.0"
-__all__ = ["DataLoader", "StrategyEngine", "PerformanceAnalyzer"]
+__all__ = ["DataLoader", "ICTStrategyEngine", "PerformanceAnalyzer"]

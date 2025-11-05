@@ -986,7 +986,7 @@ if __name__ == "__main__":
                 close_price = current_price - 200  # Bearish candle
                 high_price = max(open_price, close_price) + 50
                 low_price = min(open_price, close_price) - 50
-                volume = np.random.randint(1000, 3000)  # Higher volume
+                volume = np.random.default_rng(42).integers(1000, 3000)  # Higher volume
                 
                 # Add displacement in next few candles
                 for j in range(1, 6):
@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
                 close_price = current_price + np.random.randn() * 30
                 high_price = max(open_price, close_price) + abs(np.random.randn()) * 20
                 low_price = min(open_price, close_price) - abs(np.random.randn()) * 20
-                volume = np.random.randint(500, 1500)
+                volume = np.random.default_rng(42).integers(500, 1500)
             
             price_data.append({
                 'open': open_price,
@@ -1024,7 +1024,7 @@ if __name__ == "__main__":
         # Get summary
         summary = detector.get_detection_summary(enhanced_order_blocks)
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                    ORDER BLOCK DETECTION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════════╣

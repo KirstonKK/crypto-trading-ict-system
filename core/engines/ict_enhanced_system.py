@@ -17,6 +17,7 @@ Features:
 
 Author: GitHub Copilot Trading Algorithm
 Date: September 2025
+Version: 1.0 - CodeRabbit Review Target
 """
 
 import asyncio
@@ -65,7 +66,7 @@ class ICTEnhancedSystemLauncher:
         try:
             logger.info("🚀 Starting ICT Enhanced System with EOBs...")
             
-            print(f"""
+            print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║               🎯 ICT ENHANCED SYSTEM LAUNCHER 🎯                 ║
 ║                                                                  ║
@@ -80,7 +81,7 @@ class ICTEnhancedSystemLauncher:
 """)
             
             # Initialize and run the main controller in webhook mode
-            from main import TradingAlgorithmController
+            from src.core.main import TradingAlgorithmController
             
             controller = TradingAlgorithmController()
             self.components['controller'] = controller

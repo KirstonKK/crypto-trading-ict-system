@@ -31,7 +31,7 @@ class Position:
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     unrealized_pnl: float = 0.0
-    timestamp: datetime = None
+    timestamp: Optional[datetime] = None
     
     def __post_init__(self):
         if self.timestamp is None:
@@ -237,7 +237,7 @@ class RiskManager:
         max_portfolio_risk = self.risk_config['position_sizing']['max_portfolio_risk']
         
         if current_risk + position_risk > max_portfolio_risk:
-            self.logger.warning(f"Adding position would exceed portfolio risk limit")
+            self.logger.warning("Adding position would exceed portfolio risk limit")
             return False
         
         # Add position

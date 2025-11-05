@@ -977,7 +977,7 @@ if __name__ == "__main__":
             'high': [p * (1 + abs(np.random.normal(0, 0.002))) for p in prices[:-1]],
             'low': [p * (1 - abs(np.random.normal(0, 0.002))) for p in prices[:-1]],
             'close': prices[1:],
-            'volume': np.random.uniform(100, 1000, 199)
+            'volume': np.random.default_rng(42).uniform(100, 1000, 199)
         }, index=dates[1:])
         
         # Initialize analyzer
@@ -986,7 +986,7 @@ if __name__ == "__main__":
         # Analyze Fibonacci confluence
         fib_zones = analyzer.analyze_fibonacci_confluence(df, "BTC/USDT", "1h")
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                   FIBONACCI ANALYSIS RESULTS                    ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -1004,7 +1004,7 @@ if __name__ == "__main__":
         # Get OTE analysis
         ote_analysis = analyzer.get_optimal_trade_entry_analysis("BTC/USDT", "1h")
         if ote_analysis:
-            print(f"""
+            print("""
 📐 Optimal Trade Entry (OTE) Analysis:
    In OTE Zone:        {ote_analysis['is_in_ote']}
    OTE High:          ${ote_analysis['ote_zone_high']:,.2f}
@@ -1017,7 +1017,7 @@ if __name__ == "__main__":
         
         # Get summary
         summary = analyzer.get_fibonacci_summary("BTC/USDT", "1h")
-        print(f"""
+        print("""
 📊 Fibonacci Summary:
    Premium Zones:      {summary['premium_zones']}
    High Quality:       {summary['high_quality_zones']}

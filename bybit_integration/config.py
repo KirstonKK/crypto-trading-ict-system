@@ -7,7 +7,7 @@ Create a .env file in your project root with these settings.
 """
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 @dataclass
@@ -16,10 +16,14 @@ class BybitConfig:
     api_key: str = ""
     api_secret: str = ""
     testnet: bool = True
+    demo: bool = False  # Demo Mainnet (real prices, fake money)
     base_url: str = ""
     
     def __post_init__(self):
-        if self.testnet:
+        # Demo Mainnet takes precedence
+        if self.demo:
+            self.base_url = "https://api-demo.bybit.com"
+        elif self.testnet:
             self.base_url = "https://api-testnet.bybit.com"
         else:
             self.base_url = "https://api.bybit.com"
@@ -56,7 +60,7 @@ class ICTConfig:
     
     # Signal filtering
     min_confluence_factors: int = 2
-    required_sessions: list = None
+    required_sessions: Optional[list] = None
     
     def __post_init__(self):
         if self.required_sessions is None:
@@ -121,7 +125,8 @@ def load_config_from_env(env_file: str = ".env") -> IntegrationConfig:
     bybit_config = BybitConfig(
         api_key=os.getenv("BYBIT_API_KEY", ""),
         api_secret=os.getenv("BYBIT_API_SECRET", ""),
-        testnet=os.getenv("BYBIT_TESTNET", "true").lower() == "true"
+        testnet=os.getenv("BYBIT_TESTNET", "true").lower() == "true",
+        demo=os.getenv("BYBIT_DEMO", "false").lower() == "true"
     )
     
     # Trading configuration
@@ -256,7 +261,7 @@ def create_env_template(filename: str = ".env.template"):
     with open(filename, 'w') as f:
         f.write(ENV_TEMPLATE.strip())
     
-    print(f"✅ Environment template created: {filename}")
+    print("✅ Environment template created: {filename}")
     print("📝 Copy this to .env and update with your API credentials")
 
 if __name__ == "__main__":
@@ -273,7 +278,7 @@ if __name__ == "__main__":
         else:
             print("❌ Configuration errors:")
             for error in errors:
-                print(f"   - {error}")
+                print("   - {error}")
                 
     except Exception as e:
-        print(f"❌ Error loading configuration: {e}")
+        print("❌ Error loading configuration: {e}")

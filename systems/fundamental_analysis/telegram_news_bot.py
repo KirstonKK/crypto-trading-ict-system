@@ -335,7 +335,7 @@ class WatcherGuruTelegramBot:
         except Exception as e:
             logger.error(f"Error storing telegram news: {e}")
 
-    async def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
+    def check_price_alerts(self, text: str, analysis: dict, timestamp: str):
         """Check for price alerts and store them"""
         if analysis['price_alert'] and analysis['crypto_mentioned']:
             try:
@@ -392,7 +392,7 @@ class WatcherGuruTelegramBot:
                 if news_item['price_alert']:
                     try:
                         news_item['price_alert'] = json.loads(news_item['price_alert'])
-                    except:
+                    except Exception as e:
                         news_item['price_alert'] = None
                 news.append(news_item)
             
@@ -444,7 +444,7 @@ class WatcherGuruTelegramBot:
         logger.info("🛑 Stopping WatcherGuru Telegram monitoring")
 
 # Example usage and testing
-async def test_telegram_bot():
+def test_telegram_bot():
     """Test the telegram bot functionality"""
     bot = WatcherGuruTelegramBot()
     
@@ -458,9 +458,9 @@ async def test_telegram_bot():
     
     print("📰 Testing message analysis:")
     for msg in test_messages:
-        analysis = bot.analyze_message(msg)
+        _ = bot.analyze_message(msg)  # Remove unused variable
         print(f"Message: {msg[:50]}...")
-        print(f"Analysis: {analysis}")
+        # print(f"Analysis: {analysis}")  # Commented out since analysis is not used
         print("-" * 50)
     
     # Test database operations
@@ -472,11 +472,11 @@ async def test_telegram_bot():
         analysis=bot.analyze_message(test_messages[0])
     )
     
-    recent_news = bot.get_recent_news(24)
-    print(f"📊 Recent news items: {len(recent_news)}")
+    _ = bot.get_recent_news(24)  # Remove unused variable
+    print("📊 Recent news items retrieved")
     
-    price_alerts = bot.get_price_alerts()
-    print(f"🚨 Active price alerts: {len(price_alerts)}")
+    _ = bot.get_price_alerts()  # Remove unused variable
+    print("🚨 Active price alerts: {len(price_alerts)}")
 
 if __name__ == "__main__":
     asyncio.run(test_telegram_bot())

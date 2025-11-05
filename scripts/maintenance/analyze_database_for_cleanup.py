@@ -12,7 +12,7 @@ import json
 def analyze_database():
     """Analyze the database and identify cleanup candidates"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         print('🔍 DATABASE ANALYSIS FOR CLEANUP')

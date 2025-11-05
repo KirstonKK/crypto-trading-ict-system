@@ -34,7 +34,7 @@ class FundamentalBridge:
         try:
             response = requests.get(f"{self.base_url}/api/health", timeout=self.timeout)
             return response.status_code == 200
-        except:
+        except Exception:
             return False
     
     def get_insights(self, symbol: str) -> Optional[Dict]:
@@ -353,20 +353,20 @@ if __name__ == "__main__":
         # Test getting insights for BTC
         insights = bridge.get_insights('BTC')
         if insights:
-            print(f"📊 BTC Insights: Score {insights.get('overall_score')}/100")
-            print(f"📈 Recommendation: {insights.get('recommendation')}")
+            print("📊 BTC Insights: Score {insights.get('overall_score')}/100")
+            print("📈 Recommendation: {insights.get('recommendation')}")
         
         # Test getting trading signals
         signals = bridge.get_investment_signals('BTC')
         if signals.get('available'):
-            print(f"🎯 BTC Trading Bias: {signals.get('long_term_bias')}")
-            print(f"📝 Summary: {signals.get('summary')}")
+            print("🎯 BTC Trading Bias: {signals.get('long_term_bias')}")
+            print("📝 Summary: {signals.get('summary')}")
         
         # Test market overview
         overview = bridge.get_market_overview()
         if overview:
-            print(f"🌍 Market Sentiment: {overview.get('market_sentiment')}")
-            print(f"📈 Average Score: {overview.get('average_score', 0):.1f}")
+            print("🌍 Market Sentiment: {overview.get('market_sentiment')}")
+            print("📈 Average Score: {overview.get('average_score', 0):.1f}")
     else:
         print("❌ Fundamental analysis system is not available")
         print("💡 Start it with: ./launch_fundamental_analysis.sh")

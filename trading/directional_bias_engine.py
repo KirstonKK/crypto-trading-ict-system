@@ -343,11 +343,11 @@ class DirectionalBiasEngine:
             
             self.current_bias = ny_bias
             
-            self.logger.info(f"🎯 NY Open Bias Analysis:")
-            self.logger.info(f"   Directional Bias: {bias_analysis['bias'].value}")
-            self.logger.info(f"   Bias Strength: {bias_analysis['strength']:.2f}")
-            self.logger.info(f"   Elliott Wave: {wave_analysis['current_wave'].value}")
-            self.logger.info(f"   Institutional Flow: {institutional_flow}")
+            self.logger.info("🎯 NY Open Bias Analysis:")
+            self.logger.info("   Directional Bias: {bias_analysis['bias'].value}")
+            self.logger.info("   Bias Strength: {bias_analysis['strength']:.2f}")
+            self.logger.info("   Elliott Wave: {wave_analysis['current_wave'].value}")
+            self.logger.info("   Institutional Flow: {institutional_flow}")
             
             return ny_bias
             
@@ -406,8 +406,8 @@ class DirectionalBiasEngine:
             
             self.smart_money_areas = smart_areas
             
-            self.logger.info(f"💰 Smart Money Areas Identified: {len(smart_areas)}")
-            self.logger.info(f"   Current Value Area: {current_area_type.value}")
+            self.logger.info("💰 Smart Money Areas Identified: {len(smart_areas)}")
+            self.logger.info("   Current Value Area: {current_area_type.value}")
             
             return smart_areas
             
@@ -415,6 +415,36 @@ class DirectionalBiasEngine:
             self.logger.error(f"❌ Error identifying smart money areas: {e}")
             return []
     
+    def _check_bullish_choch(self, current_price: float, swing_highs: List, recent_data: pd.DataFrame, 
+                            current_time: datetime, choch_signals: List) -> None:
+        """Check for bullish Change of Character"""
+        latest_swing_high = swing_highs[-1]
+        if current_price > latest_swing_high['price']:
+            bullish_choch = self._validate_choch_signal(
+                recent_data, latest_swing_high, ChangeOfCharacter.BULLISH_CHOCH, current_time
+            )
+            if bullish_choch:
+                choch_signals.append(bullish_choch)
+    
+    def _check_bearish_choch(self, current_price: float, swing_lows: List, recent_data: pd.DataFrame, 
+                            current_time: datetime, choch_signals: List) -> None:
+        """Check for bearish Change of Character"""
+        latest_swing_low = swing_lows[-1]
+        if current_price < latest_swing_low['price']:
+            bearish_choch = self._validate_choch_signal(
+                recent_data, latest_swing_low, ChangeOfCharacter.BEARISH_CHOCH, current_time
+            )
+            if bearish_choch:
+                choch_signals.append(bearish_choch)
+    
+    def _filter_validated_signals(self, choch_signals: List, recent_data: pd.DataFrame) -> List:
+        """Filter out low-quality ChoCH signals"""
+        validated_signals = []
+        for signal in choch_signals:
+            if self._validate_choch_quality(signal, recent_data):
+                validated_signals.append(signal)
+        return validated_signals
+
     def detect_change_of_character(self, price_data: pd.DataFrame) -> List[ChangeOfCharacterSignal]:
         """
         Look for Change of Character (ChoCH) signals.
@@ -437,28 +467,13 @@ class DirectionalBiasEngine:
             current_time = latest_candle.name if hasattr(latest_candle.name, 'to_pydatetime') else datetime.now()
             
             # Check for bullish ChoCH (break above previous swing high)
-            latest_swing_high = swing_highs[-1]
-            if current_price > latest_swing_high['price']:
-                bullish_choch = self._validate_choch_signal(
-                    recent_data, latest_swing_high, ChangeOfCharacter.BULLISH_CHOCH, current_time
-                )
-                if bullish_choch:
-                    choch_signals.append(bullish_choch)
+            self._check_bullish_choch(current_price, swing_highs, recent_data, current_time, choch_signals)
             
             # Check for bearish ChoCH (break below previous swing low)
-            latest_swing_low = swing_lows[-1]
-            if current_price < latest_swing_low['price']:
-                bearish_choch = self._validate_choch_signal(
-                    recent_data, latest_swing_low, ChangeOfCharacter.BEARISH_CHOCH, current_time
-                )
-                if bearish_choch:
-                    choch_signals.append(bearish_choch)
+            self._check_bearish_choch(current_price, swing_lows, recent_data, current_time, choch_signals)
             
             # Filter out low-quality ChoCH signals
-            validated_signals = []
-            for signal in choch_signals:
-                if self._validate_choch_quality(signal, recent_data):
-                    validated_signals.append(signal)
+            validated_signals = self._filter_validated_signals(choch_signals, recent_data)
             
             self.active_choch_signals.extend(validated_signals)
             
@@ -521,8 +536,8 @@ class DirectionalBiasEngine:
             
             if high_quality_retests:
                 self.logger.info(f"🎯 Retest Opportunities: {len(high_quality_retests)}")
-                for retest in high_quality_retests:
-                    self.logger.info(f"   {retest.retest_type} at {retest.retest_level:.4f} (Quality: {retest.retest_quality})")
+                for _ in high_quality_retests:
+                    self.logger.info("   Retest opportunity found")
             
             return high_quality_retests
             
@@ -530,8 +545,72 @@ class DirectionalBiasEngine:
             self.logger.error(f"❌ Error identifying retest opportunities: {e}")
             return []
     
+    def _calculate_fib_levels(self, swing_high: float, swing_low: float, current_bias: Optional[NYOpenBias]) -> Dict[float, float]:
+        """Calculate Fibonacci retracement levels based on bias"""
+        fib_levels = {}
+        
+        for level in self.key_fibonacci_levels:
+            if current_bias and current_bias.directional_bias in [
+                DirectionalBias.BULLISH_CONFIRMED, DirectionalBias.BULLISH_DEVELOPING
+            ]:
+                # Bullish bias: Fib retracement from swing high
+                fib_price = swing_high - ((swing_high - swing_low) * level)
+            else:
+                # Bearish bias: Fib extension from swing low  
+                fib_price = swing_low + ((swing_high - swing_low) * level)
+            
+            fib_levels[level] = fib_price
+        
+        return fib_levels
+    
+    def _analyze_fib_confluence(self, fib_levels: Dict[float, float], current_price: float, 
+                               price_tolerance: float, confluence_analysis: Dict) -> None:
+        """Analyze Fibonacci level confluence with current price"""
+        for level, fib_price in fib_levels.items():
+            distance = abs(current_price - fib_price)
+            if distance <= price_tolerance:
+                weight = 0.2 if level in self.institutional_levels else 0.1
+                confluence_analysis['fibonacci_score'] += weight
+                confluence_analysis['key_levels'].append({
+                    'level': level,
+                    'price': fib_price,
+                    'distance': distance,
+                    'institutional': level in self.institutional_levels
+                })
+    
+    def _analyze_elliott_wave_targets(self, swing_high: float, swing_low: float, 
+                                     current_price: float, price_tolerance: float,
+                                     confluence_analysis: Dict) -> None:
+        """Analyze Elliott Wave target confluence"""
+        if not self.current_bias:
+            return
+        
+        suspected_wave = self.current_bias.suspected_wave
+        if suspected_wave not in self.elliott_targets:
+            return
+        
+        wave_targets = self.elliott_targets[suspected_wave]
+        
+        for target_ratio in wave_targets:
+            if suspected_wave in [ElliottWavePattern.IMPULSE_3, ElliottWavePattern.IMPULSE_5]:
+                # Extension targets
+                target_price = swing_low + ((swing_high - swing_low) * target_ratio)
+            else:
+                # Retracement targets
+                target_price = swing_high - ((swing_high - swing_low) * target_ratio)
+            
+            distance = abs(current_price - target_price)
+            if distance <= price_tolerance:
+                confluence_analysis['elliott_wave_score'] += 0.15
+                confluence_analysis['wave_targets'].append({
+                    'wave': suspected_wave.value,
+                    'ratio': target_ratio,
+                    'price': target_price,
+                    'distance': distance
+                })
+
     def calculate_fibonacci_elliott_confluence(self, 
-                                             setup_data: Dict,
+                                             _setup_data: Dict,
                                              price_data: pd.DataFrame) -> Dict[str, float]:
         """
         Calculate Fibonacci retracement confluence with Elliott Wave theory.
@@ -555,57 +634,16 @@ class DirectionalBiasEngine:
             current_price = recent_data.iloc[-1]['close']
             
             # Calculate key Fibonacci levels
-            fib_levels = {}
-            for level in self.key_fibonacci_levels:
-                if self.current_bias and self.current_bias.directional_bias in [
-                    DirectionalBias.BULLISH_CONFIRMED, DirectionalBias.BULLISH_DEVELOPING
-                ]:
-                    # Bullish bias: Fib retracement from swing high
-                    fib_price = swing_high - ((swing_high - swing_low) * level)
-                else:
-                    # Bearish bias: Fib extension from swing low  
-                    fib_price = swing_low + ((swing_high - swing_low) * level)
-                
-                fib_levels[level] = fib_price
+            fib_levels = self._calculate_fib_levels(swing_high, swing_low, self.current_bias)
             
             # Check current price proximity to key Fibonacci levels
             price_tolerance = (swing_high - swing_low) * 0.02  # 2% tolerance
             
-            for level, fib_price in fib_levels.items():
-                distance = abs(current_price - fib_price)
-                if distance <= price_tolerance:
-                    weight = 0.2 if level in self.institutional_levels else 0.1
-                    confluence_analysis['fibonacci_score'] += weight
-                    confluence_analysis['key_levels'].append({
-                        'level': level,
-                        'price': fib_price,
-                        'distance': distance,
-                        'institutional': level in self.institutional_levels
-                    })
+            self._analyze_fib_confluence(fib_levels, current_price, price_tolerance, confluence_analysis)
             
             # Elliott Wave analysis
-            if self.current_bias:
-                suspected_wave = self.current_bias.suspected_wave
-                if suspected_wave in self.elliott_targets:
-                    wave_targets = self.elliott_targets[suspected_wave]
-                    
-                    for target_ratio in wave_targets:
-                        if suspected_wave in [ElliottWavePattern.IMPULSE_3, ElliottWavePattern.IMPULSE_5]:
-                            # Extension targets
-                            target_price = swing_low + ((swing_high - swing_low) * target_ratio)
-                        else:
-                            # Retracement targets
-                            target_price = swing_high - ((swing_high - swing_low) * target_ratio)
-                        
-                        distance = abs(current_price - target_price)
-                        if distance <= price_tolerance:
-                            confluence_analysis['elliott_wave_score'] += 0.15
-                            confluence_analysis['wave_targets'].append({
-                                'wave': suspected_wave.value,
-                                'ratio': target_ratio,
-                                'price': target_price,
-                                'distance': distance
-                            })
+            self._analyze_elliott_wave_targets(swing_high, swing_low, current_price, 
+                                              price_tolerance, confluence_analysis)
             
             # Combined confluence calculation
             confluence_analysis['combined_confluence'] = min(
@@ -613,7 +651,7 @@ class DirectionalBiasEngine:
                 1.0
             )
             
-            self.logger.info(f"📊 Fibonacci + Elliott Wave Confluence:")
+            self.logger.info("📊 Fibonacci + Elliott Wave Confluence:")
             self.logger.info(f"   Fibonacci Score: {confluence_analysis['fibonacci_score']:.2f}")
             self.logger.info(f"   Elliott Wave Score: {confluence_analysis['elliott_wave_score']:.2f}")
             self.logger.info(f"   Combined Confluence: {confluence_analysis['combined_confluence']:.2f}")
@@ -624,6 +662,54 @@ class DirectionalBiasEngine:
             self.logger.error(f"❌ Error calculating Fibonacci-Elliott confluence: {e}")
             return {'fibonacci_score': 0.0, 'elliott_wave_score': 0.0, 'combined_confluence': 0.0}
     
+    def _check_bullish_fvg(self, candle_1, candle_2, candle_3, recent_data, i, current_time, fvgs):
+        """Check for bullish FVG pattern"""
+        if (candle_3['low'] > candle_1['high'] and 
+            candle_2['high'] < candle_3['low'] and 
+            candle_2['low'] > candle_1['high']):
+            
+            gap_high = candle_3['low']
+            gap_low = candle_1['high'] 
+            gap_size = gap_high - gap_low
+            
+            # Minimum gap size filter (0.1% of price)
+            if gap_size / candle_3['close'] > 0.001:
+                fvg = self._create_fvg(
+                    FVGType.BULLISH_FVG,
+                    gap_high,
+                    gap_low,
+                    gap_size,
+                    candle_3,
+                    recent_data.index[i],
+                    current_time
+                )
+                if fvg:
+                    fvgs.append(fvg)
+    
+    def _check_bearish_fvg(self, candle_1, candle_2, candle_3, recent_data, i, current_time, fvgs):
+        """Check for bearish FVG pattern"""
+        if (candle_3['high'] < candle_1['low'] and
+              candle_2['low'] > candle_3['high'] and
+              candle_2['high'] < candle_1['low']):
+            
+            gap_high = candle_1['low']
+            gap_low = candle_3['high']
+            gap_size = gap_high - gap_low
+            
+            # Minimum gap size filter
+            if gap_size / candle_3['close'] > 0.001:
+                fvg = self._create_fvg(
+                    FVGType.BEARISH_FVG,
+                    gap_high,
+                    gap_low,
+                    gap_size,
+                    candle_3,
+                    recent_data.index[i],
+                    current_time
+                )
+                if fvg:
+                    fvgs.append(fvg)
+
     def identify_fair_value_gaps(self, price_data: pd.DataFrame) -> List[FairValueGap]:
         """
         Identify Fair Value Gaps (FVG) - Price imbalances that require filling.
@@ -651,50 +737,10 @@ class DirectionalBiasEngine:
                 candle_3 = recent_data.iloc[i]
                 
                 # Check for bullish FVG (gap up)
-                if (candle_3['low'] > candle_1['high'] and 
-                    candle_2['high'] < candle_3['low'] and 
-                    candle_2['low'] > candle_1['high']):
-                    
-                    gap_high = candle_3['low']
-                    gap_low = candle_1['high'] 
-                    gap_size = gap_high - gap_low
-                    
-                    # Minimum gap size filter (0.1% of price)
-                    if gap_size / candle_3['close'] > 0.001:
-                        fvg = self._create_fvg(
-                            FVGType.BULLISH_FVG,
-                            gap_high,
-                            gap_low,
-                            gap_size,
-                            candle_3,
-                            recent_data.index[i],
-                            current_time
-                        )
-                        if fvg:
-                            fvgs.append(fvg)
+                self._check_bullish_fvg(candle_1, candle_2, candle_3, recent_data, i, current_time, fvgs)
                 
                 # Check for bearish FVG (gap down)
-                elif (candle_3['high'] < candle_1['low'] and
-                      candle_2['low'] > candle_3['high'] and
-                      candle_2['high'] < candle_1['low']):
-                    
-                    gap_high = candle_1['low']
-                    gap_low = candle_3['high']
-                    gap_size = gap_high - gap_low
-                    
-                    # Minimum gap size filter
-                    if gap_size / candle_3['close'] > 0.001:
-                        fvg = self._create_fvg(
-                            FVGType.BEARISH_FVG,
-                            gap_high,
-                            gap_low,
-                            gap_size,
-                            candle_3,
-                            recent_data.index[i],
-                            current_time
-                        )
-                        if fvg:
-                            fvgs.append(fvg)
+                self._check_bearish_fvg(candle_1, candle_2, candle_3, recent_data, i, current_time, fvgs)
             
             # Filter and rank FVGs by strength
             valid_fvgs = [fvg for fvg in fvgs if fvg.get_gap_strength() > 0.3]
@@ -709,7 +755,7 @@ class DirectionalBiasEngine:
     
     def _create_fvg(self, fvg_type: FVGType, high: float, low: float, gap_size: float,
                    formation_candle: pd.Series, formation_time: datetime, 
-                   current_time: datetime) -> Optional[FairValueGap]:
+                   _current_time: datetime) -> Optional[FairValueGap]:
         """Create FVG with confluence analysis."""
         try:
             # Determine formation session
@@ -717,7 +763,6 @@ class DirectionalBiasEngine:
             
             # Analyze volume context
             volume_on_formation = formation_candle.get('volume', 0)
-            avg_volume = formation_candle.get('volume', volume_on_formation) * 0.8  # Approximation
             
             # Calculate confluence factors
             fibonacci_alignment = self._check_fibonacci_alignment(high, low)
@@ -807,7 +852,7 @@ class DirectionalBiasEngine:
             valid_obs = [ob for ob in order_blocks if ob.is_valid_for_trade()]
             valid_obs.sort(key=lambda x: x.get_block_strength(), reverse=True)
             
-            self.logger.info(f"🏗️ Found {len(valid_obs)} high-quality Enhanced Order Blocks")
+            self.logger.info("🏗️ Found {len(valid_obs)} high-quality Enhanced Order Blocks")
             return valid_obs[:5]  # Return top 5 Order Blocks
             
         except Exception as e:
@@ -854,7 +899,7 @@ class DirectionalBiasEngine:
     
     def _create_enhanced_order_block(self, ob_type: OrderBlockType, candle: pd.Series,
                                    formation_time: datetime, data: pd.DataFrame, 
-                                   index: int, current_time: datetime) -> Optional[EnhancedOrderBlock]:
+                                   index: int, _current_time: datetime) -> Optional[EnhancedOrderBlock]:
         """Create Enhanced Order Block with full analysis."""
         try:
             # Basic OHLC data
@@ -908,13 +953,13 @@ class DirectionalBiasEngine:
             self.logger.error(f"❌ Error creating Enhanced Order Block: {e}")
             return None
     
-    def _check_fibonacci_alignment(self, high: float, low: float) -> float:
+    def _check_fibonacci_alignment(self, _high: float, _low: float) -> float:
         """Check alignment with key Fibonacci levels."""
         # Simplified Fibonacci alignment check
         # In practice, would check against established swing levels
         return 0.5  # Placeholder
     
-    def _check_smart_money_correlation(self, high: float, low: float) -> float:
+    def _check_smart_money_correlation(self, _high: float, _low: float) -> float:
         """Check correlation with smart money areas."""
         # Would check against identified smart money zones
         return 0.4  # Placeholder
@@ -1001,7 +1046,7 @@ class DirectionalBiasEngine:
                 return None
             
             # Generate comprehensive signal with quality metrics
-            logger.info(f"✅ HIGH-QUALITY ICT SIGNAL GENERATED:")
+            logger.info("✅ HIGH-QUALITY ICT SIGNAL GENERATED:")
             logger.info(f"   Bias Strength: {ny_bias.bias_strength:.3f} (≥0.6 required)")
             logger.info(f"   Total Confluence: {total_confluence_score:.3f} (≥0.7 required)")
             logger.info(f"   FVG Count: {fvg_confluence} | Order Blocks: {ob_confluence}")
@@ -1039,11 +1084,11 @@ class DirectionalBiasEngine:
                 'take_profit_targets': self._calculate_take_profit_targets(confluence_data)
             }
             
-            self.logger.info(f"🎯 ICT ENHANCED BIAS SIGNAL GENERATED")
-            self.logger.info(f"   Overall Confluence: {signal['overall_confluence_score']:.2f}")
-            self.logger.info(f"   FVG Confluence: {fvg_confluence} gaps")
-            self.logger.info(f"   Order Block Confluence: {ob_confluence} blocks")
-            self.logger.info(f"   Recommended Action: {signal['recommended_action']}")
+            self.logger.info("🎯 ICT ENHANCED BIAS SIGNAL GENERATED")
+            self.logger.info("   Overall Confluence: {signal['overall_confluence_score']:.2f}")
+            self.logger.info("   FVG Confluence: {fvg_confluence} gaps")
+            self.logger.info("   Order Block Confluence: {ob_confluence} blocks")
+            self.logger.info("   Recommended Action: {signal['recommended_action']}")
             
             return signal
             
@@ -1074,12 +1119,12 @@ class DirectionalBiasEngine:
             return 0.0
     
     # Helper methods (implementation details)
-    def _get_session_data(self, price_data: pd.DataFrame, start_time: datetime, end_time: datetime) -> pd.DataFrame:
+    def _get_session_data(self, price_data: pd.DataFrame, _start_time: datetime, _end_time: datetime) -> pd.DataFrame:
         """Get price data for specific session timeframe."""
         # Implementation would filter price_data by time range
         return price_data.tail(30)  # Placeholder
     
-    def _calculate_directional_bias(self, session_data, session_high, session_low, open_price, current_price):
+    def _calculate_directional_bias(self, _session_data, session_high, session_low, open_price, current_price):
         """Calculate directional bias based on price action."""
         range_position = (current_price - session_low) / (session_high - session_low)
         price_change_pct = (current_price - open_price) / open_price
@@ -1102,7 +1147,7 @@ class DirectionalBiasEngine:
             'confirmation_level': confirmation_level
         }
     
-    def _analyze_elliott_wave_context(self, session_data, full_data):
+    def _analyze_elliott_wave_context(self, _session_data, _full_data):
         """Analyze Elliott Wave pattern context."""
         # Simplified Elliott Wave detection
         return {
@@ -1118,20 +1163,20 @@ class DirectionalBiasEngine:
             'large_block_trades': 3
         }
     
-    def _detect_institutional_flow(self, session_data, volume_profile):
+    def _detect_institutional_flow(self, _session_data, _volume_profile):
         """Detect institutional money flow."""
         return 'BUYING'  # Simplified
     
-    def _get_previous_session_context(self, price_data):
+    def _get_previous_session_context(self, _price_data):
         """Get context from previous trading session."""
         return {'previous_bias': 'BULLISH', 'session_range': 0.02}
     
-    def _analyze_session_smart_money(self, price_data, session, current_area_type):
+    def _analyze_session_smart_money(self, _price_data, _session, _current_area_type):
         """Analyze smart money areas for specific session."""
         # Placeholder implementation
         return []
     
-    def _find_fibonacci_clusters(self, area, daily_high, daily_low):
+    def _find_fibonacci_clusters(self, _area, _daily_high, _daily_low):
         """Find Fibonacci level clusters in area."""
         return [0.618, 0.79]  # Placeholder
     
@@ -1160,11 +1205,11 @@ class DirectionalBiasEngine:
             fibonacci_confluence_score=0.7
         )
     
-    def _validate_choch_quality(self, signal, data):
+    def _validate_choch_quality(self, signal, _data):
         """Validate ChoCH signal quality."""
         return signal.volume_confirmation and signal.follow_through_strength > 0.6
     
-    def _analyze_retest_opportunity(self, data, choch_signal, current_price, current_time):
+    def _analyze_retest_opportunity(self, _data, choch_signal, current_price, current_time):
         """Analyze potential retest opportunity."""
         return RetestOpportunity(
             timestamp=current_time,
@@ -1179,15 +1224,15 @@ class DirectionalBiasEngine:
             wave_target_projection=current_price * 1.05
         )
     
-    def _calculate_fibonacci_confluence(self, retest, price_data):
+    def _calculate_fibonacci_confluence(self, _retest, _price_data):
         """Calculate Fibonacci confluence for retest."""
         return 0.79  # Placeholder
     
-    def _get_wave_context(self, retest, price_data):
+    def _get_wave_context(self, _retest, _price_data):
         """Get Elliott Wave context for retest."""
         return ElliottWavePattern.CORRECTION_2
     
-    def _determine_action(self, ny_bias, choch_signals):
+    def _determine_action(self, ny_bias, _choch_signals):
         """Determine recommended trading action."""
         if ny_bias.directional_bias in [DirectionalBias.BULLISH_CONFIRMED, DirectionalBias.BULLISH_DEVELOPING]:
             return 'BUY'
@@ -1196,6 +1241,28 @@ class DirectionalBiasEngine:
         else:
             return 'WAIT'
     
+    def _add_order_block_levels(self, order_blocks, entry_levels):
+        """Add Order Block levels to entry analysis"""
+        if not order_blocks:
+            return
+        
+        for ob in order_blocks[:2]:  # Top 2 order blocks
+            if ob.ob_type == OrderBlockType.BULLISH_OB:
+                entry_levels.append(ob.high)  # Buy at resistance-turned-support
+            elif ob.ob_type == OrderBlockType.BEARISH_OB:
+                entry_levels.append(ob.low)   # Sell at support-turned-resistance
+    
+    def _add_fvg_levels(self, fair_value_gaps, entry_levels):
+        """Add Fair Value Gap levels to entry analysis"""
+        if not fair_value_gaps:
+            return
+        
+        for fvg in fair_value_gaps[:2]:  # Top 2 FVGs
+            if fvg.fvg_type == FVGType.BULLISH_FVG:
+                entry_levels.append(fvg.low)   # Buy at FVG support
+            elif fvg.fvg_type == FVGType.BEARISH_FVG:
+                entry_levels.append(fvg.high)  # Sell at FVG resistance
+
     def _calculate_entry_range(self, retest_opportunities, order_blocks=None, fair_value_gaps=None):
         """Calculate optimal entry price range with FVG and Order Block confluence."""
         entry_levels = []
@@ -1205,20 +1272,10 @@ class DirectionalBiasEngine:
             entry_levels.append(retest.retest_level)
         
         # Add Order Block levels
-        if order_blocks:
-            for ob in order_blocks[:2]:  # Top 2 order blocks
-                if ob.ob_type == OrderBlockType.BULLISH_OB:
-                    entry_levels.append(ob.high)  # Buy at resistance-turned-support
-                elif ob.ob_type == OrderBlockType.BEARISH_OB:
-                    entry_levels.append(ob.low)   # Sell at support-turned-resistance
+        self._add_order_block_levels(order_blocks, entry_levels)
         
         # Add FVG levels
-        if fair_value_gaps:
-            for fvg in fair_value_gaps[:2]:  # Top 2 FVGs
-                if fvg.fvg_type == FVGType.BULLISH_FVG:
-                    entry_levels.append(fvg.low)   # Buy at FVG support
-                elif fvg.fvg_type == FVGType.BEARISH_FVG:
-                    entry_levels.append(fvg.high)  # Sell at FVG resistance
+        self._add_fvg_levels(fair_value_gaps, entry_levels)
         
         if entry_levels:
             avg_level = sum(entry_levels) / len(entry_levels)
@@ -1231,12 +1288,12 @@ class DirectionalBiasEngine:
         
         return {'optimal': 0, 'min': 0, 'max': 0, 'confluence_levels': []}
     
-    def _calculate_stop_loss(self, ny_bias, retest_opportunities):
+    def _calculate_stop_loss(self, _ny_bias, retest_opportunities):
         """Calculate stop loss level."""
         if retest_opportunities:
             return retest_opportunities[0].retest_level * 0.99
         return 0
     
-    def _calculate_take_profit_targets(self, confluence_data):
+    def _calculate_take_profit_targets(self, _confluence_data):
         """Calculate take profit targets based on confluence."""
         return [1.5, 2.5, 4.0]  # Risk:reward ratios

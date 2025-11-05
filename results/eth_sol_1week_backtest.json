@@ -1,0 +1,30 @@
+{
+  "ETHUSDT": {
+    "name": "Ethereum",
+    "signals": 3,
+    "trades": 1,
+    "metrics": {
+      "win_rate": 100.0,
+      "total_return": 2.4024737536036267,
+      "sharpe_ratio": 0.0,
+      "max_drawdown": 0.0,
+      "profit_factor": Infinity,
+      "avg_win": 240.24737536036264,
+      "avg_loss": 0.0
+    }
+  },
+  "SOLUSDT": {
+    "name": "Solana",
+    "signals": 3,
+    "trades": 1,
+    "metrics": {
+      "win_rate": 100.0,
+      "total_return": 5.282696152979169,
+      "sharpe_ratio": 0.0,
+      "max_drawdown": 0.0,
+      "profit_factor": Infinity,
+      "avg_win": 528.269615297917,
+      "avg_loss": 0.0
+    }
+  }
+}

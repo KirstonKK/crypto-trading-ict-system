@@ -44,7 +44,7 @@ class FundsMonitor:
             return True
             
         except Exception as e:
-            print(f"❌ Failed to initialize client: {e}")
+            print("❌ Failed to initialize client: {e}")
             return False
     
     async def check_balance(self):
@@ -59,14 +59,14 @@ class FundsMonitor:
             return usdt_balance
             
         except Exception as e:
-            print(f"❌ Error checking balance: {e}")
+            print("❌ Error checking balance: {e}")
             return 0
     
     async def monitor_funds(self):
         """Main monitoring loop"""
         print("🔍 BYBIT DEMO FUNDS MONITOR STARTED")
         print("=" * 50)
-        print(f"⏰ Checking every {self.check_interval} seconds...")
+        print("⏰ Checking every {self.check_interval} seconds...")
         print("🎯 Waiting for demo funds to appear...")
         print("📋 You can request funds at: https://testnet.bybit.com/asset")
         print()
@@ -78,18 +78,18 @@ class FundsMonitor:
                 check_count += 1
                 current_time = datetime.now().strftime("%H:%M:%S")
                 
-                print(f"[{current_time}] Check #{check_count}: ", end="", flush=True)
+                print("[{current_time}] Check #{check_count}: ", end="", flush=True)
                 
                 balance = await self.check_balance()
                 
                 if balance > 0:
-                    print(f"✅ FUNDS DETECTED: ${balance:,.2f} USDT!")
+                    print("✅ FUNDS DETECTED: ${balance:,.2f} USDT!")
                     print()
                     print("🎉 DEMO FUNDS ALLOCATION SUCCESSFUL!")
                     print("=" * 50)
-                    print(f"💰 Available Balance: ${balance:,.2f} USDT")
-                    print(f"📊 1% Risk per Trade: ${balance * 0.01:.2f}")
-                    print(f"📈 Target Profit (3x): ${balance * 0.03:.2f}")
+                    print("💰 Available Balance: ${balance:,.2f} USDT")
+                    print("📊 1% Risk per Trade: ${balance * 0.01:.2f}")
+                    print("📈 Target Profit (3x): ${balance * 0.03:.2f}")
                     print()
                     print("🚀 Ready to start demo trading system!")
                     print("💡 Run: python3 demo_trading_system.py")
@@ -108,7 +108,7 @@ class FundsMonitor:
                 print("\n🛑 Monitoring stopped by user")
                 break
             except Exception as e:
-                print(f"❌ Error in monitoring: {e}")
+                print("❌ Error in monitoring: {e}")
                 await asyncio.sleep(self.check_interval)
         
         if self.client:
@@ -128,11 +128,11 @@ class FundsMonitor:
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
             print("✅ Demo trading system started!")
-            print(f"📊 Process ID: {process.pid}")
+            print("📊 Process ID: {process.pid}")
             print("🔗 Monitor at: http://localhost:5001")
             
         except Exception as e:
-            print(f"❌ Failed to auto-start demo trading: {e}")
+            print("❌ Failed to auto-start demo trading: {e}")
             print("💡 Please manually run: python3 demo_trading_system.py")
 
 async def main():

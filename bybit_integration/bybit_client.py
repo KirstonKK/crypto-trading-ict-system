@@ -30,34 +30,50 @@ class BybitDemoClient:
     - Balance retrieval
     """
     
-    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = True):
+    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = True, demo: bool = False):
         """
         Initialize Bybit Demo Client
         
         Args:
             api_key: Bybit API key (from environment if not provided)
             api_secret: Bybit API secret (from environment if not provided)
-            testnet: Use testnet environment (True for demo trading)
+            testnet: Use testnet environment (fake prices, fake money)
+            demo: Use demo mainnet environment (real prices, fake money) - overrides testnet
         """
         self.api_key = api_key or os.getenv('BYBIT_API_KEY')
         self.api_secret = api_secret or os.getenv('BYBIT_API_SECRET')
         self.testnet = testnet
+        self.demo = demo
         
-        if testnet:
+        # Check for missing credentials
+        if not self.api_key or not self.api_secret:
+            logger.warning("⚠️  Missing Bybit API credentials - some features may not work")
+            # Don't raise error, allow fallback to Binance prices
+            
+        # Demo Mainnet takes precedence (real prices, fake money)
+        if demo:
+            self.base_url = "https://api-demo.bybit.com"
+            self.ws_url = "wss://stream-demo.bybit.com/v5/private"
+            env_name = "Demo Mainnet (Real Prices, Fake Money) ✅"
+        elif testnet:
             self.base_url = "https://api-testnet.bybit.com"
             self.ws_url = "wss://stream-testnet.bybit.com/v5/private"
+            env_name = "Testnet (Fake Prices, Fake Money)"
         else:
             self.base_url = "https://api.bybit.com"
             self.ws_url = "wss://stream.bybit.com/v5/private"
+            env_name = "Live Mainnet (Real Money) ⚠️"
             
         self.session = None
         self.last_request_time = 0
         self.rate_limit_delay = 0.1  # 100ms between requests
         
-        logger.info(f"🔗 Bybit Client initialized - {'Testnet' if testnet else 'Mainnet'}")
+        logger.info(f"🔗 Bybit Client initialized - {env_name}")
 
     def _generate_signature(self, timestamp: str, params: str) -> str:
         """Generate HMAC SHA256 signature for API authentication"""
+        if not self.api_secret:
+            return ""
         recv_window = "5000"
         param_str = str(timestamp) + self.api_key + recv_window + params
         signature = hmac.new(
@@ -69,6 +85,9 @@ class BybitDemoClient:
 
     def _prepare_headers(self, params: str = "") -> Dict[str, str]:
         """Prepare authentication headers for API requests"""
+        if not self.api_key or not self.api_secret:
+            return {"Content-Type": "application/json"}
+            
         timestamp = str(int(time.time() * 1000))
         signature = self._generate_signature(timestamp, params)
         
@@ -81,7 +100,7 @@ class BybitDemoClient:
             "Content-Type": "application/json"
         }
 
-    async def _ensure_session(self):
+    def _ensure_session(self):
         """Ensure aiohttp session is available"""
         if self.session is None or self.session.closed:
             self.session = aiohttp.ClientSession()
@@ -106,7 +125,11 @@ class BybitDemoClient:
         Returns:
             API response data
         """
-        await self._ensure_session()
+        if not self.api_key or not self.api_secret:
+            logger.error("❌ Missing Bybit API credentials")
+            return {}
+            
+        self._ensure_session()
         await self._rate_limit()
         
         url = f"{self.base_url}{endpoint}"
@@ -129,20 +152,23 @@ class BybitDemoClient:
         if data.get('retCode') != 0:
             error_msg = data.get('retMsg', 'Unknown error')
             logger.error(f"❌ Bybit API Error: {error_msg}")
-            raise Exception(f"Bybit API Error: {error_msg}")
+            raise RuntimeError(f"Bybit API Error: {error_msg}")
             
         return data.get('result', {})
 
     # Account Management
     async def get_account_info(self) -> Dict:
         """Get account information including balance and positions"""
+        if not self.api_key or not self.api_secret:
+            logger.warning("⚠️  Cannot get account info: missing API credentials")
+            return {}
         try:
             return await self._make_request("GET", "/v5/account/wallet-balance", {
                 "accountType": "UNIFIED"
             })
         except Exception as e:
             logger.error(f"❌ Failed to get account info: {e}")
-            raise
+            return {}
 
     async def get_balance(self) -> Dict[str, float]:
         """
@@ -151,6 +177,9 @@ class BybitDemoClient:
         Returns:
             Dictionary with asset balances
         """
+        if not self.api_key or not self.api_secret:
+            logger.warning("⚠️  Cannot get balance: missing API credentials")
+            return {}
         try:
             account_info = await self.get_account_info()
             balances = {}
@@ -353,6 +382,9 @@ class BybitDemoClient:
         Returns:
             Ticker data including price, volume, etc.
         """
+        if not self.api_key or not self.api_secret:
+            logger.warning(f"⚠️  Cannot get ticker for {symbol}: missing API credentials")
+            return {}
         try:
             params = {
                 "category": "linear",
@@ -365,7 +397,8 @@ class BybitDemoClient:
             if tickers:
                 return tickers[0]
             else:
-                raise Exception(f"No ticker data for {symbol}")
+                logger.warning(f"No ticker data for {symbol}")
+                return {}
                 
         except Exception as e:
             logger.error(f"❌ Failed to get ticker: {e}")

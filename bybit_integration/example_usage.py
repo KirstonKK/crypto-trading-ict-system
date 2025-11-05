@@ -124,11 +124,11 @@ class IntegrationExample:
                 confidence = signal_data.get("confidence", 0.0)
                 confluences = signal_data.get("confluence_factors", [])
                 
-                logger.info(f"📡 ICT Signal Received:")
-                logger.info(f"   Symbol: {symbol}")
-                logger.info(f"   Action: {action}")
-                logger.info(f"   Confidence: {confidence:.1%}")
-                logger.info(f"   Confluences: {', '.join(confluences)}")
+                logger.info("📡 ICT Signal Received:")
+                logger.info("   Symbol: {symbol}")
+                logger.info("   Action: {action}")
+                logger.info("   Confidence: {confidence:.1%}")
+                logger.info("   Confluences: {', '.join(confluences)}")
                 
                 # Log signal statistics
                 await self.log_signal_stats()
@@ -153,11 +153,11 @@ class IntegrationExample:
                 quantity = trade_data.get("quantity", 0.0)
                 price = trade_data.get("entry_price", 0.0)
                 
-                logger.info(f"🚀 Trade Executed:")
-                logger.info(f"   Symbol: {symbol}")
-                logger.info(f"   Side: {side}")
-                logger.info(f"   Quantity: {quantity:.6f}")
-                logger.info(f"   Price: ${price:.4f}")
+                logger.info("🚀 Trade Executed:")
+                logger.info("   Symbol: {symbol}")
+                logger.info("   Side: {side}")
+                logger.info("   Quantity: {quantity:.6f}")
+                logger.info("   Price: ${price:.4f}")
                 
                 # Update statistics
                 if trade_data.get("pnl", 0) > 0:
@@ -175,7 +175,7 @@ class IntegrationExample:
         uptime = datetime.now() - self.stats["start_time"]
         signals_per_hour = self.stats["signals_received"] / max(uptime.total_seconds() / 3600, 0.01)
         
-        logger.info(f"📊 Signal Stats: {self.stats['signals_received']} total, {signals_per_hour:.1f}/hour")
+        logger.info("📊 Signal Stats: {self.stats['signals_received']} total, {signals_per_hour:.1f}/hour")
 
     async def log_trading_stats(self):
         """Log current trading statistics"""
@@ -183,11 +183,11 @@ class IntegrationExample:
             win_rate = (self.stats["profitable_trades"] / self.stats["trades_executed"]) * 100
             avg_pnl = self.stats["total_pnl"] / self.stats["trades_executed"]
             
-            logger.info(f"💹 Trading Stats:")
-            logger.info(f"   Trades: {self.stats['trades_executed']}")
-            logger.info(f"   Win Rate: {win_rate:.1f}%")
-            logger.info(f"   Total PnL: ${self.stats['total_pnl']:.2f}")
-            logger.info(f"   Avg PnL: ${avg_pnl:.2f}")
+            logger.info("💹 Trading Stats:")
+            logger.info("   Trades: {self.stats['trades_executed']}")
+            logger.info("   Win Rate: {win_rate:.1f}%")
+            logger.info("   Total PnL: ${self.stats['total_pnl']:.2f}")
+            logger.info("   Avg PnL: ${avg_pnl:.2f}")
 
     async def run_status_monitor(self):
         """Run periodic status monitoring"""
@@ -201,12 +201,12 @@ class IntegrationExample:
                 performance = status.get("performance", {})
                 
                 logger.info("🔍 System Status:")
-                logger.info(f"   Bybit: {'✅' if system_status.get('bybit_connected') else '❌'}")
-                logger.info(f"   WebSocket: {'✅' if system_status.get('websocket_connected') else '❌'}")
-                logger.info(f"   ICT Monitor: {'✅' if system_status.get('ict_monitor_connected') else '❌'}")
-                logger.info(f"   Active Positions: {system_status.get('active_positions', 0)}")
-                logger.info(f"   Total Signals: {system_status.get('total_signals_received', 0)}")
-                logger.info(f"   Auto Trading: {'ON' if status.get('auto_trading') else 'OFF'}")
+                logger.info("   Bybit: {'✅' if system_status.get('bybit_connected') else '❌'}")
+                logger.info("   WebSocket: {'✅' if system_status.get('websocket_connected') else '❌'}")
+                logger.info("   ICT Monitor: {'✅' if system_status.get('ict_monitor_connected') else '❌'}")
+                logger.info("   Active Positions: {system_status.get('active_positions', 0)}")
+                logger.info("   Total Signals: {system_status.get('total_signals_received', 0)}")
+                logger.info("   Auto Trading: {'ON' if status.get('auto_trading') else 'OFF'}")
                 
                 # Wait 5 minutes before next status check
                 await asyncio.sleep(300)
@@ -247,8 +247,8 @@ class IntegrationExample:
         """Main execution loop"""
         try:
             logger.info("🚀 Starting Bybit Integration Example")
-            logger.info(f"   Auto Trading: {'ENABLED' if self.auto_trading else 'DISABLED'}")
-            logger.info(f"   Tracked Symbols: {', '.join(self.tracked_symbols)}")
+            logger.info("   Auto Trading: {'ENABLED' if self.auto_trading else 'DISABLED'}")
+            logger.info("   Tracked Symbols: {', '.join(self.tracked_symbols)}")
             
             self.running = True
             
@@ -283,12 +283,12 @@ class IntegrationExample:
             
             # Final statistics
             logger.info("📊 Final Statistics:")
-            logger.info(f"   Signals Received: {self.stats['signals_received']}")
-            logger.info(f"   Trades Executed: {self.stats['trades_executed']}")
-            logger.info(f"   Total PnL: ${self.stats['total_pnl']:.2f}")
+            logger.info("   Signals Received: {self.stats['signals_received']}")
+            logger.info("   Trades Executed: {self.stats['trades_executed']}")
+            logger.info("   Total PnL: ${self.stats['total_pnl']:.2f}")
             
             uptime = datetime.now() - self.stats['start_time']
-            logger.info(f"   Runtime: {uptime}")
+            logger.info("   Runtime: {uptime}")
             
             logger.info("✅ Shutdown complete")
             
@@ -316,7 +316,7 @@ async def main():
     
     # Setup signal handler for graceful shutdown
     def signal_handler(signum, frame):
-        logger.info(f"🛑 Received signal {signum}, shutting down...")
+        logger.info("🛑 Received signal {signum}, shutting down...")
         asyncio.create_task(example.shutdown())
         sys.exit(0)
     

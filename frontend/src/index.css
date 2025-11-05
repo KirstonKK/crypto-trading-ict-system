@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-bg text-gray-100 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-dark-card border border-dark-border rounded-lg p-6 shadow-lg;
+  }
+  
+  .stat-card {
+    @apply card hover:border-primary/50 transition-all duration-300;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-dark-card hover:bg-dark-border text-gray-300 px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .badge {
+    @apply px-2 py-1 rounded-full text-xs font-semibold;
+  }
+  
+  .badge-success {
+    @apply badge bg-success/20 text-success;
+  }
+  
+  .badge-danger {
+    @apply badge bg-danger/20 text-danger;
+  }
+  
+  .badge-warning {
+    @apply badge bg-warning/20 text-warning;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-card;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-dark-border rounded-full hover:bg-gray-600;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.loading-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    to right,
+    #1e293b 0%,
+    #334155 20%,
+    #1e293b 40%,
+    #1e293b 100%
+  );
+  background-size: 1000px 100%;
+}

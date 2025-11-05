@@ -48,7 +48,7 @@ def test_real_balance_behavior():
     db.update_balance(75.00, 'paper')
     
     day1_stats = db.get_daily_stats()
-    print(f"   Day 1 End: Scans={day1_stats.get('scan_count')}, Balance=${day1_stats.get('paper_balance'):.2f}")
+    print("   Day 1 End: Scans={day1_stats.get('scan_count')}, Balance=${day1_stats.get('paper_balance'):.2f}")
     
     print("\\n📅 DAY 2: Simulate new day, balance should start at $75")
     
@@ -68,7 +68,7 @@ def test_real_balance_behavior():
     # This should trigger daily reset but PRESERVE balance
     day2_stats = db2.get_daily_stats()
     
-    print(f"   Day 2 Start: Scans={day2_stats.get('scan_count')} (should be 0), Balance=${day2_stats.get('paper_balance'):.2f} (should be $75)")
+    print("   Day 2 Start: Scans={day2_stats.get('scan_count')} (should be 0), Balance=${day2_stats.get('paper_balance'):.2f} (should be $75)")
     
     print("\\n📅 DAY 2: Win $40 in trading")
     
@@ -80,7 +80,7 @@ def test_real_balance_behavior():
     db2.update_balance(115.00, 'paper')
     
     day2_end_stats = db2.get_daily_stats()
-    print(f"   Day 2 End: Scans={day2_end_stats.get('scan_count')}, Balance=${day2_end_stats.get('paper_balance'):.2f}")
+    print("   Day 2 End: Scans={day2_end_stats.get('scan_count')}, Balance=${day2_end_stats.get('paper_balance'):.2f}")
     
     print("\\n📅 DAY 3: Simulate another new day, balance should start at $115")
     
@@ -97,7 +97,7 @@ def test_real_balance_behavior():
     db3 = TradingDatabase("test_balance.db")
     day3_stats = db3.get_daily_stats()
     
-    print(f"   Day 3 Start: Scans={day3_stats.get('scan_count')} (should be 0), Balance=${day3_stats.get('paper_balance'):.2f} (should be $115)")
+    print("   Day 3 Start: Scans={day3_stats.get('scan_count')} (should be 0), Balance=${day3_stats.get('paper_balance'):.2f} (should be $115)")
     
     # Verify the results
     balance_progression_correct = (
@@ -119,7 +119,7 @@ def test_real_balance_behavior():
         
         for i, row in enumerate(rows, 1):
             date_str, scan_count, signals_gen, balance = row
-            print(f"   Day {i} ({date_str}): Scans={scan_count}, Signals={signals_gen}, Balance=${balance:.2f}")
+            print("   Day {i} ({date_str}): Scans={scan_count}, Signals={signals_gen}, Balance=${balance:.2f}")
     
     # Cleanup
     os.remove("test_balance.db")
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     
     balance_ok, counter_ok = test_real_balance_behavior()
     
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                        TEST RESULTS                             ║
 ╠══════════════════════════════════════════════════════════════════╣

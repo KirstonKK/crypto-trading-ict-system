@@ -45,8 +45,8 @@ async def test_bybit_connection():
             print("   Get credentials from: https://testnet.bybit.com/")
             return False
         
-        print(f"✅ API Key: {config.bybit.api_key[:8]}...{config.bybit.api_key[-4:]}")
-        print(f"✅ Environment: {'Testnet' if config.bybit.testnet else 'Mainnet'}")
+        print("✅ API Key: {config.bybit.api_key[:8]}...{config.bybit.api_key[-4:]}")
+        print("✅ Environment: {'Testnet' if config.bybit.testnet else 'Mainnet'}")
         print()
         
         # Initialize Bybit client
@@ -72,9 +72,9 @@ async def test_bybit_connection():
             print("🔍 Test 2: Account information...")
             try:
                 account_info = await client.get_account_info()
-                print(f"✅ Account info retrieved: {len(account_info)} items")
+                print("✅ Account info retrieved: {len(account_info)} items")
             except Exception as e:
-                print(f"❌ Account info failed: {e}")
+                print("❌ Account info failed: {e}")
                 return False
             
             print()
@@ -86,14 +86,14 @@ async def test_bybit_connection():
                 print("✅ Balances retrieved:")
                 for asset, balance in balances.items():
                     if balance > 0:
-                        print(f"   {asset}: {balance:,.2f}")
+                        print("   {asset}: {balance:,.2f}")
                 
                 if not balances or all(balance == 0 for balance in balances.values()):
                     print("⚠️  No demo balance found. This is normal for new testnet accounts.")
                     print("   Demo funds are usually credited automatically.")
                 
             except Exception as e:
-                print(f"❌ Balance retrieval failed: {e}")
+                print("❌ Balance retrieval failed: {e}")
                 return False
             
             print()
@@ -104,12 +104,12 @@ async def test_bybit_connection():
                 ticker = await client.get_ticker("BTCUSDT")
                 if ticker:
                     price = float(ticker.get('lastPrice', 0))
-                    print(f"✅ BTCUSDT ticker: ${price:,.2f}")
+                    print("✅ BTCUSDT ticker: ${price:,.2f}")
                 else:
                     print("❌ No ticker data received")
                     return False
             except Exception as e:
-                print(f"❌ Market data failed: {e}")
+                print("❌ Market data failed: {e}")
                 return False
             
             print()
@@ -118,21 +118,21 @@ async def test_bybit_connection():
             print("🔍 Test 5: Position checking...")
             try:
                 positions = await client.get_positions()
-                print(f"✅ Positions retrieved: {len(positions)} positions")
+                print("✅ Positions retrieved: {len(positions)} positions")
                 
                 active_positions = [pos for pos in positions if float(pos.get('size', 0)) > 0]
                 if active_positions:
-                    print(f"   Active positions: {len(active_positions)}")
+                    print("   Active positions: {len(active_positions)}")
                     for pos in active_positions[:3]:  # Show first 3
                         symbol = pos.get('symbol')
                         size = float(pos.get('size', 0))
                         side = pos.get('side')
-                        print(f"   - {symbol}: {side} {size}")
+                        print("   - {symbol}: {side} {size}")
                 else:
                     print("   No active positions (normal for new account)")
                     
             except Exception as e:
-                print(f"❌ Position checking failed: {e}")
+                print("❌ Position checking failed: {e}")
                 return False
             
             print()
@@ -141,7 +141,7 @@ async def test_bybit_connection():
             print("🔍 Test 6: Order history...")
             try:
                 orders = await client.get_orders()
-                print(f"✅ Order history retrieved: {len(orders)} orders")
+                print("✅ Order history retrieved: {len(orders)} orders")
                 
                 if orders:
                     recent_orders = orders[:3]  # Show first 3
@@ -149,12 +149,12 @@ async def test_bybit_connection():
                         symbol = order.get('symbol')
                         side = order.get('side')
                         status = order.get('orderStatus')
-                        print(f"   - {symbol} {side}: {status}")
+                        print("   - {symbol} {side}: {status}")
                 else:
                     print("   No order history (normal for new account)")
                     
             except Exception as e:
-                print(f"❌ Order history failed: {e}")
+                print("❌ Order history failed: {e}")
                 return False
             
             print()
@@ -162,10 +162,10 @@ async def test_bybit_connection():
             print("✅ Bybit demo trading integration is ready!")
             print()
             print("📊 Summary:")
-            print(f"   API Environment: {'Testnet' if config.bybit.testnet else 'Mainnet'}")
-            print(f"   Demo Balance Available: {'Yes' if any(balances.values()) else 'Pending'}")
-            print(f"   Market Data: Working")
-            print(f"   Order Management: Ready")
+            print("   API Environment: {'Testnet' if config.bybit.testnet else 'Mainnet'}")
+            print("   Demo Balance Available: {'Yes' if any(balances.values()) else 'Pending'}")
+            print("   Market Data: Working")
+            print("   Order Management: Ready")
             print()
             print("🚀 Next steps:")
             print("   1. Your Bybit connection is working")
@@ -176,7 +176,7 @@ async def test_bybit_connection():
             return True
             
     except Exception as e:
-        print(f"❌ FATAL ERROR: {e}")
+        print("❌ FATAL ERROR: {e}")
         import traceback
         print("\nFull error details:")
         traceback.print_exc()
@@ -213,5 +213,5 @@ if __name__ == "__main__":
         print("\n🛑 Test interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n❌ Unexpected error: {e}")
+        print("\n❌ Unexpected error: {e}")
         sys.exit(1)

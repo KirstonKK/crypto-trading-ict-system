@@ -364,12 +364,12 @@ if __name__ == "__main__":
             end_date="2024-01-02"
         )
         
-        print(f"Downloaded {len(df)} records")
+        print("Downloaded {len(df)} records")
         print(df.head())
         
         # Validate data quality
         quality = loader.validate_data_quality(df, "BTC/USDT")
-        print(f"Data quality: {quality['status']}")
+        print("Data quality: {quality['status']}")
         
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error: {e}")

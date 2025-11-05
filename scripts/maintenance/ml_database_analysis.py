@@ -52,7 +52,7 @@ def analyze_current_database_population():
         
         for row in daily_data:
             date, signals, symbols, timeframes = row
-            print(f"{date:12} | {signals:7} | {symbols:7} | {timeframes:10}")
+            print("{date:12} | {signals:7} | {symbols:7} | {timeframes:10}")
         
         # Count market data points
         cursor = conn.execute("""
@@ -74,7 +74,7 @@ def analyze_current_database_population():
         
         for row in symbol_data:
             symbol, signals, days, confluence = row
-            print(f"{symbol:9} | {signals:7} | {days:4} | {confluence:12}")
+            print("{symbol:9} | {signals:7} | {days:4} | {confluence:12}")
     
     print("\n⏰ CURRENT SCAN FREQUENCY:")
     print("   📡 Monitor scans: Every 30 seconds")
@@ -238,19 +238,19 @@ def show_data_collection_strategy():
     }
     
     print("⏱️  SCANNING FREQUENCY:")
-    print(f"   Current: {strategy['scanning_frequency']['current']}")
-    print(f"   ML Optimal: {strategy['scanning_frequency']['optimal_for_ml']}")
-    print(f"   Rationale: {strategy['scanning_frequency']['rationale']}")
+    print("   Current: {strategy['scanning_frequency']['current']}")
+    print("   ML Optimal: {strategy['scanning_frequency']['optimal_for_ml']}")
+    print("   Rationale: {strategy['scanning_frequency']['rationale']}")
     
     print("\n💾 DATA RETENTION STRATEGY:")
     for data_type, retention in strategy['data_retention'].items():
-        print(f"   {data_type}: {retention}")
+        print("   {data_type}: {retention}")
     
     print("\n🎯 FEATURE COLLECTION:")
     for timing, features in strategy['feature_collection'].items():
-        print(f"   {timing}:")
+        print("   {timing}:")
         for feature in features:
-            print(f"     • {feature}")
+            print("     • {feature}")
     
     return strategy
 
@@ -426,7 +426,7 @@ def show_database_size_projections():
     print("-" * 55)
     
     for period, data in projections.items():
-        print(f"{period:8} | {data['scans']:7.0f} | {data['signals']:7.0f} | {data['features']:8.0f} | {data['size_mb']:8.1f}")
+        print("{period:8} | {data['scans']:7.0f} | {data['signals']:7.0f} | {data['features']:8.0f} | {data['size_mb']:8.1f}")
     
     print("\n💡 OPTIMIZATION RECOMMENDATIONS:")
     print("   🗜️  Compress older data (>30 days)")
@@ -450,7 +450,7 @@ if __name__ == "__main__":
     pipeline = create_ml_data_pipeline()
     projections = show_database_size_projections()
     
-    print(f"""
+    print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                            SUMMARY                               ║
 ╠══════════════════════════════════════════════════════════════════╣

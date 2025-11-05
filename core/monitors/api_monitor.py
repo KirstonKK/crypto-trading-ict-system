@@ -13,13 +13,18 @@ import json
 import time
 import hmac
 import hashlib
+import os
 from datetime import datetime
 
 class APIKeyMonitor:
     def __init__(self):
-        self.api_key = 'Iohh3GFMrEIVhEcFHP'
-        self.api_secret = 'G5H4wmVdDnDah4UMjxm7qZO9nlwfXWTPC0hh'
+        # SECURITY FIX: Load API credentials from environment variables
+        self.api_key = os.getenv('BYBIT_API_KEY')
+        self.api_secret = os.getenv('BYBIT_API_SECRET')
         self.creation_time = '2025-10-02 14:48:01'
+        
+        if not self.api_key or not self.api_secret:
+            raise ValueError("API credentials not found! Set BYBIT_API_KEY and BYBIT_API_SECRET environment variables.")
         
     async def test_api_key(self):
         """Test if API key is active"""
@@ -58,8 +63,8 @@ class APIKeyMonitor:
         """Monitor API key activation with automatic checks"""
         print('🔄 BYBIT API KEY ACTIVATION MONITOR')
         print('=' * 50)
-        print(f'📋 API Key: {self.api_key}')
-        print(f'📅 Created: {self.creation_time}')
+        print('📋 API Key: {self.api_key}')
+        print('📅 Created: {self.creation_time}')
         print('⏰ Checking every 2 minutes until active...')
         print()
         
@@ -68,11 +73,10 @@ class APIKeyMonitor:
         
         while check_count < max_checks:
             check_count += 1
-            current_time = datetime.now().strftime('%H:%M:%S')
             
-            print(f'🔍 Check #{check_count} at {current_time}...', end=' ')
+            print(f'🔍 Check #{check_count}...', end=' ')
             
-            ret_code, ret_msg = await self.test_api_key()
+            ret_code, _ = await self.test_api_key()
             
             if ret_code == 0:
                 print('✅ SUCCESS!')
@@ -90,7 +94,7 @@ class APIKeyMonitor:
                 print('⏳ Still pending...')
                 
             else:
-                print(f'❌ Error {ret_code}: {ret_msg}')
+                print('❌ Error {ret_code}: {ret_msg}')
             
             if check_count < max_checks:
                 print('   Waiting 2 minutes before next check...')

@@ -15,7 +15,7 @@ predictive_system = PredictiveTradingSystem()
 def enhanced_process_tradingview_webhook(webhook_data):
     """Enhanced webhook processing with ML predictions"""
     try:
-        print(f"🔮 Processing predictive signal for {webhook_data.get('symbol', 'Unknown')}")
+        print("🔮 Processing predictive signal for {webhook_data.get('symbol', 'Unknown')}")
         
         # Process with predictive analysis
         enhanced_signal = predictive_system.process_tradingview_signal(webhook_data)
@@ -25,12 +25,12 @@ def enhanced_process_tradingview_webhook(webhook_data):
         
         # Log the predictive analysis
         print("🔮 PREDICTIVE ANALYSIS RESULTS:")
-        print(f"   Original: {webhook_data.get('action')} confidence {webhook_data.get('confidence', 0):.1%}")
-        print(f"   ML Prediction: {enhanced_signal.get('ml_prediction', {}).get('direction', 'N/A')}")
-        print(f"   Combined Confidence: {trading_decision.get('confidence', 0):.1%}")
-        print(f"   Recommended Action: {trading_decision.get('action', 'N/A')}")
-        print(f"   Position Size: {trading_decision.get('position_size', 0):.1%}")
-        print(f"   Risk Level: {trading_decision.get('risk_level', 0):.1%}")
+        print("   Original: {webhook_data.get('action')} confidence {webhook_data.get('confidence', 0):.1%}")
+        print("   ML Prediction: {enhanced_signal.get('ml_prediction', {}).get('direction', 'N/A')}")
+        print("   Combined Confidence: {trading_decision.get('confidence', 0):.1%}")
+        print("   Recommended Action: {trading_decision.get('action', 'N/A')}")
+        print("   Position Size: {trading_decision.get('position_size', 0):.1%}")
+        print("   Risk Level: {trading_decision.get('risk_level', 0):.1%}")
         
         # Enhanced webhook data with predictions
         enhanced_webhook_data = {
@@ -43,18 +43,18 @@ def enhanced_process_tradingview_webhook(webhook_data):
         
         # If you have exchange integration, use the trading decision here
         if trading_decision.get('action') == 'EXECUTE_TRADE':
-            print(f"🚀 EXECUTING TRADE: {trading_decision.get('position_size', 0):.1%} position")
+            print("🚀 EXECUTING TRADE: {trading_decision.get('position_size', 0):.1%} position")
             # execute_trade_with_exchange(enhanced_webhook_data)
         elif trading_decision.get('action') == 'PARTIAL_POSITION':
-            print(f"⚖️  PARTIAL POSITION: {trading_decision.get('position_size', 0):.1%} position")
+            print("⚖️  PARTIAL POSITION: {trading_decision.get('position_size', 0):.1%} position")
             # execute_partial_trade(enhanced_webhook_data)
         else:
-            print(f"⏸️  {trading_decision.get('action', 'NO ACTION')}")
+            print("⏸️  {trading_decision.get('action', 'NO ACTION')}")
         
         return enhanced_webhook_data
         
     except Exception as e:
-        print(f"❌ Error in predictive processing: {str(e)}")
+        print("❌ Error in predictive processing: {str(e)}")
         return webhook_data
 
 # Usage: Replace your existing webhook handler with this enhanced version
@@ -122,4 +122,4 @@ if __name__ == "__main__":
     }
     
     result = enhanced_process_tradingview_webhook(sample_webhook)
-    print(f"\n📋 Final Result: {result.get('trading_decision', {}).get('action', 'N/A')}")
+    print("\n📋 Final Result: {result.get('trading_decision', {}).get('action', 'N/A')}")

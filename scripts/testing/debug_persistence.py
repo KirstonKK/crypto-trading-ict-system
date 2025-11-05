@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def debug_load_trading_state():
     """Debug the exact issue in _load_trading_state method"""
     try:
-        conn = sqlite3.connect('databases/trading_data.db')
+        conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         today = date.today().isoformat()
         

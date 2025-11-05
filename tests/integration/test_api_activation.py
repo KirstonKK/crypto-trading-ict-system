@@ -21,7 +21,7 @@ async def test_api_activation():
     api_key = 'WEI4vIDFhy7XXRxq14'
     api_secret = 'uyJXtykzYRyTTd90gy85h5nJNe5clEiaa7hJ'
     
-    print(f'🕐 {datetime.now().strftime("%H:%M:%S")} - Testing API key activation...')
+    print('🕐 {datetime.now().strftime("%H:%M:%S")} - Testing API key activation...')
     
     async with aiohttp.ClientSession() as session:
         # Generate authentication headers
@@ -66,7 +66,7 @@ async def test_api_activation():
                                 balance = float(coin.get('walletBalance', 0))
                                 if balance > 0:
                                     coin_name = coin.get('coin')
-                                    print(f'💰 {coin_name}: {balance:,.2f}')
+                                    print('💰 {coin_name}: {balance:,.2f}')
                     
                     print('\n🚀 Next steps:')
                     print('1. Start ICT monitor: python3 ict_enhanced_monitor.py')
@@ -79,11 +79,11 @@ async def test_api_activation():
                     return False
                     
                 else:
-                    print(f'❌ API Error: {data.get("retMsg", "Unknown")}')
+                    print('❌ API Error: {data.get("retMsg", "Unknown")}')
                     return False
                     
         except Exception as e:
-            print(f'❌ Connection Error: {e}')
+            print('❌ Connection Error: {e}')
             return False
 
 if __name__ == '__main__':

@@ -570,7 +570,7 @@ class ICTProactiveCryptoMonitor:
         logger.info(f"🎯 Minimum Confluence: {self.min_confluence_score:.1%}")
         logger.info(f"🏆 Quality Filter: {self.min_institutional_quality}+")
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                  ICT INSTITUTIONAL MONITOR                      ║
 ╠══════════════════════════════════════════════════════════════════╣

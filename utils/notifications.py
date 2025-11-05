@@ -99,7 +99,7 @@ class NotificationManager:
         notification_key = f"trade_{alert_type}_{symbol}"
         
         if not urgent and not self._should_send_notification(notification_key):
-            self.logger.info(f"Rate limited notification: {notification_key}")
+            self.logger.info("Rate limited notification: {notification_key}")
             return False
         
         # Format the message

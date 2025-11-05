@@ -30,7 +30,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 from trading.ict_analyzer import ICTAnalyzer, TrendDirection, ICTSignal
-from src.utils.data_fetcher import DataFetcher
+from utils.data_fetcher import DataFetcher
 from utils.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
@@ -299,7 +299,7 @@ class ICTTimeframeHierarchy:
             # Return empty DataFrame with proper structure
             return pd.DataFrame(columns=['open', 'high', 'low', 'close', 'volume'])
     
-    async def _analyze_bias_timeframe(self, symbol: str, data: pd.DataFrame) -> TimeframeAnalysis:
+    def _analyze_bias_timeframe(self, symbol: str, data: pd.DataFrame) -> TimeframeAnalysis:
         """
         Analyze 4H bias timeframe for market direction.
         
@@ -352,7 +352,7 @@ class ICTTimeframeHierarchy:
             logger.error(f"4H bias analysis failed for {symbol}: {e}")
             return self._get_empty_timeframe_analysis(symbol, '4H', TimeframeRole.BIAS)
     
-    async def _analyze_setup_timeframe(self, symbol: str, data: pd.DataFrame) -> TimeframeAnalysis:
+    def _analyze_setup_timeframe(self, symbol: str, data: pd.DataFrame) -> TimeframeAnalysis:
         """
         Analyze 5M setup timeframe for order blocks and entry setups.
         
@@ -405,7 +405,7 @@ class ICTTimeframeHierarchy:
             logger.error(f"5M setup analysis failed for {symbol}: {e}")
             return self._get_empty_timeframe_analysis(symbol, '5M', TimeframeRole.SETUP)
     
-    async def _analyze_execution_timeframe(self, symbol: str, data: pd.DataFrame) -> TimeframeAnalysis:
+    def _analyze_execution_timeframe(self, symbol: str, data: pd.DataFrame) -> TimeframeAnalysis:
         """
         Analyze 1M execution timeframe for precise entry timing.
         
@@ -586,10 +586,9 @@ class ICTTimeframeHierarchy:
             logger.error(f"Setup quality assessment failed: {e}")
             return 'NONE'
     
-    def _filter_execution_signals(self, bias_analysis: TimeframeAnalysis,
+    def _filter_and_rank_signals(self, bias_analysis: TimeframeAnalysis,
                                 setup_analysis: TimeframeAnalysis,
-                                execution_analysis: TimeframeAnalysis,
-                                confluence_data: Dict) -> List[ICTSignal]:
+                                execution_analysis: TimeframeAnalysis) -> List[ICTSignal]:
         """Filter and rank signals for execution."""
         try:
             all_signals = []
@@ -703,7 +702,7 @@ class ICTTimeframeHierarchy:
                 for fvg in ict_result['fair_value_gaps']:
                     levels.extend([fvg.gap_high, fvg.gap_low])
             
-            return sorted(list(set(levels)))  # Remove duplicates and sort
+            return sorted(set(levels))  # Remove duplicates and sort
             
         except Exception as e:
             logger.error(f"Key level extraction failed: {e}")
@@ -933,7 +932,7 @@ if __name__ == "__main__":
         print("📊 Analyzing BTC/USDT hierarchy...")
         analysis = await hierarchy.analyze_symbol_hierarchy("BTC/USDT")
         
-        print(f"""
+        print("""
 ╔══════════════════════════════════════════════════════════════════╗
 ║                  ICT HIERARCHY ANALYSIS RESULTS                 ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -952,19 +951,19 @@ if __name__ == "__main__":
         
         # Show individual timeframe results
         print("🕐 Individual Timeframe Analysis:")
-        print(f"  4H Bias:      {analysis.bias_analysis.trend_direction.value} ({analysis.bias_analysis.trend_strength:.2f})")
-        print(f"  5M Setup:     {len(analysis.setup_analysis.order_blocks)} OBs, {analysis.setup_analysis.signal_count} signals")
-        print(f"  1M Execution: {analysis.execution_analysis.confluence_score:.2f} timing score")
+        print("  4H Bias:      {analysis.bias_analysis.trend_direction.value} ({analysis.bias_analysis.trend_strength:.2f})")
+        print("  5M Setup:     {len(analysis.setup_analysis.order_blocks)} OBs, {analysis.setup_analysis.signal_count} signals")
+        print("  1M Execution: {analysis.execution_analysis.confluence_score:.2f} timing score")
         
         if analysis.execution_signals:
-            print(f"\n📡 Execution Signals:")
+            print("\n📡 Execution Signals:")
             for i, signal in enumerate(analysis.execution_signals[:3], 1):
                 print(f"  {i}. {signal.direction} - {signal.confidence:.1%} confidence")
                 print(f"     Entry: ${signal.entry_price:.2f}, R:R = {signal.risk_reward_ratio:.1f}")
         
         # Get trading summary
-        summary = await hierarchy.get_trading_summary("BTC/USDT")
-        print(f"\n🎯 Trading Recommendation: {summary['trading_recommendation']}")
+        trading_summary = await hierarchy.get_trading_summary("BTC/USDT")
+        print(f"\n🎯 Trading Recommendation: {trading_summary['trading_recommendation']}")
         
         print("✅ ICT Hierarchy test completed!")
     

@@ -70,9 +70,9 @@ class BybitRealTimePrices:
         self.update_count = 0
         self.start_time = datetime.now()
         
-        logger.info(f"📊 Bybit Real-Time Prices initialized")
-        logger.info(f"   Symbols: {', '.join(self.symbols)}")
-        logger.info(f"   Environment: {'Testnet' if testnet else 'Mainnet'}")
+        logger.info("📊 Bybit Real-Time Prices initialized")
+        logger.info("   Symbols: {', '.join(self.symbols)}")
+        logger.info("   Environment: {'Testnet' if testnet else 'Mainnet'}")
 
     def _format_symbol(self, symbol: str) -> str:
         """Format symbol for Bybit (ensure USDT suffix)"""
@@ -96,6 +96,47 @@ class BybitRealTimePrices:
         # Start WebSocket connection
         await self._start_websocket()
 
+    async def _fetch_symbol_price(self, session: aiohttp.ClientSession, symbol: str) -> None:
+        """Fetch price for a single symbol"""
+        try:
+            url = f"{self.rest_url}/v5/market/tickers"
+            params = {"category": "linear", "symbol": symbol}
+            
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    result = data.get('result', {})
+                    tickers = result.get('list', [])
+                    
+                    if tickers:
+                        ticker = tickers[0]
+                        price_data = self._parse_ticker_data(ticker)
+                        self.prices[symbol] = price_data
+                        
+                        logger.info(f"✅ {symbol}: ${price_data['price']:,.4f}")
+                    else:
+                        logger.warning(f"⚠️  No ticker data for {symbol}")
+                        
+                else:
+                    if response.status == 403:
+                        logger.debug(f"🔒 API rate limit for {symbol} (using WebSocket instead)")
+                    elif response.status == 429:
+                        logger.debug(f"⏳ Rate limited for {symbol} (using WebSocket instead)")
+                    else:
+                        logger.warning(f"⚠️  REST API error for {symbol}: {response.status}")
+                    
+        except Exception as e:
+            logger.error(f"❌ Error getting price for {symbol}: {e}")
+            # Set fallback price
+            self.prices[symbol] = {
+                'price': 0.0,
+                'symbol': symbol,
+                'timestamp': datetime.now(),
+                'volume_24h': 0.0,
+                'change_24h': 0.0,
+                'source': 'fallback'
+            }
+
     async def _initialize_prices(self):
         """Initialize prices using REST API"""
         try:
@@ -103,44 +144,7 @@ class BybitRealTimePrices:
             
             async with aiohttp.ClientSession() as session:
                 for symbol in self.symbols:
-                    try:
-                        url = f"{self.rest_url}/v5/market/tickers"
-                        params = {"category": "linear", "symbol": symbol}
-                        
-                        async with session.get(url, params=params) as response:
-                            if response.status == 200:
-                                data = await response.json()
-                                result = data.get('result', {})
-                                tickers = result.get('list', [])
-                                
-                                if tickers:
-                                    ticker = tickers[0]
-                                    price_data = self._parse_ticker_data(ticker)
-                                    self.prices[symbol] = price_data
-                                    
-                                    logger.info(f"✅ {symbol}: ${price_data['price']:,.4f}")
-                                else:
-                                    logger.warning(f"⚠️  No ticker data for {symbol}")
-                                    
-                            else:
-                                if response.status == 403:
-                                    logger.debug(f"🔒 API rate limit for {symbol} (using WebSocket instead)")
-                                elif response.status == 429:
-                                    logger.debug(f"⏳ Rate limited for {symbol} (using WebSocket instead)")
-                                else:
-                                    logger.warning(f"⚠️  REST API error for {symbol}: {response.status}")
-                                
-                    except Exception as e:
-                        logger.error(f"❌ Error getting price for {symbol}: {e}")
-                        # Set fallback price
-                        self.prices[symbol] = {
-                            'price': 0.0,
-                            'symbol': symbol,
-                            'timestamp': datetime.now(),
-                            'volume_24h': 0.0,
-                            'change_24h': 0.0,
-                            'source': 'fallback'
-                        }
+                    await self._fetch_symbol_price(session, symbol)
             
             logger.info(f"✅ Initialized prices for {len(self.prices)} symbols")
             
@@ -178,7 +182,7 @@ class BybitRealTimePrices:
         
         while retry_count < max_retries:
             try:
-                logger.info(f"🔗 Connecting to Bybit WebSocket... (attempt {retry_count + 1})")
+                logger.info("🔗 Connecting to Bybit WebSocket... (attempt {retry_count + 1})")
                 
                 async with websockets.connect(self.ws_url) as websocket:
                     self.ws_connection = websocket
@@ -219,7 +223,7 @@ class BybitRealTimePrices:
             }
             
             await websocket.send(json.dumps(subscribe_message))
-            logger.info(f"📡 Subscribed to {len(topics)} ticker streams")
+            logger.info("📡 Subscribed to {len(topics)} ticker streams")
             
             # Wait for subscription confirmation
             response = await websocket.recv()
@@ -251,7 +255,7 @@ class BybitRealTimePrices:
             # Handle subscription confirmations
             elif data.get("success") is not None:
                 if data.get("success"):
-                    logger.info(f"✅ WebSocket subscription confirmed: {data.get('op', 'unknown')}")
+                    logger.info("✅ WebSocket subscription confirmed: {data.get('op', 'unknown')}")
                 else:
                     logger.warning(f"⚠️ WebSocket subscription failed: {data}")
                 
@@ -259,6 +263,69 @@ class BybitRealTimePrices:
             logger.error(f"❌ Error handling WebSocket message: {e}")
             logger.error(f"❌ Message content: {message[:500]}...")
 
+    def _handle_snapshot_message(self, ticker_data, symbol):
+        """Handle snapshot message type"""
+        price_data = self._parse_ws_ticker_data(ticker_data, symbol)
+        old_price = self.prices.get(symbol, {}).get('price', 0)
+        self.prices[symbol] = price_data
+        return price_data, old_price
+    
+    def _handle_delta_message(self, ticker_data, symbol):
+        """Handle delta message type"""
+        if symbol in self.prices:
+            price_data = self._update_ticker_delta(ticker_data, symbol)
+            old_price = self.prices.get(symbol, {}).get('price', 0)
+            self.prices[symbol] = price_data
+            return price_data, old_price
+        else:
+            # No existing data to update, skip delta
+            if symbol not in self.delta_skip_count:
+                self.delta_skip_count[symbol] = 0
+            self.delta_skip_count[symbol] += 1
+            
+            if self.delta_skip_count[symbol] <= 3:
+                logger.debug(f"🔄 Building {symbol} baseline data (delta #{self.delta_skip_count[symbol]})")
+            elif self.delta_skip_count[symbol] == 10:
+                logger.info(f"📊 {symbol} baseline initialization in progress...")
+            return None, None
+    
+    def _update_price_history(self, symbol, price_data):
+        """Update price history for symbol"""
+        if symbol not in self.price_history:
+            self.price_history[symbol] = []
+        
+        self.price_history[symbol].append({
+            'price': price_data['price'],
+            'timestamp': price_data['timestamp']
+        })
+        
+        if len(self.price_history[symbol]) > 100:
+            self.price_history[symbol] = self.price_history[symbol][-100:]
+    
+    def _log_price_change(self, symbol, price_data, old_price):
+        """Log significant price changes"""
+        if old_price <= 0 or price_data['price'] <= 0:
+            return 0.0  # Return 0.0 instead of None
+        
+        price_change = ((price_data['price'] - old_price) / old_price) * 100
+        
+        if abs(price_change) > 0.1:  # 0.1% or more
+            direction = "📈" if price_change > 0 else "📉"
+            logger.debug(f"{direction} {symbol}: ${price_data['price']:,.4f} ({price_change:+.2f}%)")
+        
+        return price_change
+    
+    async def _notify_callbacks(self, symbol, price_data, price_change):
+        """Notify registered callbacks of price update"""
+        for callback in self.callbacks:
+            try:
+                result = callback(symbol, price_data, price_change)
+                # Only await if the callback returns a coroutine
+                if hasattr(result, '__await__'):
+                    await result
+            except Exception as e:
+                logger.error(f"❌ Price callback error: {e}")
+    
     async def _process_ticker_update(self, data: Dict):
         """Process ticker update from WebSocket"""
         try:
@@ -266,82 +333,36 @@ class BybitRealTimePrices:
             ticker_data = data.get("data", {})
             message_type = data.get("type", "unknown")
             
-            # Debug: Log the raw ticker data
             logger.debug(f"🔍 Raw WebSocket data for topic {topic}, type: {message_type}")
             logger.debug(f"🔍 Ticker data keys: {list(ticker_data.keys()) if ticker_data else 'None'}")
             if ticker_data and 'lastPrice' in ticker_data:
                 logger.debug(f"🔍 lastPrice value: '{ticker_data['lastPrice']}' (type: {type(ticker_data['lastPrice'])})")
             
-            # Extract symbol from topic (e.g., "tickers.BTCUSDT" -> "BTCUSDT")
             symbol = topic.split(".")[-1] if "." in topic else ""
             
-            if symbol and ticker_data:
-                # Handle different message types
-                if message_type == "snapshot":
-                    # For snapshot messages, parse complete ticker data
-                    price_data = self._parse_ws_ticker_data(ticker_data, symbol)
-                    old_price = self.prices.get(symbol, {}).get('price', 0)
-                    self.prices[symbol] = price_data
-                elif message_type == "delta":
-                    # For delta messages, update existing data only
-                    if symbol in self.prices:
-                        price_data = self._update_ticker_delta(ticker_data, symbol)
-                        old_price = self.prices.get(symbol, {}).get('price', 0)
-                        self.prices[symbol] = price_data
-                    else:
-                        # No existing data to update, skip delta (normal during startup)
-                        if symbol not in self.delta_skip_count:
-                            self.delta_skip_count[symbol] = 0
-                        self.delta_skip_count[symbol] += 1
-                        
-                        # Only log first few skips to reduce noise
-                        if self.delta_skip_count[symbol] <= 3:
-                            logger.debug(f"🔄 Building {symbol} baseline data (delta #{self.delta_skip_count[symbol]})")
-                        elif self.delta_skip_count[symbol] == 10:  # Log summary after 10
-                            logger.info(f"📊 {symbol} baseline initialization in progress...")
-                        return
-                else:
-                    # Fallback to snapshot parsing for unknown types
-                    logger.warning(f"⚠️ Unknown message type '{message_type}' for {symbol}, treating as snapshot")
-                    price_data = self._parse_ws_ticker_data(ticker_data, symbol)
-                    old_price = self.prices.get(symbol, {}).get('price', 0)
-                    self.prices[symbol] = price_data
-                
-                # Track price history
-                if symbol not in self.price_history:
-                    self.price_history[symbol] = []
-                
-                self.price_history[symbol].append({
-                    'price': price_data['price'],
-                    'timestamp': price_data['timestamp']
-                })
-                
-                # Keep only last 100 price points
-                if len(self.price_history[symbol]) > 100:
-                    self.price_history[symbol] = self.price_history[symbol][-100:]
-                
-                # Update statistics
-                self.update_count += 1
-                self.last_update[symbol] = datetime.now()
-                
-                # Calculate price change
-                price_change = 0
-                if old_price > 0 and price_data['price'] > 0:
-                    price_change = ((price_data['price'] - old_price) / old_price) * 100
-                
-                # Log significant price changes (only for valid prices)
-                if price_data['price'] > 0 and abs(price_change) > 0.1:  # 0.1% or more
-                    direction = "📈" if price_change > 0 else "📉"
-                    logger.debug(f"{direction} {symbol}: ${price_data['price']:,.4f} ({price_change:+.2f}%)")
-                
-                # Call registered callbacks
-                for callback in self.callbacks:
-                    try:
-                        await callback(symbol, price_data, price_change)
-                    except Exception as e:
-                        logger.error(f"❌ Price callback error: {e}")
+            if not symbol or not ticker_data:
+                return
+            
+            # Handle different message types
+            if message_type == "snapshot":
+                price_data, old_price = self._handle_snapshot_message(ticker_data, symbol)
+            elif message_type == "delta":
+                result = self._handle_delta_message(ticker_data, symbol)
+                if result[0] is None:  # Skip delta
+                    return
+                price_data, old_price = result
             else:
-                logger.warning(f"⚠️ Missing data - Symbol: {symbol}, Ticker Data: {bool(ticker_data)}")
+                logger.warning(f"⚠️ Unknown message type '{message_type}' for {symbol}, treating as snapshot")
+                price_data, old_price = self._handle_snapshot_message(ticker_data, symbol)
+            
+            # Update tracking
+            self._update_price_history(symbol, price_data)
+            self.update_count += 1
+            self.last_update[symbol] = datetime.now()
+            
+            # Log and notify
+            price_change = self._log_price_change(symbol, price_data, old_price)
+            await self._notify_callbacks(symbol, price_data, price_change)
                         
         except Exception as e:
             logger.error(f"❌ Error processing ticker update: {e}")
@@ -354,13 +375,13 @@ class BybitRealTimePrices:
             
             # Log the raw data for debugging (only for snapshots with actual price data)
             if 'lastPrice' in ticker:
-                logger.info(f"🔍 SNAPSHOT {symbol}: lastPrice = '{last_price_str}' (type: {type(last_price_str)})")
+                logger.info("🔍 SNAPSHOT {symbol}: lastPrice = '{last_price_str}' (type: {type(last_price_str)})")
             
             # Convert to float, handling both string and numeric types
             try:
                 price_value = float(last_price_str) if last_price_str else 0.0
                 if 'lastPrice' in ticker:
-                    logger.info(f"✅ SNAPSHOT {symbol}: Converted to float: {price_value}")
+                    logger.info("✅ SNAPSHOT {symbol}: Converted to float: {price_value}")
             except (ValueError, TypeError) as e:
                 logger.error(f"❌ SNAPSHOT {symbol}: Invalid lastPrice format '{last_price_str}': {e}")
                 price_value = 0.0
@@ -379,7 +400,7 @@ class BybitRealTimePrices:
             
             # Log when we get 0 prices but don't reject them
             if price_value == 0:
-                logger.info(f"⚠️ Received zero price for {symbol}: {price_value} (might be valid)")
+                logger.info("⚠️ Received zero price for {symbol}: {price_value} (might be valid)")
             
             # Parse other fields safely
             volume_24h = self._safe_float(ticker.get('volume24h', '0'))
@@ -481,7 +502,7 @@ class BybitRealTimePrices:
         price = price_data.get('price', 0.0)
         
         # Debug logging to see what's happening
-        if price == 0.0:
+        if price < 0.001:  # Effectively zero for crypto prices
             logger.debug(f"🔍 GET_PRICE {symbol}: returning 0.0 - stored data: {price_data}")
         else:
             logger.debug(f"✅ GET_PRICE {symbol}: returning ${price}")

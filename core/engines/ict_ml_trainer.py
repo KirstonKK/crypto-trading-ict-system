@@ -35,7 +35,7 @@ try:
     from sklearn.metrics import classification_report, mean_squared_error, r2_score
     ML_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: ML libraries not available: {e}")
+    print("Warning: ML libraries not available: {e}")
     ML_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
@@ -123,7 +123,7 @@ class ICTMLTrainer:
                 features['session_asia'] = 1 if (dt.hour >= 23 or dt.hour <= 8) else 0
                 features['session_london'] = 1 if (8 <= dt.hour <= 16) else 0
                 features['session_ny'] = 1 if (13 <= dt.hour <= 22) else 0
-            except:
+            except Exception:
                 features['hour'] = 12
                 features['day_of_week'] = 1
                 features['is_market_hours'] = 1
@@ -458,33 +458,33 @@ class ICTMLTrainer:
         timeframes = ['1m', '5m', '15m', '1h']
         
         for i in range(num_samples):
-            crypto = np.random.choice(cryptos)
-            action = np.random.choice(actions)
-            timeframe = np.random.choice(timeframes)
+            crypto = np.random.default_rng(42).choice(cryptos)
+            action = np.random.default_rng(42).choice(actions)
+            timeframe = np.random.default_rng(42).choice(timeframes)
             
             # Generate realistic price data
             base_price = {'BTC': 50000, 'ETH': 3000, 'SOL': 100, 'XRP': 0.5}[crypto]
-            entry_price = base_price * (1 + np.random.uniform(-0.1, 0.1))
+            entry_price = base_price * (1 + np.random.default_rng(42).uniform(-0.1, 0.1))
             
             # Generate stops and targets with realistic RR
             if action == 'BUY':
-                stop_loss = entry_price * (1 - np.random.uniform(0.01, 0.03))
-                take_profit = entry_price * (1 + np.random.uniform(0.02, 0.06))
+                stop_loss = entry_price * (1 - np.random.default_rng(42).uniform(0.01, 0.03))
+                take_profit = entry_price * (1 + np.random.default_rng(42).uniform(0.02, 0.06))
             else:
-                stop_loss = entry_price * (1 + np.random.uniform(0.01, 0.03))
-                take_profit = entry_price * (1 - np.random.uniform(0.02, 0.06))
+                stop_loss = entry_price * (1 + np.random.default_rng(42).uniform(0.01, 0.03))
+                take_profit = entry_price * (1 - np.random.default_rng(42).uniform(0.02, 0.06))
             
             # Generate outcome (70% success rate for good training)
-            is_success = np.random.random() < 0.7
+            is_success = np.random.default_rng(42).random() < 0.7
             
             if is_success:
-                final_pnl = np.random.uniform(50, 300)
+                final_pnl = np.random.default_rng(42).uniform(50, 300)
                 status = 'TAKE_PROFIT'
             else:
-                final_pnl = -np.random.uniform(50, 150)
+                final_pnl = -np.random.default_rng(42).uniform(50, 150)
                 status = 'STOP_LOSS'
             
-            confidence = np.random.uniform(0.6, 0.9)
+            confidence = np.random.default_rng(42).uniform(0.6, 0.9)
             
             trade = {
                 'id': f'SAMPLE_{i+1}',
@@ -495,8 +495,8 @@ class ICTMLTrainer:
                 'take_profit': take_profit,
                 'position_size': 100 / abs(entry_price - stop_loss),
                 'risk_amount': 100,
-                'entry_time': (datetime.now() - timedelta(days=np.random.randint(1, 30))).isoformat(),
-                'exit_time': (datetime.now() - timedelta(days=np.random.randint(0, 29))).isoformat(),
+                'entry_time': (datetime.now() - timedelta(days=np.random.default_rng(42).integers(1, 30))).isoformat(),
+                'exit_time': (datetime.now() - timedelta(days=np.random.default_rng(42).integers(0, 29))).isoformat(),
                 'status': status,
                 'pnl': final_pnl,
                 'final_pnl': final_pnl,

@@ -1,0 +1,46 @@
+{
+  "pairs": {
+    "BTC/USDT": {
+      "symbol": "BTCUSDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "active": true,
+      "min_trade_size": 0.0001,
+      "max_trade_size": 10.0,
+      "tick_size": 0.01
+    },
+    "ETH/USDT": {
+      "symbol": "ETHUSDT", 
+      "base": "ETH",
+      "quote": "USDT",
+      "active": true,
+      "min_trade_size": 0.001,
+      "max_trade_size": 100.0,
+      "tick_size": 0.01
+    },
+    "SOL/USDT": {
+      "symbol": "SOLUSDT",
+      "base": "SOL", 
+      "quote": "USDT",
+      "active": true,
+      "min_trade_size": 0.01,
+      "max_trade_size": 1000.0,
+      "tick_size": 0.001
+    },
+    "XRP/USDT": {
+      "symbol": "XRPUSDT",
+      "base": "XRP",
+      "quote": "USDT", 
+      "active": true,
+      "min_trade_size": 1.0,
+      "max_trade_size": 100000.0,
+      "tick_size": 0.0001
+    }
+  },
+  "default_settings": {
+    "max_pairs": 4,
+    "refresh_interval": 300,
+    "price_precision": 4,
+    "quantity_precision": 6
+  }
+}

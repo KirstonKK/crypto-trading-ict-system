@@ -1,0 +1,62 @@
+{
+  "BTCUSDT": {
+    "name": "Bitcoin",
+    "signals": 147,
+    "trades": 13,
+    "risk_model": "PURE_1_PERCENT",
+    "metrics": {
+      "win_rate": 76.92307692307693,
+      "total_return": 10.62173083959519,
+      "sharpe_ratio": 6.83515695306876,
+      "max_drawdown": 199.83498162693058,
+      "profit_factor": 5.596105198066096,
+      "avg_win": 129.32759500136837,
+      "avg_loss": -77.03428868472156
+    }
+  },
+  "ETHUSDT": {
+    "name": "Ethereum",
+    "signals": 142,
+    "trades": 14,
+    "risk_model": "PURE_1_PERCENT",
+    "metrics": {
+      "win_rate": 71.42857142857143,
+      "total_return": 10.638185482062685,
+      "sharpe_ratio": 8.340324691453311,
+      "max_drawdown": 221.38215022799477,
+      "profit_factor": 4.533874117981518,
+      "avg_win": 136.48531953639613,
+      "avg_loss": -75.25866178942317
+    }
+  },
+  "SOLUSDT": {
+    "name": "Solana",
+    "signals": 162,
+    "trades": 21,
+    "risk_model": "PURE_1_PERCENT",
+    "metrics": {
+      "win_rate": 66.66666666666666,
+      "total_return": 10.231655834072912,
+      "sharpe_ratio": 4.146301559641748,
+      "max_drawdown": 372.1804284425482,
+      "profit_factor": 2.211161303225689,
+      "avg_win": 133.424728033283,
+      "avg_loss": -120.68294415123867
+    }
+  },
+  "XRPUSDT": {
+    "name": "Ripple",
+    "signals": 125,
+    "trades": 12,
+    "risk_model": "PURE_1_PERCENT",
+    "metrics": {
+      "win_rate": 58.333333333333336,
+      "total_return": 5.721707254131084,
+      "sharpe_ratio": 6.383976175372501,
+      "max_drawdown": 319.1403513216228,
+      "profit_factor": 2.687372137148722,
+      "avg_win": 130.18007886051205,
+      "avg_loss": -67.81796532209519
+    }
+  }
+}

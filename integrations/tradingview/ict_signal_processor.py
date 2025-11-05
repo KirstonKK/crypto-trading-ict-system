@@ -43,7 +43,7 @@ from integrations.tradingview.webhook_server import WebhookAlert
 from utils.config_loader import ConfigLoader
 from utils.crypto_pairs import CryptoPairs
 from utils.risk_management import RiskManager
-from src.utils.data_fetcher import DataFetcher
+from utils.data_fetcher import DataFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class ICTProcessedSignal:
     rejection_reason: Optional[str] = None
     
     # Metadata
-    processing_timestamp: datetime = None
+    processing_timestamp: Optional[datetime] = None
     ict_session: str = ""
     metadata: Optional[Dict] = None
     
@@ -278,7 +278,7 @@ class ICTSignalProcessor:
                 return self._reject_signal(f"Insufficient confluence: {ict_signal.overall_confluence:.2f}")
             
             # Step 10: Calculate ICT-based risk management
-            self._calculate_ict_risk_management(ict_signal, market_data)
+            self._calculate_ict_risk_management(ict_signal)
             
             # Step 11: Set execution timing and strategy
             self._set_execution_strategy(ict_signal)
@@ -370,7 +370,7 @@ class ICTSignalProcessor:
             logger.error(f"Market data fetch failed for {symbol}: {e}")
             return None
     
-    async def _detect_current_order_blocks(self, symbol: str, market_data: Dict) -> List[OrderBlockZone]:
+    def _detect_current_order_blocks(self, symbol: str, market_data: Dict) -> List[OrderBlockZone]:
         """Detect current Order Blocks across relevant timeframes."""
         try:
             all_order_blocks = []
@@ -402,7 +402,7 @@ class ICTSignalProcessor:
             logger.error(f"Order Block detection failed for {symbol}: {e}")
             return []
     
-    async def _detect_current_fvgs(self, symbol: str, market_data: Dict) -> List[FVGZone]:
+    def _detect_current_fvgs(self, symbol: str, market_data: Dict) -> List[FVGZone]:
         """Detect current Fair Value Gaps across relevant timeframes."""
         try:
             all_fvgs = []
@@ -434,7 +434,7 @@ class ICTSignalProcessor:
             logger.error(f"Fair Value Gap detection failed for {symbol}: {e}")
             return []
     
-    async def _analyze_market_structure(self, symbol: str, market_data: Dict, 
+    def _analyze_market_structure(self, symbol: str, market_data: Dict, 
                                       hierarchy_analysis: HierarchyAnalysis) -> Dict:
         """Analyze current market structure for ICT signals."""
         try:
@@ -496,7 +496,7 @@ class ICTSignalProcessor:
                 'structure_score': 0.0
             }
     
-    async def _analyze_liquidity_zones(self, symbol: str, market_data: Dict) -> Dict:
+    def _analyze_liquidity_zones(self, symbol: str, market_data: Dict) -> Dict:
         """Analyze liquidity zones for hunt patterns."""
         try:
             liquidity_analysis = {
@@ -560,7 +560,7 @@ class ICTSignalProcessor:
                 'liquidity_score': 0.0
             }
     
-    async def _generate_ict_signal(self, alert: WebhookAlert, hierarchy_analysis: HierarchyAnalysis,
+    def _generate_ict_signal(self, alert: WebhookAlert, hierarchy_analysis: HierarchyAnalysis,
                                  order_blocks: List[OrderBlockZone], fair_value_gaps: List[FVGZone],
                                  market_structure: Dict, liquidity_analysis: Dict,
                                  market_data: Dict) -> Optional[ICTProcessedSignal]:
@@ -568,7 +568,7 @@ class ICTSignalProcessor:
         try:
             # Determine primary ICT setup type
             setup_type, primary_ob, supporting_fvgs = self._identify_primary_ict_setup(
-                order_blocks, fair_value_gaps, market_structure, hierarchy_analysis
+                order_blocks, fair_value_gaps, market_structure
             )
             
             if not setup_type:
@@ -577,7 +577,7 @@ class ICTSignalProcessor:
             
             # Determine signal direction based on ICT analysis
             signal_direction = self._determine_ict_signal_direction(
-                setup_type, primary_ob, supporting_fvgs, hierarchy_analysis, market_structure
+                setup_type, primary_ob, supporting_fvgs, hierarchy_analysis
             )
             
             if not signal_direction:
@@ -652,8 +652,7 @@ class ICTSignalProcessor:
     
     def _identify_primary_ict_setup(self, order_blocks: List[OrderBlockZone], 
                                    fair_value_gaps: List[FVGZone],
-                                   market_structure: Dict, 
-                                   hierarchy_analysis: HierarchyAnalysis) -> Tuple[Optional[str], Optional[OrderBlockZone], List[FVGZone]]:
+                                   market_structure: Dict) -> Tuple[Optional[str], Optional[OrderBlockZone], List[FVGZone]]:
         """Identify the primary ICT setup type."""
         try:
             # Priority 1: Fresh Order Block with high quality
@@ -698,8 +697,7 @@ class ICTSignalProcessor:
     
     def _determine_ict_signal_direction(self, setup_type: str, primary_ob: Optional[OrderBlockZone],
                                       supporting_fvgs: List[FVGZone], 
-                                      hierarchy_analysis: HierarchyAnalysis,
-                                      market_structure: Dict) -> Optional[str]:
+                                      hierarchy_analysis: HierarchyAnalysis) -> Optional[str]:
         """Determine signal direction based on ICT analysis."""
         try:
             # Primary rule: Must align with higher timeframe bias
@@ -710,14 +708,8 @@ class ICTSignalProcessor:
                 return None
             
             # Direction based on setup type
-            if setup_type == 'ORDER_BLOCK' and primary_ob:
-                if primary_ob.ob_type == 'BULLISH_OB' and htf_bias == TrendDirection.BULLISH:
-                    return 'LONG'
-                elif primary_ob.ob_type == 'BEARISH_OB' and htf_bias == TrendDirection.BEARISH:
-                    return 'SHORT'
-            
-            elif setup_type == 'ORDER_BLOCK_FVG' and primary_ob:
-                # Order Block direction takes priority
+            if setup_type in ['ORDER_BLOCK', 'ORDER_BLOCK_FVG'] and primary_ob:
+                # Order Block direction takes priority (same logic for both setup types)
                 if primary_ob.ob_type == 'BULLISH_OB' and htf_bias == TrendDirection.BULLISH:
                     return 'LONG'
                 elif primary_ob.ob_type == 'BEARISH_OB' and htf_bias == TrendDirection.BEARISH:
@@ -959,7 +951,7 @@ class ICTSignalProcessor:
             logger.error(f"ICT confluence validation failed: {e}")
             return False
     
-    def _calculate_ict_risk_management(self, ict_signal: ICTProcessedSignal, market_data: Dict) -> None:
+    def _calculate_ict_risk_management(self, ict_signal: ICTProcessedSignal) -> None:
         """Calculate ICT-based risk management parameters."""
         try:
             # Calculate institutional risk based on market structure
@@ -1151,9 +1143,9 @@ if __name__ == "__main__":
     import asyncio
     logging.basicConfig(level=logging.INFO)
     
-    async def test_ict_signal_handler(signal: ICTProcessedSignal):
+    def test_ict_signal_handler(signal: ICTProcessedSignal):
         """Test ICT signal handler."""
-        print(f"📡 ICT Signal Received:")
+        print("📡 ICT Signal Received:")
         print(f"   Type: {signal.signal_type}")
         print(f"   Direction: {signal.direction}")
         print(f"   Setup: {signal.ict_setup_type}")
@@ -1186,13 +1178,13 @@ if __name__ == "__main__":
             signature_valid=True
         )
         
-        print(f"Processing test alert: {test_alert.action} {test_alert.symbol}")
+        print("Processing test alert: {test_alert.action} {test_alert.symbol}")
         
         # Process alert with ICT methodology
         ict_result = await processor.process_alert_with_ict(test_alert)
         
         if ict_result:
-            print(f"✅ ICT Signal Generated: {ict_result.validation_status}")
+            print("✅ ICT Signal Generated: {ict_result.validation_status}")
         else:
             print("❌ No ICT signal generated")
         

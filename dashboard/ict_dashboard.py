@@ -52,7 +52,7 @@ from trading.fibonacci_analyzer import ICTFibonacciAnalyzer, FibonacciZone
 from integrations.tradingview.ict_signal_processor import ICTSignalProcessor, ICTProcessedSignal
 
 # Traditional components for data
-from src.utils.data_fetcher import DataFetcher
+from utils.data_fetcher import DataFetcher
 from utils.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
@@ -67,21 +67,21 @@ class DashboardData:
     
     # ICT Analysis Components
     hierarchy_analysis: Optional[Dict] = None
-    order_blocks: List[Dict] = None
-    fair_value_gaps: List[Dict] = None
-    liquidity_zones: List[Dict] = None
-    fibonacci_zones: List[Dict] = None
+    order_blocks: Optional[List[Dict]] = None
+    fair_value_gaps: Optional[List[Dict]] = None
+    liquidity_zones: Optional[List[Dict]] = None
+    fibonacci_zones: Optional[List[Dict]] = None
     
     # Signals and alerts
-    active_signals: List[Dict] = None
-    recent_alerts: List[Dict] = None
+    active_signals: Optional[List[Dict]] = None
+    recent_alerts: Optional[List[Dict]] = None
     
     # Market context
-    market_structure: Dict = None
-    session_info: Dict = None
+    market_structure: Optional[Dict] = None
+    session_info: Optional[Dict] = None
     
     # Performance metrics
-    statistics: Dict = None
+    statistics: Optional[Dict] = None
     
     def __post_init__(self):
         if self.order_blocks is None:
@@ -311,7 +311,7 @@ class ICTTradingDashboard:
             
             # Generate ICT analysis
             hierarchy_analysis = asyncio.run(self.ict_hierarchy.analyze_symbol_hierarchy(symbol))
-            enhanced_order_blocks = self.enhanced_order_block_detector.detect_enhanced_order_blocks(market_data, symbol, timeframe)
+            order_blocks = self.enhanced_order_block_detector.detect_enhanced_order_blocks(market_data, symbol, timeframe)
             fair_value_gaps = self.fvg_detector.detect_fair_value_gaps(market_data, symbol, timeframe)
             liquidity_map = self.liquidity_detector.detect_liquidity_zones(market_data, symbol, timeframe)
             fibonacci_zones = self.fibonacci_analyzer.analyze_fibonacci_confluence(
@@ -554,7 +554,7 @@ class ICTTradingDashboard:
                 
                 # Fibonacci levels
                 for fib in dashboard_data.fibonacci_zones:
-                    color = 'gold' if fib['level'] == 0.79 else 'silver'
+                    color = 'gold' if abs(fib['level'] - 0.79) < 0.01 else 'silver'
                     overlays.append({
                         'type': 'line',
                         'x0': df.index[0],
@@ -683,7 +683,7 @@ class ICTTradingDashboard:
     def _generate_statistics(self) -> Dict:
         """Generate overall dashboard statistics."""
         try:
-            total_symbols = len(set(data.symbol for data in self.current_data.values()))
+            total_symbols = len({data.symbol for data in self.current_data.values()})
             total_signals = sum(len(data.active_signals) for data in self.current_data.values())
             
             return {

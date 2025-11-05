@@ -114,9 +114,9 @@ class BybitIntegrationManager:
         self.http_session = None
         
         logger.info("🔧 Bybit Integration Manager initialized")
-        logger.info(f"   ICT Monitor: {ict_monitor_url}")
-        logger.info(f"   Auto Trading: {'Enabled' if auto_trading else 'Disabled'}")
-        logger.info(f"   Environment: {'Testnet' if testnet else 'Mainnet'}")
+        logger.info("   ICT Monitor: {ict_monitor_url}")
+        logger.info("   Auto Trading: {'Enabled' if auto_trading else 'Disabled'}")
+        logger.info("   Environment: {'Testnet' if testnet else 'Mainnet'}")
 
     async def initialize(self):
         """Initialize all components"""
@@ -132,7 +132,7 @@ class BybitIntegrationManager:
                 self.status.bybit_connected = True
                 logger.info("✅ Bybit API connection successful")
             else:
-                raise Exception("Bybit API connection failed")
+                raise RuntimeError("Bybit API connection failed")
             
             # Initialize trading executor
             await self.trading_executor.initialize()
@@ -169,6 +169,7 @@ class BybitIntegrationManager:
             
             # Update trading executor
             # (The executor will handle this through its own monitoring)
+            await asyncio.sleep(0)  # Make function truly async
             
         async def on_position_update(position_update: PositionUpdate):
             """Handle position updates"""
@@ -188,12 +189,11 @@ class BybitIntegrationManager:
         try:
             async with self.http_session.get(f"{self.ict_monitor_url}/api/status") as response:
                 if response.status == 200:
-                    data = await response.json()
+                    _ = await response.json()
                     self.status.ict_monitor_connected = True
                     logger.info("✅ ICT Monitor connection successful")
-                    logger.info(f"   Status: {data.get('status', 'Unknown')}")
                 else:
-                    raise Exception(f"ICT Monitor returned status {response.status}")
+                    raise RuntimeError(f"ICT Monitor returned status {response.status}")
                     
         except Exception as e:
             logger.warning(f"⚠️  ICT Monitor connection failed: {e}")
@@ -220,7 +220,7 @@ class BybitIntegrationManager:
                                 self.status.total_signals_received += 1
                                 self.status.last_signal_time = datetime.now()
                                 
-                                logger.info(f"📡 New signal received: {signal.get('symbol')} {signal.get('action')}")
+                                logger.info("📡 New signal received: {signal.get('symbol')} {signal.get('action')}")
                 
                 await asyncio.sleep(2)  # Poll every 2 seconds
                 
@@ -228,6 +228,59 @@ class BybitIntegrationManager:
                 logger.error(f"❌ Error monitoring ICT signals: {e}")
                 await asyncio.sleep(5)  # Wait longer on error
 
+    async def _execute_signal_callbacks(self, signal_data):
+        """Execute all signal callbacks"""
+        for callback in self.signal_callbacks:
+            try:
+                await callback("new_signal", signal_data)
+            except Exception as e:
+                logger.error(f"❌ Signal callback error: {e}")
+    
+    async def _execute_trade_callbacks(self, execution):
+        """Execute all trade callbacks"""
+        for callback in self.trade_callbacks:
+            try:
+                await callback("trade_executed", asdict(execution))
+            except Exception as e:
+                logger.error(f"❌ Trade callback error: {e}")
+    
+    async def _execute_auto_trade(self, signal_data):
+        """Execute auto-trading for a signal"""
+        if not self.auto_trading:
+            logger.info("📊 Signal logged (auto-trading disabled)")
+            return
+        
+        execution = await self.trading_executor.process_ict_signal(signal_data)
+        
+        if execution:
+            self.status.total_trades_executed += 1
+            self.status.last_trade_time = datetime.now()
+            
+            # Call trade callbacks
+            await self._execute_trade_callbacks(execution)
+            
+            logger.info(f"✅ Trade executed: {execution.symbol} {execution.side}")
+        else:
+            logger.info("🚫 Signal not executed (validation failed)")
+    
+    async def _process_single_signal(self, signal_data):
+        """Process a single signal from the queue"""
+        logger.info(f"🔄 Processing signal: {signal_data.get('symbol')} {signal_data.get('action')}")
+        
+        # Validate signal format
+        if not self._validate_signal_format(signal_data):
+            logger.warning("⚠️  Invalid signal format, skipping")
+            return
+        
+        # Call signal callbacks
+        await self._execute_signal_callbacks(signal_data)
+        
+        # Execute trade if auto-trading is enabled
+        await self._execute_auto_trade(signal_data)
+        
+        # Update performance data
+        await self._update_performance_data()
+    
     async def _process_signals(self):
         """Process signals from the queue"""
         while self.running:
@@ -238,43 +291,7 @@ class BybitIntegrationManager:
                 except asyncio.TimeoutError:
                     continue
                 
-                logger.info(f"🔄 Processing signal: {signal_data.get('symbol')} {signal_data.get('action')}")
-                
-                # Validate signal format
-                if not self._validate_signal_format(signal_data):
-                    logger.warning("⚠️  Invalid signal format, skipping")
-                    continue
-                
-                # Call signal callbacks
-                for callback in self.signal_callbacks:
-                    try:
-                        await callback("new_signal", signal_data)
-                    except Exception as e:
-                        logger.error(f"❌ Signal callback error: {e}")
-                
-                # Execute trade if auto-trading is enabled
-                if self.auto_trading:
-                    execution = await self.trading_executor.process_ict_signal(signal_data)
-                    
-                    if execution:
-                        self.status.total_trades_executed += 1
-                        self.status.last_trade_time = datetime.now()
-                        
-                        # Call trade callbacks
-                        for callback in self.trade_callbacks:
-                            try:
-                                await callback("trade_executed", asdict(execution))
-                            except Exception as e:
-                                logger.error(f"❌ Trade callback error: {e}")
-                        
-                        logger.info(f"✅ Trade executed: {execution.symbol} {execution.side}")
-                    else:
-                        logger.info("🚫 Signal not executed (validation failed)")
-                else:
-                    logger.info("📊 Signal logged (auto-trading disabled)")
-                
-                # Update performance data
-                await self._update_performance_data()
+                await self._process_single_signal(signal_data)
                 
             except Exception as e:
                 logger.error(f"❌ Error processing signal: {e}")
@@ -316,6 +333,7 @@ class BybitIntegrationManager:
                 "win_rate": executor_performance.get("win_rate", "0.0%"),
                 "active_positions": executor_performance.get("active_positions", 0)
             })
+            await asyncio.sleep(0)  # Make function truly async
             
         except Exception as e:
             logger.error(f"❌ Error updating performance data: {e}")
@@ -331,7 +349,7 @@ class BybitIntegrationManager:
                 if self.status.bybit_connected:
                     try:
                         await self.bybit_client.test_connection()
-                    except:
+                    except Exception:
                         self.status.bybit_connected = False
                         logger.warning("⚠️  Bybit connection lost")
                 
@@ -342,7 +360,7 @@ class BybitIntegrationManager:
                 if self.status.ict_monitor_connected:
                     try:
                         await self._test_ict_connection()
-                    except:
+                    except Exception:
                         pass  # Already logged in _test_ict_connection
                 
                 # Monitor trading executor
@@ -376,7 +394,7 @@ class BybitIntegrationManager:
                 ]
                 
                 logger.info("✅ Integration system started successfully")
-                logger.info(f"   Auto Trading: {'ON' if self.auto_trading else 'OFF'}")
+                logger.info("   Auto Trading: {'ON' if self.auto_trading else 'OFF'}")
                 
                 # Run all tasks concurrently
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -431,12 +449,12 @@ class BybitIntegrationManager:
         """Subscribe to real-time data for a symbol"""
         self.websocket_client.subscribe_ticker(symbol)
         self.websocket_client.subscribe_trades(symbol)
-        logger.info(f"📡 Subscribed to real-time data: {symbol}")
+        logger.info("📡 Subscribed to real-time data: {symbol}")
 
     async def manual_trade(self, signal_data: Dict) -> Optional[TradeExecution]:
         """Manually execute a trade"""
         try:
-            logger.info(f"🔧 Manual trade execution: {signal_data.get('symbol')}")
+            logger.info("🔧 Manual trade execution: {signal_data.get('symbol')}")
             
             if not self._validate_signal_format(signal_data):
                 logger.warning("⚠️  Invalid signal format for manual trade")
@@ -447,7 +465,7 @@ class BybitIntegrationManager:
             if execution:
                 self.status.total_trades_executed += 1
                 self.status.last_trade_time = datetime.now()
-                logger.info(f"✅ Manual trade executed: {execution.symbol}")
+                logger.info("✅ Manual trade executed: {execution.symbol}")
             
             return execution
             

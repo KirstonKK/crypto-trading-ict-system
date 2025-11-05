@@ -201,12 +201,12 @@ if __name__ == "__main__":
         
         print("Available configurations:")
         for config in loader.list_available_configs():
-            print(f"  - {config}")
+            print("  - {config}")
         
         # Test loading exchange config
         exchange_config = load_exchange_config()
-        print(f"\\nExchange: {exchange_config['exchange']}")
-        print(f"Testnet: {exchange_config['testnet']}")
+        print("\\nExchange: {exchange_config['exchange']}")
+        print("Testnet: {exchange_config['testnet']}")
         
     except Exception as e:
-        print(f"Error testing configuration loader: {e}")
+        print("Error testing configuration loader: {e}")

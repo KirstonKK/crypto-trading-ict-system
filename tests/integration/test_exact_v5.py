@@ -33,8 +33,8 @@ def HTTP_Request(endPoint, method, payload, Info):
     else:
         response = httpClient.request(method, url + endPoint + "?" + payload, headers=headers)
     
-    print(f"{Info} Response Status: {response.status_code}")
-    print(f"{Info} Response: {response.text}")
+    print("{Info} Response Status: {response.status_code}")
+    print("{Info} Response: {response.text}")
     return response
 
 def genSignature(payload):
