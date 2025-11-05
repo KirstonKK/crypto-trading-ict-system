@@ -16,7 +16,7 @@ check_process() {
     local display_name=$2
     local port=$3
     
-    if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
+    if ps aux | grep -q "[$process_name]" || pgrep -f "$process_name" > /dev/null; then
         local pid=$(pgrep -f "$process_name")
         echo "✅ $display_name: RUNNING (PID: $pid)"
         
@@ -136,7 +136,7 @@ if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
     echo "💾 DATABASE QUICK CHECK:"
     echo "==============================="
     
-    if [ -f "trading_data.db" ]; then
+    if [ -f "databases/trading_data.db" ]; then
         echo "✅ Database file exists"
         
         # Quick database stats
@@ -144,7 +144,7 @@ if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
 import sqlite3
 from datetime import date
 try:
-    conn = sqlite3.connect('trading_data.db')
+    conn = sqlite3.connect('databases/trading_data.db')
     cursor = conn.cursor()
     today = date.today().isoformat()
     

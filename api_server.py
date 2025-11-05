@@ -34,7 +34,7 @@ def check_password(password, hashed):
     """Verify a password against a hash"""
     return bcrypt.checkpw(password.encode('utf-8'), hashed)
 
-def generate_token(user_id, email):
+def generate_token(user_id):
     """Generate JWT token"""
     payload = {
         'user_id': user_id,
@@ -96,7 +96,7 @@ def register():
     conn.commit()
     conn.close()
     
-    token = generate_token(user_id, email)
+    token = generate_token(user_id)
     
     return jsonify({
         'message': 'User created successfully',
@@ -123,7 +123,7 @@ def login():
     if not user or not check_password(password, user[2]):
         return jsonify({'message': 'Invalid credentials'}), 401
     
-    token = generate_token(user[0], user[1])
+    token = generate_token(user[0])
     
     return jsonify({
         'token': token,

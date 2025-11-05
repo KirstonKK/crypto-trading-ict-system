@@ -15,10 +15,10 @@ echo "🔍 Fundamental Analysis: Long-term investment analysis (Port 5002)"
 echo "==============================="
 
 # Check if we're in the right directory
-if [ ! -f "src/monitors/ict_enhanced_monitor.py" ]; then
+if [ ! -f "core/monitors/ict_enhanced_monitor.py" ]; then
     echo "❌ Not in the correct directory. Please run from Trading Algorithm folder."
     echo "💡 Current directory: $(pwd)"
-    echo "💡 Expected file: src/monitors/ict_enhanced_monitor.py"
+    echo "💡 Expected file: core/monitors/ict_enhanced_monitor.py"
     exit 1
 fi
 
@@ -62,7 +62,7 @@ echo "📁 Logs directory ready"
 
 # Start ICT Enhanced Monitor
 echo "🎯 Starting ICT Enhanced Monitor (single-flow mode)..."
-$PYTHON_CMD src/monitors/ict_enhanced_monitor.py > logs/ict_monitor.log 2>&1 &
+$PYTHON_CMD core/monitors/ict_enhanced_monitor.py > logs/ict_monitor.log 2>&1 &
 ICT_PID=$!
 sleep 3
 
@@ -90,7 +90,7 @@ fi
 
 if [ "$INCLUDE_EXTRAS" = "true" ]; then
     echo "📊 Starting Demo Trading System (extras enabled)..."
-    $PYTHON_CMD src/trading/demo_trading_system.py --dry-run &
+    $PYTHON_CMD systems/demo_trading/demo_trading_system.py --dry-run &
     DEMO_PID=$!
     sleep 3
 

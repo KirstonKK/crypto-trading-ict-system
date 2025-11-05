@@ -319,7 +319,10 @@ class BybitRealTimePrices:
         """Notify registered callbacks of price update"""
         for callback in self.callbacks:
             try:
-                await callback(symbol, price_data, price_change)
+                result = callback(symbol, price_data, price_change)
+                # Only await if the callback returns a coroutine
+                if hasattr(result, '__await__'):
+                    await result
             except Exception as e:
                 logger.error(f"❌ Price callback error: {e}")
     

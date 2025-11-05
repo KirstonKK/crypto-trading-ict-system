@@ -8,24 +8,20 @@ import re
 
 file_path = 'src/database/trading_database.py'
 
-# Constants
-OLD_PATTERN = 'sqlite3.connect(self.db_path)'
-NEW_PATTERN = 'self._get_connection()'
-
 # Read the file
 with open(file_path, 'r') as f:
     content = f.read()
 
 # Replace all remaining occurrences
 original_content = content
-content = content.replace(OLD_PATTERN, NEW_PATTERN)
+content = content.replace('sqlite3.connect(self.db_path)', 'self._get_connection()')
 
 # Count replacements
-count = original_content.count(OLD_PATTERN) - content.count(OLD_PATTERN)
+count = original_content.count('sqlite3.connect(self.db_path)') - content.count('sqlite3.connect(self.db_path)')
 
 # Write back
 with open(file_path, 'w') as f:
     f.write(content)
 
-print(f"✅ Replaced {count} occurrences of {OLD_PATTERN} with {NEW_PATTERN}")
+print(f"✅ Replaced {count} occurrences of sqlite3.connect(self.db_path) with self._get_connection()")
 print(f"📝 File: {file_path}")

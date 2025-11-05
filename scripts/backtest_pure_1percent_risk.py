@@ -25,6 +25,7 @@ import os
 import logging
 import pandas as pd
 from datetime import datetime, timedelta
+from typing import Optional, Dict
 import json
 
 # Add project root to path
@@ -133,7 +134,7 @@ class Pure1PercentBacktest:
             logger.error(f"  Error: {e}")
             return pd.DataFrame()
     
-    def backtest_symbol(self, symbol: str, name: str) -> dict:
+    def backtest_symbol(self, symbol: str, name: str) -> Optional[Dict]:
         """Run backtest for one symbol with pure 1% risk."""
         logger.info("\n" + "=" * 80)
         logger.info(f"BACKTESTING {name} ({symbol}) - PURE 1% RISK")
@@ -310,7 +311,7 @@ def main():
     """Main entry point."""
     try:
         backtest = Pure1PercentBacktest()
-        results = backtest.run()
+        _ = backtest.run()  # Run backtest, results saved internally
         
         logger.info("\n" + "=" * 80)
         logger.info("🎉 6-MONTH PURE 1% RISK BACKTEST COMPLETE!")

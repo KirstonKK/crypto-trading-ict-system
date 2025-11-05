@@ -62,7 +62,13 @@ ICTStrategyEngine = strategy_module.ICTStrategyEngine
 MultiTimeframeData = strategy_module.MultiTimeframeData
 
 # 🚀 QUANT ENHANCEMENTS - Import all 5 modules
-from utils.volatility_indicators import VolatilityAnalyzer
+try:
+    from utils.volatility_indicators import VolatilityAnalyzer
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+    from utils.volatility_indicators import VolatilityAnalyzer
 from utils.correlation_matrix import CorrelationAnalyzer
 from utils.signal_quality import SignalQualityAnalyzer
 from utils.mean_reversion import MeanReversionAnalyzer
@@ -81,6 +87,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Constants
+INDEX_HTML_FILENAME = 'index.html'
+
 class ICTCryptoMonitor:
     """ICT Enhanced Crypto Monitor matching previous version exactly"""
     
@@ -95,6 +104,9 @@ class ICTCryptoMonitor:
         self.symbols = ['BTCUSDT', 'SOLUSDT', 'ETHUSDT', 'XRPUSDT']
         self.display_symbols = ['BTC', 'SOL', 'ETH', 'XRP']
         self.crypto_emojis = {'BTC': '₿', 'SOL': '◎', 'ETH': 'Ξ', 'XRP': '✕'}
+        
+        # TRADING CONFIGURATION - Prevent duplicate/old trade display
+        self.show_today_only = True  # Only show trades from today to prevent confusion
         
         # Monitor state tracking - load from database
         daily_stats = self.db.get_daily_stats()
@@ -980,8 +992,8 @@ class ICTWebMonitor:
         def home():
             """Serve React app home page"""
             frontend_path = os.path.join(project_root, 'frontend', 'dist')
-            if os.path.exists(os.path.join(frontend_path, 'index.html')):
-                return send_from_directory(frontend_path, 'index.html')
+            if os.path.exists(os.path.join(frontend_path, INDEX_HTML_FILENAME)):
+                return send_from_directory(frontend_path, INDEX_HTML_FILENAME)
             # Fallback to ICT monitor if React not built
             return redirect('/monitor')
         
@@ -1033,7 +1045,13 @@ class ICTWebMonitor:
                 # Get closed signals for trading journal (today's completed trades)
                 journal_entries = self.crypto_monitor.db.get_closed_signals_today()
                 
-                logger.info(f"🔍 API /api/data: Retrieved {len(todays_signals)} today's signals, {len(active_signals)} active trades from database")
+                logger.info(f"🔍 API /api/data: Retrieved {len(todays_signals)} today's signals, {len(active_trades)} active trades from database")
+                
+                # PHANTOM TRADE ELIMINATION: Force database-only truth
+                if len(active_trades) == 0:
+                    logger.info("✅ Database contains 0 active trades - phantom cache clearing not needed (database-only approach)")
+                else:
+                    logger.info(f"📊 Processing {len(active_trades)} legitimate active trades from database")
                 
                 # Define all possible closed/completed statuses to exclude
                 CLOSED_STATUSES = {
@@ -1096,10 +1114,11 @@ class ICTWebMonitor:
                 
                 logger.info(f"✅ Built signals_summary with {len(todays_summary)} active signals")
                 
-                # Build paper trades from ACTIVE signals (any date) with REAL-TIME PRICES and PROPER POSITION SIZING
+                # Build paper trades from ACTIVE paper trades in database ONLY
                 paper_trades = []
                 
-                # Use active_trades from paper_trades table (not signals)
+                # Use ONLY active_trades from paper_trades table (database-first approach)
+                logger.info(f"🔍 Building paper trades from {len(active_trades)} database entries")
                 for trade in active_trades:
                         crypto = trade.get('symbol', 'BTCUSDT').replace('USDT', '')
                         entry_price = trade.get('entry_price', 0)
@@ -1153,6 +1172,10 @@ class ICTWebMonitor:
                     'effective_probability': 3.5,  # Base 3.5% probability
                     'confluence_threshold': 60.0  # 60% minimum confluence (conservative)
                 }
+
+                # Log final data counts being sent to UI
+                logger.info(f"📊 API Response: Sending {len(paper_trades)} active trades, {active_signals_count} signals today (all from database)")
+                logger.info(f"🔢 Database consistency: active_trades_count={len(active_trades)}, active_paper_trades={len(paper_trades)}")
 
                 return jsonify({
                     'prices': self.current_prices,
@@ -1287,8 +1310,8 @@ class ICTWebMonitor:
                 self.crypto_monitor.account_blown = False
                 self.crypto_monitor.total_paper_pnl = 0.0
                 
-                # Clear active trades but keep completed ones for learning
-                self.crypto_monitor.active_paper_trades.clear()
+                # NOTE: No need to clear phantom cache - using database-only approach
+                logger.info("🚫 ACCOUNT RESET: Phantom cache clearing skipped - using database-only architecture")
                 
                 logger.info(f"🔄 ACCOUNT RESET: ${old_balance:.2f} → $100.00 | Was Blown: {was_blown}")
                 
@@ -1390,7 +1413,7 @@ class ICTWebMonitor:
                 return send_from_directory(frontend_dist, path)
             
             # Otherwise serve index.html (React Router will handle routing)
-            return send_from_directory(frontend_dist, 'index.html')
+            return send_from_directory(frontend_dist, INDEX_HTML_FILENAME)
     
     def setup_socketio_events(self):
         """Setup SocketIO events for real-time updates"""
@@ -1744,57 +1767,69 @@ class ICTWebMonitor:
             logger.error(f"Error loading completed trades from database: {e}")
         return serialized_completed_trades
 
-    def _get_active_paper_trades(self):
-        """Get active paper trades from paper_trades table with real-time prices"""
-        serialized_active_trades = []
+    def _get_active_paper_trades(self, today_only=False):
+        """Get active paper trades from database ONLY - NO phantom trades
+        
+        Args:
+            today_only (bool): If True, only return trades from today
+        """
         try:
-            # Query paper_trades table for OPEN trades
-            import sqlite3
-            with sqlite3.connect(self.crypto_monitor.db.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.execute('''
-                    SELECT * FROM paper_trades 
-                    WHERE status = 'OPEN'
-                    ORDER BY entry_time DESC
-                ''')
+            # FORCE DATABASE-ONLY: Query paper_trades table directly
+            active_trades = self.crypto_monitor.db.get_active_paper_trades()
+            
+            # Apply date filter if requested
+            if today_only:
+                from datetime import date
+                today = date.today().isoformat()
+                active_trades = [
+                    trade for trade in active_trades 
+                    if trade.get('entry_time', '').startswith(today)
+                ]
+                logger.info(f"📅 Date filter applied: {len(active_trades)} trades from today ({today})")
+            
+            if len(active_trades) == 0:
+                logger.info("🚫 _get_active_paper_trades: Database has 0 active trades - returning empty list")
+                return []
+            
+            logger.info(f"✅ _get_active_paper_trades: Found {len(active_trades)} legitimate database trades")
+            
+            serialized_active_trades = []
+            for trade in active_trades:
+                crypto = trade.get('symbol', 'BTCUSDT').replace('USDT', '')
+                entry_price = trade.get('entry_price', 0)
+                position_size = trade.get('position_size', 0)
+                direction = trade.get('direction', 'BUY')
                 
-                for row in cursor.fetchall():
-                    trade_dict = dict(row)
-                    crypto = trade_dict.get('symbol', 'BTCUSDT').replace('USDT', '')
-                    entry_price = trade_dict.get('entry_price', 0)
-                    position_size = trade_dict.get('position_size', 0)
-                    direction = trade_dict.get('direction', 'BUY')
-                    
-                    # Get REAL-TIME current price from self.current_prices
-                    current_price = entry_price  # Default fallback
-                    if crypto in self.current_prices:
-                        current_price = self.current_prices[crypto].get('price', entry_price)
-                    
-                    # Calculate REAL PnL based on actual position size
-                    if direction == 'SELL':
-                        pnl = (entry_price - current_price) * position_size
-                    else:  # BUY
-                        pnl = (current_price - entry_price) * position_size
+                # Get REAL-TIME current price
+                current_price = entry_price  # Default fallback
+                if crypto in self.current_prices:
+                    current_price = self.current_prices[crypto].get('price', entry_price)
+                
+                # Calculate REAL PnL based on actual position size
+                if direction == 'SELL':
+                    pnl = (entry_price - current_price) * position_size
+                else:  # BUY
+                    pnl = (current_price - entry_price) * position_size
                     
                     position_value = position_size * entry_price
                     
-                    trade = {
-                        'id': trade_dict.get('id', 0),
-                        'signal_id': trade_dict.get('signal_id', ''),
+                    trade_data = {
+                        'id': trade.get('id', 0),
+                        'signal_id': trade.get('signal_id', ''),
                         'crypto': crypto,
                         'action': direction,
                         'entry_price': entry_price,
                         'current_price': current_price,
-                        'stop_loss': trade_dict.get('stop_loss', 0),
-                        'take_profit': trade_dict.get('take_profit', 0),
+                        'stop_loss': trade.get('stop_loss', 0),
+                        'take_profit': trade.get('take_profit', 0),
                         'position_size': position_size,
                         'position_value': position_value,
-                        'risk_amount': trade_dict.get('risk_amount', 0),
+                        'risk_amount': trade.get('risk_amount', 0),
                         'pnl': pnl,
-                        'entry_time': trade_dict.get('entry_time', ''),
+                        'entry_time': trade.get('entry_time', ''),
                         'status': 'OPEN'
                     }
-                    serialized_active_trades.append(trade)
+                    serialized_active_trades.append(trade_data)
             
             logger.info(f"📊 Broadcasting {len(serialized_active_trades)} active paper trades via SocketIO")
         except Exception as e:
@@ -1850,8 +1885,8 @@ class ICTWebMonitor:
             # DATABASE-FIRST: Get completed trades from database
             serialized_completed_trades = self._get_completed_trades()
 
-            # Serialize active paper trades FROM DATABASE (any date) with REAL-TIME PRICES and PROPER POSITION SIZING
-            serialized_active_trades = self._get_active_paper_trades()
+            # Serialize active paper trades FROM DATABASE with date filtering and REAL-TIME PRICES
+            serialized_active_trades = self._get_active_paper_trades(today_only=self.crypto_monitor.show_today_only)
 
             # DATABASE-FIRST: Get today's signals from database
             serialized_live_signals, todays_summary, today_signals = self._get_todays_signals()
