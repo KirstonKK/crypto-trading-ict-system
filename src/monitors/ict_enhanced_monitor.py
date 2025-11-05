@@ -3417,11 +3417,32 @@ def main():
     parser.add_argument('--port', type=int, default=5001, help='Port to run the monitor on')
     args = parser.parse_args()
     
-    # Create demo user if not exists
+    # Initialize database for new users
+    logger.info("=" * 60)
+    logger.info("🚀 ICT Trading System - Starting Up")
+    logger.info("=" * 60)
+    
     from database.trading_database import TradingDatabase
     import bcrypt
     
-    db = TradingDatabase()
+    # Database initialization (creates tables automatically)
+    logger.info("📊 Initializing database...")
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    db_path = os.path.join(project_root, "data", "trading.db")
+    
+    # Check if this is first-time setup
+    is_new_installation = not os.path.exists(db_path)
+    
+    db = TradingDatabase(db_path)
+    
+    if is_new_installation:
+        logger.info("✨ First-time setup detected!")
+        logger.info("✅ Database created: data/trading.db")
+        logger.info("✅ All tables initialized")
+    else:
+        logger.info("✅ Database found: data/trading.db")
+    
+    # Create demo user if not exists
     demo_email = 'demo@ict.com'
     demo_password = 'demo123'
     
@@ -3430,8 +3451,15 @@ def main():
         password_hash = bcrypt.hashpw(demo_password.encode('utf-8'), bcrypt.gensalt())
         db.create_user(demo_email, password_hash)
         logger.info(f"✅ Created demo user: {demo_email} / {demo_password}")
+        logger.info("=" * 60)
+        logger.info("🎉 FIRST TIME SETUP COMPLETE!")
+        logger.info("📝 Login with: demo@ict.com / demo123")
+        logger.info("=" * 60)
     else:
-        logger.info(f"✅ Demo user already exists: {demo_email}")
+        logger.info(f"✅ Demo user ready: {demo_email}")
+    
+    logger.info(f"🌐 Starting monitor on port {args.port}...")
+    logger.info("=" * 60)
     
     monitor = ICTWebMonitor(port=args.port)
     monitor.start()

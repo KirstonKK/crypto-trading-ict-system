@@ -19,14 +19,32 @@ Production-ready cryptocurrency trading system implementing Inner Circle Trader 
 - **Risk Management**: Multiple implementations ensuring 1% risk per trade
 
 ## Quick Start
-```bash
-# Start all systems
-./scripts/setup/start_all_systems.sh
 
-# Access web interfaces
-# ICT Monitor: http://localhost:5001
-# Fundamental Analysis: http://localhost:5002
+### First Time Setup (New Users)
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Build frontend (React)
+cd frontend
+npm install
+npm run build
+cd ..
+
+# 3. Start the system (auto-initializes database)
+python3 src/monitors/ict_enhanced_monitor.py --port 5001
 ```
+
+**First-time users**: The system automatically:
+- ✅ Creates `data/trading.db` database
+- ✅ Initializes all required tables
+- ✅ Creates demo user: `demo@ict.com` / `demo123`
+
+### Access the System
+- 🌐 **Web Interface**: http://localhost:5001
+- 📊 **Dashboard**: http://localhost:5001/dashboard
+- 🔍 **Fundamental Analysis**: http://localhost:5001/fundamental
+- 👤 **Login**: demo@ict.com / demo123
 
 ## Status
 - ✅ Production-ready with professional-grade architecture
