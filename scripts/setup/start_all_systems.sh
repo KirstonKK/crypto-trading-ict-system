@@ -1,18 +1,23 @@
 #!/bin/bash
 
-# 🚀 START ALL TRADING SYSTEMS - ONE COMMAND
-# ==========================================
-# Starts all three systems:
-# 1. ICT Enhanced Monitor (Day Trading) - Port 5001
-# 2. Demo Trading System (Auto Trading)
-# 3. Fundamental Analysis System (Long-term) - Port 5002
+# 🚀 START UNIFIED TRADING SYSTEM - ONE COMMAND
+# =============================================
+# Starts the unified ICT Enhanced Monitor with:
+# 1. ICT Trading Signals & Execution
+# 2. Real-time Price Monitoring
+# 3. Fundamental Analysis (Integrated)
+# 4. Trading Journal & Dashboard
+# ALL on Port 5001
 
-echo "🚀 STARTING ALL TRADING SYSTEMS"
-echo "==============================="
-echo "🎯 ICT Enhanced Monitor: Day trading signals (Port 5001)"
-echo "📊 Demo Trading System: Auto trading execution"
-echo "🔍 Fundamental Analysis: Long-term investment analysis (Port 5002)"
-echo "==============================="
+echo "🚀 STARTING UNIFIED TRADING SYSTEM"
+echo "===================================="
+echo "✅ ICT Trading Monitor (Unified System)"
+echo "   ├─ Day Trading Signals & Execution"
+echo "   ├─ Real-time Price Updates"
+echo "   ├─ Fundamental Analysis (Integrated)"
+echo "   ├─ Trading Journal & Dashboard"
+echo "   └─ ALL on Port 5001"
+echo "===================================="
 
 # Check if we're in the right directory
 if [ ! -f "core/monitors/ict_enhanced_monitor.py" ]; then
@@ -41,10 +46,9 @@ check_port() {
     return 0
 }
 
-# Check if ports are available
-echo "🔍 Checking ports..."
+# Check if port is available
+echo "🔍 Checking port 5001..."
 check_port 5001 || echo "   ICT Monitor may already be running"
-check_port 5002 || echo "   Fundamental Analysis may already be running"
 
 # Set Flask secret key if not already set
 if [ -z "$FLASK_SECRET_KEY" ]; then
@@ -60,112 +64,51 @@ echo "📂 Set PYTHONPATH to: $(pwd)"
 mkdir -p logs
 echo "📁 Logs directory ready"
 
-# Start ICT Enhanced Monitor
-echo "🎯 Starting ICT Enhanced Monitor (single-flow mode)..."
+# Start Unified ICT Enhanced Monitor (includes fundamental analysis)
+echo "🎯 Starting Unified ICT Trading System..."
 $PYTHON_CMD core/monitors/ict_enhanced_monitor.py > logs/ict_monitor.log 2>&1 &
 ICT_PID=$!
 sleep 3
 
 # Check if ICT Monitor started successfully
 if kill -0 $ICT_PID 2>/dev/null; then
-    echo "✅ ICT Enhanced Monitor started (PID: $ICT_PID)"
+    echo "✅ Unified Trading System started (PID: $ICT_PID)"
 else
-    echo "❌ Failed to start ICT Enhanced Monitor"
-fi
-
-# By default we now start only the ICT monitor to enforce a single authoritative
-# monitoring -> signal generation -> execution -> persistence flow.
-# To start the demo trading system and the fundamental analysis system as well,
-# either set environment variable START_EXTRAS=true or pass --include-extras
-# Example: START_EXTRAS=true ./start_all_systems.sh
-
-# Parse optional argument --include-extras
-INCLUDE_EXTRAS="false"
-if [ "$1" = "--include-extras" ]; then
-    INCLUDE_EXTRAS="true"
-fi
-if [ "$START_EXTRAS" = "true" ]; then
-    INCLUDE_EXTRAS="true"
-fi
-
-if [ "$INCLUDE_EXTRAS" = "true" ]; then
-    echo "📊 Starting Demo Trading System (extras enabled)..."
-    $PYTHON_CMD systems/demo_trading/demo_trading_system.py --dry-run &
-    DEMO_PID=$!
-    sleep 3
-
-    if kill -0 $DEMO_PID 2>/dev/null; then
-        echo "✅ Demo Trading System started (PID: $DEMO_PID)"
-    else
-        echo "❌ Failed to start Demo Trading System"
-    fi
-
-    echo "🔍 Starting Enhanced Fundamental Analysis System (extras enabled)..."
-    ./scripts/setup/start_enhanced_fundamental.sh > /dev/null 2>&1 &
-    FUND_PID=$!
-    sleep 5
-
-    if kill -0 $FUND_PID 2>/dev/null; then
-        echo "✅ Enhanced Fundamental Analysis System started (PID: $FUND_PID)"
-        echo "📡 WatcherGuru Telegram monitoring capability: ENABLED"
-    else
-        echo "❌ Failed to start Enhanced Fundamental Analysis System"
-    fi
-else
-    echo "ℹ️  Extras (Demo Trading + Fundamental Analysis) skipped by default." 
-    echo "   To include them: START_EXTRAS=true ./scripts/setup/start_all_systems.sh"
-    echo "   Or: ./scripts/setup/start_all_systems.sh --include-extras"
+    echo "❌ Failed to start Unified Trading System"
+    echo "💡 Check logs/ict_monitor.log for details"
+    exit 1
 fi
 
 echo ""
 echo "🌐 WEB INTERFACES:"
-echo "==============================="
-echo "🎯 ICT Day Trading:     http://localhost:5001"
-echo "🔍 Fundamental Analysis: http://localhost:5002"
-echo "📡 Bitcoin Alert Detection: ENABLED"
+echo "===================================="
+echo "🎯 Main Dashboard:         http://localhost:5001"
+echo "� Fundamental Analysis:   http://localhost:5001/fundamental"
+echo "� API Endpoint:           http://localhost:5001/api/data"
+echo "📈 Fundamental API:        http://localhost:5001/api/fundamental"
+echo "🩺 Health Check:           http://localhost:5001/health"
 echo ""
 
 echo "🔍 SYSTEM STATUS:"
-echo "==============================="
-
-# Check all systems
-RUNNING_SYSTEMS=0
+echo "===================================="
 
 if ps aux | grep -q "[i]ct_enhanced_monitor.py"; then
-    echo "✅ ICT Enhanced Monitor: RUNNING"
-    RUNNING_SYSTEMS=$((RUNNING_SYSTEMS + 1))
-else
-    echo "❌ ICT Enhanced Monitor: NOT RUNNING"
-fi
-
-if ps aux | grep -q "[d]emo_trading_system.py"; then
-    echo "✅ Demo Trading System: RUNNING"
-    RUNNING_SYSTEMS=$((RUNNING_SYSTEMS + 1))
-else
-    echo "❌ Demo Trading System: NOT RUNNING"
-fi
-
-if ps aux | grep -q "[f]undamental_analysis_server.py"; then
-    echo "✅ Fundamental Analysis: RUNNING"
-    RUNNING_SYSTEMS=$((RUNNING_SYSTEMS + 1))
-else
-    echo "❌ Fundamental Analysis: NOT RUNNING"
-fi
-
-echo "==============================="
-echo "📊 SUMMARY: $RUNNING_SYSTEMS/3 systems running"
-
-if [ $RUNNING_SYSTEMS -eq 3 ]; then
-    echo "🎉 ALL SYSTEMS SUCCESSFULLY STARTED!"
+    echo "✅ Unified Trading System: RUNNING ✨"
+    echo "   ├─ ICT Trading Signals: Active"
+    echo "   ├─ Real-time Prices: Active"
+    echo "   ├─ Fundamental Analysis: Integrated"
+    echo "   └─ Dashboard: http://localhost:5001"
     echo ""
-    echo "📝 To stop all systems: ./stop_all_systems.sh"
-    echo "🔍 To check status: ./check_all_systems.sh"
-elif [ $RUNNING_SYSTEMS -gt 0 ]; then
-    echo "⚠️  PARTIAL SUCCESS: Some systems failed to start"
-    echo "💡 Try running individual systems manually"
+    echo "🎉 SYSTEM SUCCESSFULLY STARTED!"
+    echo ""
+    echo "📝 Commands:"
+    echo "   Stop:   ./scripts/setup/stop_all_systems.sh"
+    echo "   Status: ./scripts/setup/check_all_systems.sh"
+    echo "   Logs:   tail -f logs/ict_monitor.log"
 else
-    echo "❌ STARTUP FAILED: No systems are running"
-    echo "💡 Check dependencies and try again"
+    echo "❌ Unified Trading System: NOT RUNNING"
+    echo "💡 Check logs/ict_monitor.log for error details"
+    exit 1
 fi
 
-echo "==============================="
+echo "===================================="

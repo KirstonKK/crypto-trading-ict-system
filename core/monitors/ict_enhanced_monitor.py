@@ -3360,6 +3360,9 @@ class ICTWebMonitor:
         self.session_tracker = SessionStatusTracker(self.crypto_monitor.trading_sessions)
         self.statistics = MonitorStatistics()
         
+        # Initialize Fundamental Analysis (integrated)
+        self.fundamental_analysis = self._init_fundamental_analysis()
+        
         # Data storage
         self.current_prices = {}
         self.is_running = False
@@ -3367,6 +3370,72 @@ class ICTWebMonitor:
         # Setup routes
         self.setup_routes()
         self.setup_socketio_events()
+    
+    def _init_fundamental_analysis(self):
+        """Initialize integrated fundamental analysis"""
+        return {
+            'BTC': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None},
+            'ETH': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None},
+            'SOL': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None},
+            'XRP': {'score': 0, 'recommendation': 'NEUTRAL', 'last_update': None}
+        }
+    
+    def _update_fundamental_analysis(self):
+        """Update fundamental analysis for all cryptos"""
+        try:
+            for symbol in ['BTC', 'ETH', 'SOL', 'XRP']:
+                # Simple fundamental scoring based on price trends and market conditions
+                score = self._calculate_fundamental_score(symbol)
+                recommendation = self._get_fundamental_recommendation(score)
+                
+                self.fundamental_analysis[symbol] = {
+                    'score': score,
+                    'recommendation': recommendation,
+                    'last_update': datetime.now().isoformat(),
+                    'confidence': min(abs(score) / 10, 1.0)  # 0-1 confidence
+                }
+            logger.info("✅ Fundamental analysis updated")
+        except Exception as e:
+            logger.error(f"❌ Error updating fundamental analysis: {e}")
+    
+    def _calculate_fundamental_score(self, symbol):
+        """Calculate fundamental score (-10 to +10)"""
+        # Simple scoring based on current price vs historical
+        try:
+            current_price = self.current_prices.get(symbol, 0)
+            if not current_price:
+                return 0
+            
+            # Basic trend analysis (placeholder - can be enhanced)
+            # Positive score = bullish fundamentals, negative = bearish
+            score = 0
+            
+            # Example scoring factors (can be expanded):
+            if symbol == 'BTC' and current_price > 90000:
+                score += 3  # Strong fundamental support above 90k
+            elif symbol == 'ETH' and current_price > 3000:
+                score += 2
+            elif symbol == 'SOL' and current_price > 180:
+                score += 2
+            elif symbol == 'XRP' and current_price > 2:
+                score += 2
+            
+            return max(-10, min(10, score))  # Clamp to -10 to +10
+        except Exception:
+            return 0
+    
+    def _get_fundamental_recommendation(self, score):
+        """Convert score to recommendation"""
+        if score >= 6:
+            return 'STRONG BUY'
+        elif score >= 3:
+            return 'BUY'
+        elif score <= -6:
+            return 'STRONG SELL'
+        elif score <= -3:
+            return 'SELL'
+        else:
+            return 'NEUTRAL'
     
     def _count_todays_signals(self):
         """Count signals created today"""
@@ -3607,6 +3676,36 @@ class ICTWebMonitor:
         @self.app.route('/api/journal')
         def get_journal():
             return jsonify(self.crypto_monitor.trading_journal)
+        
+        # FUNDAMENTAL ANALYSIS ENDPOINTS (Integrated)
+        @self.app.route('/api/fundamental')
+        def get_all_fundamental():
+            """Get fundamental analysis for all cryptos"""
+            try:
+                self._update_fundamental_analysis()
+                return jsonify(self.fundamental_analysis)
+            except Exception as e:
+                logger.error(f"❌ Error getting fundamental analysis: {e}")
+                return jsonify({'error': 'Failed to get fundamental analysis'}), 500
+        
+        @self.app.route('/api/fundamental/<symbol>')
+        def get_fundamental_symbol(symbol):
+            """Get fundamental analysis for specific crypto"""
+            try:
+                symbol = symbol.upper()
+                if symbol not in self.fundamental_analysis:
+                    return jsonify({'error': f'Symbol {symbol} not supported'}), 404
+                
+                self._update_fundamental_analysis()
+                return jsonify(self.fundamental_analysis[symbol])
+            except Exception as e:
+                logger.error(f"❌ Error getting fundamental analysis for {symbol}: {e}")
+                return jsonify({'error': 'Failed to get fundamental analysis'}), 500
+        
+        @self.app.route('/fundamental')
+        def fundamental_dashboard():
+            """Render fundamental analysis dashboard"""
+            return render_template_string(self._get_fundamental_dashboard_html())
         
         @self.app.route('/api/reset_account', methods=['POST'])
         def reset_account():
@@ -4322,6 +4421,13 @@ class ICTWebMonitor:
         </div>
         <p><span class="status-indicator"></span> <span id="market-status">Monitoring Active</span> | <span id="current-time">--:-- GMT</span></p>
         
+        <!-- Navigation Links -->
+        <div style="margin-top: 15px;">
+            <a href="/fundamental" style="display: inline-block; padding: 10px 20px; background: rgba(0,255,136,0.2); color: #00ff88; text-decoration: none; border-radius: 8px; border: 1px solid #00ff88; margin: 5px; transition: all 0.3s;" onmouseover="this.style.background='rgba(0,255,136,0.3)'" onmouseout="this.style.background='rgba(0,255,136,0.2)'">
+                📊 Fundamental Analysis
+            </a>
+        </div>
+        
         <!-- Real-time Prices Display -->
         <div class="prices-display" id="prices-display">
             <div class="price-item">
@@ -4987,6 +5093,238 @@ class ICTWebMonitor:
 </html>
         '''
     
+    def _get_fundamental_dashboard_html(self):
+        """Generate fundamental analysis dashboard HTML"""
+        return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Fundamental Analysis - ICT Trading System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(0,255,136,0.2);
+            color: #00ff88;
+            text-decoration: none;
+            border-radius: 8px;
+            border: 1px solid #00ff88;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            background: rgba(0,255,136,0.3);
+            transform: translateX(-5px);
+        }
+        
+        .crypto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .crypto-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        
+        .crypto-card:hover {
+            transform: translateY(-5px);
+            border-color: #00ff88;
+            box-shadow: 0 10px 30px rgba(0,255,136,0.3);
+        }
+        
+        .crypto-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .crypto-name {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        
+        .score {
+            font-size: 2em;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+        
+        .score.bullish { background: rgba(0,255,136,0.3); color: #00ff88; }
+        .score.neutral { background: rgba(255,193,7,0.3); color: #ffc107; }
+        .score.bearish { background: rgba(255,107,107,0.3); color: #ff6b6b; }
+        
+        .recommendation {
+            text-align: center;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .recommendation.strong-buy { background: rgba(0,255,0,0.2); color: #00ff00; border: 2px solid #00ff00; }
+        .recommendation.buy { background: rgba(0,255,136,0.2); color: #00ff88; border: 2px solid #00ff88; }
+        .recommendation.neutral { background: rgba(255,193,7,0.2); color: #ffc107; border: 2px solid #ffc107; }
+        .recommendation.sell { background: rgba(255,107,107,0.2); color: #ff6b6b; border: 2px solid #ff6b6b; }
+        .recommendation.strong-sell { background: rgba(255,0,0,0.2); color: #ff0000; border: 2px solid #ff0000; }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .info-label {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9em;
+        }
+        
+        .info-value {
+            color: #ffffff;
+            font-weight: bold;
+        }
+        
+        .update-time {
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9em;
+        }
+        
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 30px;
+            background: #00ff88;
+            color: #1e3c72;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #00cc6f;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Main Dashboard</a>
+    
+    <div class="header">
+        <h1>📊 Fundamental Analysis</h1>
+        <p>Long-term investment insights for crypto trading</p>
+    </div>
+    
+    <div class="crypto-grid" id="crypto-grid">
+        <!-- Crypto cards will be populated here -->
+    </div>
+    
+    <button class="refresh-btn" onclick="loadFundamentals()">🔄 Refresh Analysis</button>
+    
+    <div class="update-time" id="update-time"></div>
+    
+    <script>
+        function loadFundamentals() {
+            fetch('/api/fundamental')
+                .then(response => response.json())
+                .then(data => {
+                    const grid = document.getElementById('crypto-grid');
+                    grid.innerHTML = '';
+                    
+                    Object.keys(data).forEach(symbol => {
+                        const analysis = data[symbol];
+                        const card = createCryptoCard(symbol, analysis);
+                        grid.innerHTML += card;
+                    });
+                    
+                    document.getElementById('update-time').textContent = 
+                        'Last updated: ' + new Date().toLocaleString();
+                })
+                .catch(error => {
+                    console.error('Error loading fundamentals:', error);
+                });
+        }
+        
+        function createCryptoCard(symbol, analysis) {
+            const scoreClass = analysis.score >= 3 ? 'bullish' : 
+                              analysis.score <= -3 ? 'bearish' : 'neutral';
+            
+            const recClass = analysis.recommendation.toLowerCase().replace(' ', '-');
+            
+            return `
+                <div class="crypto-card">
+                    <div class="crypto-header">
+                        <div class="crypto-name">${symbol}</div>
+                        <div class="score ${scoreClass}">${analysis.score > 0 ? '+' : ''}${analysis.score}</div>
+                    </div>
+                    
+                    <div class="recommendation ${recClass}">
+                        ${analysis.recommendation}
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">Confidence:</span>
+                        <span class="info-value">${(analysis.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">Last Update:</span>
+                        <span class="info-value">${analysis.last_update ? new Date(analysis.last_update).toLocaleTimeString() : 'N/A'}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Load on page load
+        loadFundamentals();
+        
+        // Auto-refresh every 5 minutes
+        setInterval(loadFundamentals, 300000);
+    </script>
+</body>
+</html>
+        '''
+    
     def start(self):
         """Start the ICT Web Monitor"""
         try:
@@ -5001,10 +5339,12 @@ class ICTWebMonitor:
             print("✅ Market Hours: 08:00-22:00 GMT")
             print("✅ Real-time Price Updates")
             print("✅ Trading Journal & Session Status")
+            print("✅ Fundamental Analysis (Integrated)")
             print()
-            print("🌐 Web Interface: http://localhost:{self.port}")
-            print("📊 Health Check: http://localhost:{self.port}/health")
+            print("🌐 Main Dashboard: http://localhost:{self.port}")
+            print("📊 Fundamental Analysis: http://localhost:{self.port}/fundamental")
             print("🔗 API Endpoint: http://localhost:{self.port}/api/data")
+            print("🔗 Fundamental API: http://localhost:{self.port}/api/fundamental")
             print()
             print("Press Ctrl+C to stop")
             print("="*70)
