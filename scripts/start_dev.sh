@@ -19,6 +19,17 @@ if [ ! -f .env ]; then
     echo "✅ Created .env file"
 fi
 
+# Load environment variables
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Ensure FLASK_SECRET_KEY is set
+if [ -z "$FLASK_SECRET_KEY" ]; then
+    export FLASK_SECRET_KEY="dev-secret-key-$(date +%s)"
+    echo "FLASK_SECRET_KEY=$FLASK_SECRET_KEY" >> .env
+fi
+
 # Kill existing processes
 echo "🧹 Cleaning up existing processes..."
 pkill -f "api_server.py" || true
@@ -36,7 +47,7 @@ sleep 3
 
 # Start trading monitor
 echo -e "${BLUE}📊 Starting trading monitor...${NC}"
-python3 src/monitors/ict_enhanced_monitor.py > logs/monitor.log 2>&1 &
+python3 core/monitors/ict_enhanced_monitor.py > logs/monitor.log 2>&1 &
 MONITOR_PID=$!
 
 sleep 2
@@ -56,7 +67,7 @@ echo -e "${GREEN}  ✅ SYSTEM STARTED (Dev Mode)${NC}"
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo ""
 echo -e "${BLUE}📊 Access Points:${NC}"
-echo "   Dashboard:  http://localhost:3000"
+echo "   Dashboard:  http://localhost:5000"
 echo "   API:        http://localhost:5001"
 echo ""
 echo -e "${BLUE}🔑 Demo Login:${NC}"

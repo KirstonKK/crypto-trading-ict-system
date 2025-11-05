@@ -22,7 +22,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Database path
-DB_PATH = 'data/trading.db'
+DB_PATH = 'databases/trading_data.db'
 
 # ============ AUTHENTICATION ============
 
@@ -354,4 +354,4 @@ if __name__ == '__main__':
     print("   Dashboard: http://localhost:5001")
     print("   API Docs: http://localhost:5001/api/health")
     
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True, allow_unsafe_werkzeug=True)

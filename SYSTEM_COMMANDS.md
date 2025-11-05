@@ -1,22 +1,16 @@
 # 🚀 KIRSTON'S CRYPTO TRADING SYSTEM - COMMAND REFERENCE GUIDE# 🚀 KIRSTON'S CRYPTO TRADING SYSTEM - COMMAND REFERENCE GUIDE
 
-
-
 ## 🚀 **ONE-COMMAND OPERATIONS** (UNIFIED SYSTEM)## 🚀 **ONE-COMMAND OPERATIONS** (NEW!)
-
-
 
 ### 🎯 Start Unified System### 🎯 Start All Systems
 
-
-
-```bash```bash
+`bash`bash
 
 cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
 
-./scripts/setup/start_all_systems.sh    # Starts unified ICT monitor with all features on port 5001./scripts/setup/start_all_systems.sh    # Starts ICT Monitor only by default (single-flow). To include demo/fundamental, run:
+./scripts/setup/start_all_systems.sh # Starts unified ICT monitor with all features on port 5001./scripts/setup/start_all_systems.sh # Starts ICT Monitor only by default (single-flow). To include demo/fundamental, run:
 
-```# START_EXTRAS=true ./scripts/setup/start_all_systems.sh  OR
+````# START_EXTRAS=true ./scripts/setup/start_all_systems.sh  OR
 
 # ./scripts/setup/start_all_systems.sh --include-extras
 
@@ -30,9 +24,9 @@ cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
 
 ./scripts/setup/stop_all_systems.sh     # Stops unified system gracefully### 🛑 Stop All Systems
 
-```
+````
 
-```bash
+````bash
 
 ### 🔍 Check System Statuscd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
 
@@ -44,13 +38,13 @@ cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"python3 systems/trade_sys
 
 ./scripts/setup/check_all_systems.sh    # Shows unified system status + web interfaces```
 
-```
+````
 
 ### 🔍 Check All Systems
 
 ---
 
-```bash
+````bash
 
 ## 💻 **VS CODE INTEGRATED TERMINAL USAGE**cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
 
@@ -136,23 +130,17 @@ ps aux | grep -E "(ict_enhanced_monitor|python)" | grep -v greptail -f logs/ict_
 
 
 
-# Check port in use# Terminal 2: Demo Trading logs  
+# Check port in use# Terminal 2: Demo Trading logs
 
 lsof -i :5001  # Unified ICT Monitortail -f logs/demo_trading.log
 
-``````
-
-
+````
 
 ## 🟢 START UNIFIED SYSTEM---
 
-
-
 ### Method 1: Quick Start (Recommended)## 📋 QUICK SYSTEM STATUS
 
-
-
-```bash```bash
+`bash`bash
 
 cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"# Check all running systems (run in VS Code terminal)
 
@@ -162,13 +150,13 @@ ps aux | grep -E "(ict_enhanced_monitor|demo_trading_system|fundamental_analysis
 
 ./scripts/setup/start_all_systems.sh# Check specific ports in use
 
-lsof -i :5001  # ICT Enhanced Monitor
+lsof -i :5001 # ICT Enhanced Monitor
 
-# Verify system is runninglsof -i :5002  # Fundamental Analysis System
+# Verify system is runninglsof -i :5002 # Fundamental Analysis System
 
-ps aux | grep "ict_enhanced_monitor" | grep -v greplsof -i :8000  # Demo Trading System (if applicable)
+ps aux | grep "ict_enhanced_monitor" | grep -v greplsof -i :8000 # Demo Trading System (if applicable)
 
-``````
+````
 
 
 
@@ -352,15 +340,11 @@ curl http://localhost:5001/api/stats./scripts/setup/stop_all_systems.sh
 
 curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" http://localhost:5001/socket.io/./scripts/setup/check_all_systems.sh
 
-``````
-
-
+````
 
 ### Database Health Check### Method 2: Graceful Shutdown (Individual)
 
-
-
-```bash```bash
+`bash`bash
 
 cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"# Stop ICT Enhanced Monitor
 
@@ -388,13 +372,13 @@ scans = cursor.fetchone()[0]
 
 # Force kill specific ports if needed
 
-cursor.execute('SELECT COUNT(*) FROM signals WHERE date(entry_time) = ?', (today,))lsof -ti:5001 | xargs kill -9  # ICT Monitor
+cursor.execute('SELECT COUNT(\*) FROM signals WHERE date(entry_time) = ?', (today,))lsof -ti:5001 | xargs kill -9 # ICT Monitor
 
-signals = cursor.fetchone()[0]lsof -ti:5002 | xargs kill -9  # Fundamental Analysis
+signals = cursor.fetchone()[0]lsof -ti:5002 | xargs kill -9 # Fundamental Analysis
 
-lsof -ti:8000 | xargs kill -9  # Demo Trading (if applicable)
+lsof -ti:8000 | xargs kill -9 # Demo Trading (if applicable)
 
-cursor.execute('SELECT COUNT(*) FROM paper_trades WHERE date(entry_time) = ?', (today,))```
+cursor.execute('SELECT COUNT(\*) FROM paper_trades WHERE date(entry_time) = ?', (today,))```
 
 trades = cursor.fetchone()[0]
 
@@ -406,7 +390,7 @@ conn.close()```bash
 
 "# Find process IDs
 
-```ps aux | grep -E "(ict_enhanced_monitor|demo_trading_system|fundamental_analysis)" | grep -v grep
+````ps aux | grep -E "(ict_enhanced_monitor|demo_trading_system|fundamental_analysis)" | grep -v grep
 
 
 
@@ -472,15 +456,13 @@ mkdir -p logs/archive/$(date +%Y%m%d)# or
 
 mv logs/*.log logs/archive/$(date +%Y%m%d)/ 2>/dev/null || truecurl http://localhost:5001
 
-```
+````
 
 # Health Check
 
 ### System Monitoringcurl http://localhost:5001/health
 
-
-
-```bash# API Data Endpoint
+````bash# API Data Endpoint
 
 # Monitor system resourcescurl http://localhost:5001/api/data
 
@@ -532,15 +514,13 @@ python3 scripts/testing/test_real_balance.pycurl http://localhost:5002/api/healt
 
 python3 scripts/testing/test_daily_reset.pycurl http://localhost:5002/api/analysis
 
-```
+````
 
 # Specific Crypto Analysis (e.g., BTC)
 
 ### Connection Testscurl http://localhost:5002/api/analysis/BTC
 
-
-
-```bash# Investment Recommendations
+````bash# Investment Recommendations
 
 # Test unified system APIcurl http://localhost:5002/api/recommendations
 
@@ -558,13 +538,13 @@ curl -s http://localhost:5001/api/fundamental | python3 -m json.tool
 
 curl -s http://localhost:5001/health | python3 -m json.tool```
 
-```
+````
 
 ### Demo Trading System Endpoints
 
 ## 📊 CURRENT SYSTEM STATUS (Updated January 2025)
 
-```bash
+````bash
 
 ### ✅ **UNIFIED SYSTEM ARCHITECTURE**:# Check if demo system is responding (if it has web interface)
 
@@ -782,7 +762,7 @@ curl -s http://localhost:5001/health | python3 -m json.tool
 
 # Test WebSocket (requires wscat: npm install -g wscat)
 # wscat -c ws://localhost:5001/socket.io/?EIO=4&transport=websocket
-```
+````
 
 ## 📊 CURRENT SYSTEM STATUS (Updated October 29, 2025)
 
