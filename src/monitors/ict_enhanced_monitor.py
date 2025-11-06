@@ -460,6 +460,12 @@ class ICTCryptoMonitor:
                     direction = trade['direction']
                     trade_id = trade['id']
                     
+                    # CRITICAL: Validate price is reasonable (within 20% of entry)
+                    # Prevents corrupted price data from closing trades incorrectly
+                    if current_price <= 0 or current_price > entry_price * 1.5 or current_price < entry_price * 0.5:
+                        logger.warning(f"⚠️ Invalid price detected for {crypto}: ${current_price:.2f} (entry: ${entry_price:.2f}) - skipping update")
+                        continue
+                    
                     # Calculate unrealized PnL
                     if direction == 'BUY':
                         unrealized_pnl = (current_price - entry_price) * position_size
@@ -1222,7 +1228,17 @@ class ICTWebMonitor:
                         # Get REAL-TIME current price
                         current_price = trade.get('current_price', entry_price)  # Use DB value or fallback
                         if crypto in self.current_prices:
-                            current_price = self.current_prices[crypto].get('price', current_price)
+                            fetched_price = self.current_prices[crypto].get('price', current_price)
+                            # CRITICAL: Validate price is reasonable (within 50% swing)
+                            if fetched_price > 0 and fetched_price <= entry_price * 1.5 and fetched_price >= entry_price * 0.5:
+                                current_price = fetched_price
+                            else:
+                                logger.warning(f"⚠️ Invalid price for {crypto}: ${fetched_price:.2f} (entry: ${entry_price:.2f}) - using DB fallback")
+                        
+                        # Validate current_price from DB too
+                        if current_price <= 0 or current_price > entry_price * 1.5 or current_price < entry_price * 0.5:
+                            logger.warning(f"⚠️ Invalid DB price for {crypto}: ${current_price:.2f} (entry: ${entry_price:.2f}) - using entry price")
+                            current_price = entry_price
                         
                         # Use unrealized PnL from database
                         pnl = trade.get('unrealized_pnl', 0)
