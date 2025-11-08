@@ -1,0 +1,135 @@
+version: '3.8'
+
+# =============================================================================
+# Kirston's Crypto Trading System - Docker Compose Configuration
+# =============================================================================
+# Services:
+#   - ict-monitor: Main ICT trading monitor on port 5001
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # ICT Enhanced Trading Monitor
+  # ---------------------------------------------------------------------------
+  ict-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kirstons-trading-system:latest
+    container_name: ict-trading-monitor
+    restart: unless-stopped
+    
+    # Port mappings
+    ports:
+      - "5001:5001"  # ICT Monitor Web Interface
+    
+    # Environment variables (override with .env file)
+    environment:
+      # Application
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Bybit API Configuration
+      - BYBIT_API_KEY=${BYBIT_API_KEY}
+      - BYBIT_API_SECRET=${BYBIT_API_SECRET}
+      - BYBIT_TESTNET=${BYBIT_TESTNET:-true}
+      - BYBIT_DEMO=${BYBIT_DEMO:-true}
+      - BYBIT_ENVIRONMENT=${BYBIT_ENVIRONMENT:-demo_mainnet}
+      
+      # Trading Configuration
+      - RISK_PER_TRADE=${RISK_PER_TRADE:-100.0}
+      - MAX_LEVERAGE=${MAX_LEVERAGE:-10}
+      - RISK_REWARD_RATIO=${RISK_REWARD_RATIO:-3.0}
+      
+      # ICT Monitor
+      - ICT_MONITOR_PORT=${ICT_MONITOR_PORT:-5001}
+      - ICT_MONITOR_HOST=${ICT_MONITOR_HOST:-0.0.0.0}
+      
+      # Signal Generation
+      - SIGNAL_PROBABILITY_BASE=${SIGNAL_PROBABILITY_BASE:-0.035}
+      - CONFLUENCE_THRESHOLD=${CONFLUENCE_THRESHOLD:-0.35}
+      
+      # Database
+      - DATABASE_PATH=/app/data/trading.db
+    
+    # Volume mounts for persistence
+    volumes:
+      # Database and trading data (CRITICAL - must persist)
+      - trading-data:/app/data
+      
+      # Logs (optional but recommended)
+      - trading-logs:/app/logs
+      
+      # Configuration files (if you need custom configs)
+      - ./config:/app/config:ro
+      
+      # Results and analysis
+      - trading-results:/app/results
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Network configuration
+    networks:
+      - trading-network
+
+# =============================================================================
+# Volumes - Persistent data storage
+# =============================================================================
+volumes:
+  # Trading data volume (database, cache, sessions)
+  trading-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker-volumes/data
+  
+  # Logs volume
+  trading-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker-volumes/logs
+  
+  # Results volume
+  trading-results:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker-volumes/results
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  trading-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

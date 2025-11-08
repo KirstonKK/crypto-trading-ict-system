@@ -1,6 +1,75 @@
 # 🚀 KIRSTON'S CRYPTO TRADING SYSTEM - COMMAND REFERENCE GUIDE# 🚀 KIRSTON'S CRYPTO TRADING SYSTEM - COMMAND REFERENCE GUIDE
 
-## 🚀 **ONE-COMMAND OPERATIONS** (UNIFIED SYSTEM)## 🚀 **ONE-COMMAND OPERATIONS** (NEW!)
+## 🚀 **ONE-COMMAND OPERATIONS** (UNIFIED SYSTEM)# 🚀 KIRSTON'S CRYPTO TRADING SYSTEM - COMMAND REFERENCE GUIDE
+
+## 🐳 **DOCKER DEPLOYMENT** (RECOMMENDED FOR PRODUCTION)
+
+### 🎯 Quick Docker Setup
+
+```bash
+cd "/Users/kirstonkwasi-kumah/Desktop/Trading Algoithm"
+
+# Run automated setup script
+./docker-setup.sh
+
+# Or manual setup:
+# 1. Copy environment template
+cp .env.docker.example .env
+
+# 2. Edit with your API credentials
+nano .env
+
+# 3. Create volume directories
+mkdir -p docker-volumes/{data,logs,results}
+
+# 4. Build and start
+docker-compose up -d
+
+# 5. View logs
+docker-compose logs -f ict-monitor
+
+# 6. Access dashboard
+open http://localhost:5001
+```
+
+### 🔴 Stop Docker System
+
+```bash
+# Graceful shutdown
+docker-compose down
+
+# Stop and remove volumes (⚠️ deletes data)
+docker-compose down -v
+```
+
+### 🔍 Docker System Status
+
+```bash
+# Check running containers
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Monitor resources
+docker stats ict-trading-monitor
+
+# Check health
+docker inspect ict-trading-monitor | grep -A 5 "Health"
+```
+
+### � Docker Documentation
+
+See **DOCKER_README.md** for complete guide including:
+
+- Volume management and backups
+- Troubleshooting
+- Security best practices
+- Advanced configuration
+
+---
+
+## �🚀 **ONE-COMMAND OPERATIONS** (LOCAL INSTALLATION)
 
 ### 🎯 Start Unified System### 🎯 Start All Systems
 

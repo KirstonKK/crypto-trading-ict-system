@@ -326,8 +326,15 @@ recordings/
 *.mp4
 *.avi
 
+# Docker-specific (sensitive data)
+.env
+.env.local
+docker-volumes/
+.docker/
+
 # Exception: Keep example files
 !.env.example
+!.env.docker.example
 !config/*.example.json
 !README.md
 !docs/
