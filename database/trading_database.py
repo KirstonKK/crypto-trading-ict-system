@@ -286,6 +286,32 @@ class TradingDatabase:
         logger.info(f"Skipping migration from {json_file_path} (database-first mode)")
         pass
     
+    def get_user_by_email(self, email: str) -> Optional[Dict]:
+        """Get user by email (stub for authentication)
+        
+        Args:
+            email: User email address
+            
+        Returns:
+            User dict if found, None otherwise
+        """
+        # Stub implementation - authentication not used in production
+        return None
+    
+    def create_user(self, email: str, password_hash: str, is_admin: bool = False) -> int:
+        """Create a new user (stub for authentication)
+        
+        Args:
+            email: User email
+            password_hash: Hashed password
+            is_admin: Whether user is admin
+            
+        Returns:
+            User ID
+        """
+        # Stub implementation - authentication not used in production
+        return 1
+    
     def close(self):
         """Close database connection"""
         if self.conn:
