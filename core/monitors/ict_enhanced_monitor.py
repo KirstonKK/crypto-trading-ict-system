@@ -33,19 +33,13 @@ import bcrypt
 import pandas as pd
 import numpy as np
 
-# Add project root to path for database import
+# Add project root to path for imports
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(project_root)
+
+# Import database and trading modules
 from database.trading_database import TradingDatabase
-
-# Import trade manager from src.trading
-trading_path = os.path.join(os.path.dirname(__file__), '..', 'trading')
-sys.path.append(trading_path)
-from intraday_trade_manager import create_trade_manager
-
-# Add project root to path for backtest engine import
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-sys.path.append(project_root)
+from trading.intraday_trade_manager import create_trade_manager
 
 # Add utils directory to path for quant modules
 utils_path = os.path.join(project_root, 'utils')
