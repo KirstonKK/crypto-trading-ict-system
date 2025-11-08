@@ -43,8 +43,17 @@ class TradingDatabase:
         Returns:
             sqlite3.Connection: Active database connection
         """
-        if self.conn is None:
+        # Check if connection is closed or None
+        try:
+            if self.conn is None:
+                self._connect()
+            else:
+                # Test if connection is alive by executing a simple query
+                self.conn.execute("SELECT 1")
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            # Connection is closed or invalid, reconnect
             self._connect()
+        
         return self.conn
     
     def _init_tables(self):
@@ -141,8 +150,21 @@ class TradingDatabase:
         self.conn.commit()
         logger.info("✅ Database tables initialized")
     
+    def _ensure_connection(self):
+        """Ensure database connection is active before operations"""
+        try:
+            if self.conn is None:
+                self._connect()
+            else:
+                # Test connection with a simple query
+                self.conn.execute("SELECT 1")
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError, AttributeError):
+            # Connection is closed or invalid, reconnect
+            self._connect()
+    
     def get_daily_stats(self) -> Dict:
         """Get or create today's daily stats"""
+        self._ensure_connection()
         today = date.today().isoformat()
         cursor = self.conn.cursor()
         
@@ -171,11 +193,13 @@ class TradingDatabase:
         Returns:
             int: Number of scans performed today
         """
+        self._ensure_connection()
         stats = self.get_daily_stats()
         return stats.get('scan_count', 0)
     
     def increment_scan_count(self):
         """Increment today's scan count"""
+        self._ensure_connection()
         today = date.today().isoformat()
         cursor = self.conn.cursor()
         
@@ -197,6 +221,7 @@ class TradingDatabase:
     def add_signal(self, signal_data: Dict) -> str:
         """Add a new signal to the database"""
         import uuid
+        self._ensure_connection()
         cursor = self.conn.cursor()
         
         # Generate signal_id if not provided
@@ -233,6 +258,7 @@ class TradingDatabase:
     
     def get_signals_today(self) -> List[Dict]:
         """Get all signals from today"""
+        self._ensure_connection()
         today = date.today().isoformat()
         cursor = self.conn.cursor()
         
@@ -246,6 +272,7 @@ class TradingDatabase:
     
     def get_active_signals(self) -> List[Dict]:
         """Get all active signals"""
+        self._ensure_connection()
         cursor = self.conn.cursor()
         
         cursor.execute('''
@@ -258,6 +285,7 @@ class TradingDatabase:
     
     def get_closed_signals_today(self) -> List[Dict]:
         """Get all closed signals from today"""
+        self._ensure_connection()
         today = date.today().isoformat()
         cursor = self.conn.cursor()
         
@@ -271,6 +299,7 @@ class TradingDatabase:
     
     def update_signal_status(self, signal_id: int, status: str, pnl: float = None, exit_price: float = None):
         """Update signal status and optional PnL"""
+        self._ensure_connection()
         cursor = self.conn.cursor()
         
         if pnl is not None and exit_price is not None:
@@ -290,6 +319,7 @@ class TradingDatabase:
     
     def update_balance(self, balance: float, account_type: str = 'paper'):
         """Update account balance"""
+        self._ensure_connection()
         today = date.today().isoformat()
         cursor = self.conn.cursor()
         
@@ -309,6 +339,7 @@ class TradingDatabase:
     
     def add_scan_record(self, scan_number: int, symbols: List[str], signals_found: int):
         """Record a scan in scan history"""
+        self._ensure_connection()
         cursor = self.conn.cursor()
         
         cursor.execute('''
