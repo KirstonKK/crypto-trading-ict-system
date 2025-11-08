@@ -175,13 +175,14 @@ class TradingDatabase:
         
         self.conn.commit()
     
-    def add_signal(self, signal_data: Dict):
+    def add_signal(self, signal_data: Dict) -> str:
         """Add a new signal to the database"""
+        import uuid
         cursor = self.conn.cursor()
         
         # Generate signal_id if not provided
         if 'signal_id' not in signal_data:
-            signal_data['signal_id'] = f"SIG_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            signal_data['signal_id'] = f"SIG_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         
         cursor.execute('''
             INSERT INTO signals (
