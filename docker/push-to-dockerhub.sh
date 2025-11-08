@@ -47,13 +47,13 @@ fi
 echo -e "${GREEN}✓ Authenticated with Docker Hub${NC}"
 echo ""
 
-# Navigate to docker directory
-cd "$(dirname "$0")"
+# Navigate to project root (parent of docker directory)
+cd "$(dirname "$0")/.."
 
-# Build the Docker image
+# Build the Docker image from parent directory with docker/Dockerfile
 echo -e "${YELLOW}[3/6]${NC} Building Docker image..."
 echo "Image: ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${VERSION}"
-/usr/local/bin/docker build -t ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${VERSION} .
+/usr/local/bin/docker build -f docker/Dockerfile -t ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${VERSION} .
 if [ $? -ne 0 ]; then
     echo -e "${RED}✗ Build failed${NC}"
     exit 1

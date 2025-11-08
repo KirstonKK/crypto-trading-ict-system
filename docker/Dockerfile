@@ -89,8 +89,8 @@ RUN mkdir -p \
     /app/results && \
     chown -R trading:trading /app/data /app/logs /app/config /app/results
 
-# Copy and set up entrypoint script
-COPY --chown=trading:trading docker-entrypoint.sh /usr/local/bin/
+# Copy and set up entrypoint script (from docker/ subdirectory since context is project root)
+COPY --chown=trading:trading docker/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Expose ports
@@ -108,5 +108,5 @@ USER trading
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Default command - can be overridden
-CMD ["python3", "src/monitors/ict_enhanced_monitor.py", "--port", "5001"]
+# Default command - start ICT Enhanced Monitor
+CMD ["python3", "core/monitors/ict_enhanced_monitor.py", "--port", "5001"]

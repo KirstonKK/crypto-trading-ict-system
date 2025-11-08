@@ -1,0 +1,16 @@
+# Docker-Related Files
+# These files should NOT be committed to version control
+
+# Environment files with sensitive data
+.env
+.env.local
+.env.*.local
+
+# Docker volumes directory (contains runtime data)
+docker-volumes/
+
+# Docker build artifacts
+.docker/
+
+# Docker override files (local development)
+docker-compose.override.yml
