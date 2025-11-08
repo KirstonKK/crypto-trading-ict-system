@@ -33,8 +33,9 @@ import bcrypt
 import pandas as pd
 import numpy as np
 
-# Add src to path for database import
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Add project root to path for database import
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(project_root)
 from database.trading_database import TradingDatabase
 
 # Import trade manager from src.trading
