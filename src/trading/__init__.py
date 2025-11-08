@@ -1,1 +1,0 @@
-# Trading execution and management

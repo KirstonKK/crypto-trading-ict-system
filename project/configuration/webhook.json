@@ -1,9 +1,0 @@
-{
-  "secret_key": "your-webhook-secret-key-change-this",
-  "allowed_ips": ["127.0.0.1", "::1", "0.0.0.0/0"],
-  "rate_limit_requests": 1000,
-  "rate_limit_window": 300,
-  "max_request_size": 1048576,
-  "require_signature": false,
-  "enable_cors": true
-}

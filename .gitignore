@@ -338,3 +338,16 @@ docker-volumes/
 !config/*.example.json
 !README.md
 !docs/
+
+# Archived directories
+archive/old_*
+archive/standalone_servers/
+
+# macOS
+.DS_Store
+
+# Backup files
+*.backup
+*.backup_*
+*.old
+

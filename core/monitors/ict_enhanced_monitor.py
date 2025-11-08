@@ -305,19 +305,31 @@ class ICTCryptoMonitor:
         """Count active positions (live signals + paper trades + database) for a symbol"""
         crypto = symbol.replace('USDT', '')
         
-        # DATABASE-FIRST: Query active signals from database
-        db_signal_count = 0
+        # DATABASE-FIRST: Check both active signals AND paper trades
+        total_positions = 0
+        
+        # Count active signals
         try:
             db_signals = self.db.get_active_signals()  # All ACTIVE signals regardless of date
-            db_signal_count = sum(1 for signal in db_signals 
+            signal_count = sum(1 for signal in db_signals 
                                 if signal.get('symbol', '').replace('USDT', '') == crypto)
+            total_positions += signal_count
         except Exception as e:
             logger.warning(f"Could not check database signals: {e}")
         
-        if db_signal_count > 0:
-            logger.info(f"🔍 Active Positions for {crypto}: {db_signal_count} (from database)")
+        # Count active paper trades (CRITICAL FIX: check paper_trades table too!)
+        try:
+            active_trades = self.db.get_active_paper_trades()  # All active trades
+            trade_count = sum(1 for trade in active_trades 
+                            if trade.get('symbol', '').replace('USDT', '') == crypto)
+            total_positions += trade_count
+        except Exception as e:
+            logger.warning(f"Could not check database paper trades: {e}")
         
-        return db_signal_count
+        if total_positions > 0:
+            logger.info(f"🔍 Active Positions for {crypto}: {total_positions} (signals + trades)")
+        
+        return total_positions
     
     def calculate_portfolio_risk(self) -> float:
         """Calculate current portfolio risk percentage - DATABASE-FIRST"""
