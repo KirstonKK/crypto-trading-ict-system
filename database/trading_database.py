@@ -45,7 +45,6 @@ class TradingDatabase:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS signals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
                 symbol TEXT NOT NULL,
                 signal_type TEXT NOT NULL,
                 entry_price REAL NOT NULL,
@@ -159,11 +158,10 @@ class TradingDatabase:
         
         cursor.execute('''
             INSERT INTO signals (
-                timestamp, symbol, signal_type, entry_price, stop_loss, take_profit, 
+                symbol, signal_type, entry_price, stop_loss, take_profit, 
                 confidence, status, entry_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            signal_data.get('timestamp', datetime.now().isoformat()),
             signal_data['symbol'],
             signal_data['type'],
             signal_data['entry_price'],
@@ -192,8 +190,8 @@ class TradingDatabase:
         
         cursor.execute('''
             SELECT * FROM signals 
-            WHERE date(timestamp) = ?
-            ORDER BY timestamp DESC
+            WHERE date(created_at) = ?
+            ORDER BY created_at DESC
         ''', (today,))
         
         return [dict(row) for row in cursor.fetchall()]
@@ -205,7 +203,7 @@ class TradingDatabase:
         cursor.execute('''
             SELECT * FROM signals 
             WHERE status = 'active'
-            ORDER BY timestamp DESC
+            ORDER BY created_at DESC
         ''')
         
         return [dict(row) for row in cursor.fetchall()]
@@ -217,8 +215,8 @@ class TradingDatabase:
         
         cursor.execute('''
             SELECT * FROM signals 
-            WHERE date(timestamp) = ? AND status = 'closed'
-            ORDER BY timestamp DESC
+            WHERE date(created_at) = ? AND status = 'closed'
+            ORDER BY created_at DESC
         ''', (today,))
         
         return [dict(row) for row in cursor.fetchall()]
