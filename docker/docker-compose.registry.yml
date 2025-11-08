@@ -1,0 +1,107 @@
+version: '3.8'
+
+# =============================================================================
+# Kirston's Crypto Trading System - Registry-based Docker Compose
+# =============================================================================
+# This configuration pulls from Docker Hub instead of building locally
+# Use this for quick deployment by other developers
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # ICT Enhanced Trading Monitor (from Docker Hub)
+  # ---------------------------------------------------------------------------
+  ict-monitor:
+    # Pull from Docker Hub (update with your actual Docker Hub username)
+    image: kirstonkk/crypto-trading-ict:latest
+    
+    # Or use GitHub Container Registry:
+    # image: ghcr.io/kirstonkk/crypto-trading-ict:latest
+    
+    container_name: ict-trading-monitor
+    restart: unless-stopped
+    
+    # Port mappings
+    ports:
+      - "5001:5001"  # ICT Monitor Web Interface
+    
+    # Environment variables (override with .env file)
+    env_file:
+      - .env
+    
+    environment:
+      # Application
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Bybit API Configuration
+      - BYBIT_API_KEY=${BYBIT_API_KEY}
+      - BYBIT_API_SECRET=${BYBIT_API_SECRET}
+      - BYBIT_TESTNET=${BYBIT_TESTNET:-true}
+      - BYBIT_DEMO=${BYBIT_DEMO:-true}
+      - BYBIT_ENVIRONMENT=${BYBIT_ENVIRONMENT:-demo_mainnet}
+      
+      # Trading Configuration
+      - RISK_PER_TRADE=${RISK_PER_TRADE:-100.0}
+      - MAX_LEVERAGE=${MAX_LEVERAGE:-10}
+      - RISK_REWARD_RATIO=${RISK_REWARD_RATIO:-3.0}
+      
+      # ICT Monitor
+      - ICT_MONITOR_PORT=${ICT_MONITOR_PORT:-5001}
+      - ICT_MONITOR_HOST=${ICT_MONITOR_HOST:-0.0.0.0}
+      
+      # Signal Generation
+      - SIGNAL_PROBABILITY_BASE=${SIGNAL_PROBABILITY_BASE:-0.035}
+      - CONFLUENCE_THRESHOLD=${CONFLUENCE_THRESHOLD:-0.35}
+      
+      # Notification Settings (Optional)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+    
+    # Volume mounts for persistence
+    volumes:
+      - trading-data:/app/data
+      - trading-logs:/app/logs
+      - trading-results:/app/results
+      - trading-databases:/app/databases
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 500M
+
+# Persistent volumes
+volumes:
+  trading-data:
+    driver: local
+  trading-logs:
+    driver: local
+  trading-results:
+    driver: local
+  trading-databases:
+    driver: local
+
+# =============================================================================
+# Usage:
+# =============================================================================
+# 1. Copy .env.docker.example to .env and configure
+# 2. Pull the image: docker-compose -f docker-compose.registry.yml pull
+# 3. Start: docker-compose -f docker-compose.registry.yml up -d
+# 4. View logs: docker-compose -f docker-compose.registry.yml logs -f
+# 5. Stop: docker-compose -f docker-compose.registry.yml down
+# =============================================================================
