@@ -37,6 +37,16 @@ class TradingDatabase:
             logger.error(f"❌ Failed to connect to database: {e}")
             raise
     
+    def _get_connection(self):
+        """Get database connection (for health checks)
+        
+        Returns:
+            sqlite3.Connection: Active database connection
+        """
+        if self.conn is None:
+            self._connect()
+        return self.conn
+    
     def _init_tables(self):
         """Initialize required database tables if they don't exist"""
         cursor = self.conn.cursor()
@@ -154,6 +164,15 @@ class TradingDatabase:
                 'paper_balance': 100.0,
                 'total_pnl': 0.0
             }
+    
+    def get_scan_count(self) -> int:
+        """Get today's scan count
+        
+        Returns:
+            int: Number of scans performed today
+        """
+        stats = self.get_daily_stats()
+        return stats.get('scan_count', 0)
     
     def increment_scan_count(self):
         """Increment today's scan count"""
