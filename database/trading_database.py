@@ -353,6 +353,23 @@ class TradingDatabase:
         """Get journal entries (closed trades) from today"""
         return self.get_closed_signals_today()
     
+    def get_active_paper_trades(self) -> List[Dict]:
+        """Get all active paper trades
+        
+        Returns:
+            List[Dict]: List of active paper trades with all details
+        """
+        self._ensure_connection()
+        cursor = self.conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM paper_trades 
+            WHERE status IN ('ACTIVE', 'OPEN')
+            ORDER BY entry_time DESC
+        ''')
+        
+        return [dict(row) for row in cursor.fetchall()]
+    
     def migrate_existing_data(self, json_file_path: str):
         """Migrate data from JSON file if needed (stub for compatibility)"""
         logger.info(f"Skipping migration from {json_file_path} (database-first mode)")
