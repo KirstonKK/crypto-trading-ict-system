@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder
 # -----------------------------------------------------------------------------
-FROM python:3.10-slim AS builder
+FROM python:3.12-slim AS builder
 
 LABEL maintainer="Kirston's Trading System"
 LABEL description="ICT Enhanced Trading Monitor with Bybit Integration"
@@ -41,7 +41,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime
 # -----------------------------------------------------------------------------
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -92,6 +92,10 @@ RUN mkdir -p \
 # Copy and set up entrypoint script (from docker/ subdirectory since context is project root)
 COPY --chown=trading:trading docker/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Copy diagnostic script for troubleshooting
+COPY --chown=trading:trading docker/diagnose_blue_screen.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/diagnose_blue_screen.sh
 
 # Expose ports
 # 5001 - ICT Enhanced Monitor

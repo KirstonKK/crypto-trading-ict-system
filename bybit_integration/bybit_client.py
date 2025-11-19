@@ -1,9 +1,11 @@
 """
-Bybit Demo Trading Client
+Bybit Live Trading Client
 ========================
 
-Core API client for interacting with Bybit's demo trading environment.
+Core API client for interacting with Bybit's live trading environment.
 Handles authentication, order management, and account data retrieval.
+
+⚠️  LIVE TRADING - ALL ORDERS PLACE REAL TRADES WITH REAL MONEY
 """
 
 import os
@@ -12,6 +14,7 @@ import hmac
 import hashlib
 import asyncio
 import aiohttp
+import requests
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import json
@@ -19,9 +22,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class BybitDemoClient:
+class BybitClient:
     """
-    Bybit Demo Trading API Client
+    Bybit Live Trading API Client
+    
+    ⚠️  WARNING: This client places REAL orders with REAL money!
     
     Provides interface for:
     - Account management
@@ -30,39 +35,36 @@ class BybitDemoClient:
     - Balance retrieval
     """
     
-    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = True, demo: bool = False):
+    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = False):
         """
-        Initialize Bybit Demo Client
+        Initialize Bybit Live Client
         
         Args:
             api_key: Bybit API key (from environment if not provided)
             api_secret: Bybit API secret (from environment if not provided)
-            testnet: Use testnet environment (fake prices, fake money)
-            demo: Use demo mainnet environment (real prices, fake money) - overrides testnet
+            testnet: Use testnet environment (optional, defaults to FALSE = LIVE)
+        
+        ⚠️  DEFAULT IS LIVE MAINNET - REAL MONEY!
         """
         self.api_key = api_key or os.getenv('BYBIT_API_KEY')
         self.api_secret = api_secret or os.getenv('BYBIT_API_SECRET')
         self.testnet = testnet
-        self.demo = demo
         
         # Check for missing credentials
         if not self.api_key or not self.api_secret:
-            logger.warning("⚠️  Missing Bybit API credentials - some features may not work")
-            # Don't raise error, allow fallback to Binance prices
+            raise ValueError("⚠️  Bybit API credentials required for live trading! Set BYBIT_API_KEY and BYBIT_API_SECRET")
             
-        # Demo Mainnet takes precedence (real prices, fake money)
-        if demo:
-            self.base_url = "https://api-demo.bybit.com"
-            self.ws_url = "wss://stream-demo.bybit.com/v5/private"
-            env_name = "Demo Mainnet (Real Prices, Fake Money) ✅"
-        elif testnet:
+        # Default to LIVE MAINNET (real money)
+        if testnet:
             self.base_url = "https://api-testnet.bybit.com"
             self.ws_url = "wss://stream-testnet.bybit.com/v5/private"
-            env_name = "Testnet (Fake Prices, Fake Money)"
+            env_name = "🧪 Testnet (Test Mode)"
+            logger.warning("⚠️  Using TESTNET - for testing only!")
         else:
             self.base_url = "https://api.bybit.com"
             self.ws_url = "wss://stream.bybit.com/v5/private"
-            env_name = "Live Mainnet (Real Money) ⚠️"
+            env_name = "💰 LIVE MAINNET (REAL MONEY)"
+            logger.warning("🚨 LIVE TRADING MODE - ALL ORDERS ARE REAL!")
             
         self.session = None
         self.last_request_time = 0
@@ -172,7 +174,7 @@ class BybitDemoClient:
 
     async def get_balance(self) -> Dict[str, float]:
         """
-        Get account balance for all assets
+        Get account balance for all assets (async)
         
         Returns:
             Dictionary with asset balances
@@ -195,6 +197,268 @@ class BybitDemoClient:
         except Exception as e:
             logger.error(f"❌ Failed to get balance: {e}")
             return {}
+    
+    def get_balance_sync(self) -> Dict[str, Any]:
+        """
+        Get account balance synchronously (for non-async contexts)
+        
+        Returns:
+            Dictionary with balance data including total equity and available balance
+        """
+        if not self.api_key or not self.api_secret:
+            logger.warning("⚠️  Cannot get balance: missing API credentials")
+            return {'total_equity': 0.0, 'available_balance': 0.0, 'coins': {}}
+        
+        try:
+            timestamp = str(int(time.time() * 1000))
+            recv_window = '5000'
+            query_string = 'accountType=UNIFIED'
+            
+            # V5 API signature
+            sign_string = timestamp + self.api_key + recv_window + query_string
+            signature = hmac.new(
+                self.api_secret.encode('utf-8'),
+                sign_string.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            
+            url = f"{self.base_url}/v5/account/wallet-balance"
+            headers = {
+                'X-BAPI-API-KEY': self.api_key,
+                'X-BAPI-TIMESTAMP': timestamp,
+                'X-BAPI-RECV-WINDOW': recv_window,
+                'X-BAPI-SIGN': signature
+            }
+            
+            response = requests.get(url, params={'accountType': 'UNIFIED'}, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('retCode') == 0:
+                    result = data.get('result', {})
+                    accounts = result.get('list', [])
+                    
+                    if accounts:
+                        account = accounts[0]
+                        total_equity = float(account.get('totalEquity', 0))
+                        available_balance = float(account.get('totalAvailableBalance', 0))
+                        
+                        coins = {}
+                        for coin_data in account.get('coin', []):
+                            coin = coin_data.get('coin', '')
+                            equity = float(coin_data.get('equity', 0))
+                            if equity > 0:
+                                coins[coin] = equity
+                        
+                        logger.info(f"💰 Balance: ${total_equity:.2f} (Available: ${available_balance:.2f})")
+                        return {
+                            'total_equity': total_equity,
+                            'available_balance': available_balance,
+                            'coins': coins
+                        }
+            
+            logger.error(f"❌ Failed to get balance: {response.status_code}")
+            return {'total_equity': 0.0, 'available_balance': 0.0, 'coins': {}}
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get balance: {e}")
+            return {'total_equity': 0.0, 'available_balance': 0.0, 'coins': {}}
+
+    def place_order_sync(self, 
+                        symbol: str, 
+                        side: str, 
+                        qty: float,
+                        order_type: str = "Market",
+                        price: float = None,
+                        stop_loss: float = None,
+                        take_profit: float = None,
+                        time_in_force: str = "GTC",
+                        order_link_id: str = None) -> Dict[str, Any]:
+        """
+        Place order synchronously (for non-async contexts like ICT monitor)
+        
+        Args:
+            symbol: Trading pair (e.g., "BTCUSDT")
+            side: "Buy" or "Sell"
+            qty: Quantity to trade
+            order_type: "Market" or "Limit"
+            price: Limit price (required for Limit orders)
+            stop_loss: Stop loss price
+            take_profit: Take profit price
+            time_in_force: "GTC", "IOC", "FOK"
+            order_link_id: Custom order ID for tracking
+            
+        Returns:
+            Order response with order ID and execution details
+        """
+        if not self.api_key or not self.api_secret:
+            logger.error("❌ Cannot place order: missing API credentials")
+            return {'success': False, 'error': 'Missing API credentials'}
+        
+        try:
+            timestamp = str(int(time.time() * 1000))
+            recv_window = '5000'
+            
+            # Build order parameters
+            params = {
+                "category": "linear",
+                "symbol": symbol,
+                "side": side,
+                "orderType": order_type,
+                "qty": str(qty),
+                "timeInForce": time_in_force
+            }
+            
+            if price and order_type == "Limit":
+                params["price"] = str(price)
+            
+            if stop_loss:
+                params["stopLoss"] = str(stop_loss)
+            
+            if take_profit:
+                params["takeProfit"] = str(take_profit)
+            
+            if order_link_id:
+                params["orderLinkId"] = order_link_id
+            
+            # Create query string for signature
+            query_string = json.dumps(params, separators=(',', ':'))
+            
+            # V5 API signature
+            sign_string = timestamp + self.api_key + recv_window + query_string
+            signature = hmac.new(
+                self.api_secret.encode('utf-8'),
+                sign_string.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            
+            url = f"{self.base_url}/v5/order/create"
+            headers = {
+                'X-BAPI-API-KEY': self.api_key,
+                'X-BAPI-TIMESTAMP': timestamp,
+                'X-BAPI-RECV-WINDOW': recv_window,
+                'X-BAPI-SIGN': signature,
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.post(url, headers=headers, data=query_string, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('retCode') == 0:
+                    result = data.get('result', {})
+                    order_id = result.get('orderId')
+                    order_link_id = result.get('orderLinkId')
+                    
+                    logger.warning(f"✅ Order placed: {symbol} {side} {qty}")
+                    logger.warning(f"   Order ID: {order_id}")
+                    logger.warning(f"   Order Link ID: {order_link_id}")
+                    
+                    return {
+                        'success': True,
+                        'orderId': order_id,
+                        'orderLinkId': order_link_id,
+                        'symbol': symbol,
+                        'side': side,
+                        'qty': qty,
+                        'orderType': order_type,
+                        'raw_response': result
+                    }
+                else:
+                    error_msg = data.get('retMsg', 'Unknown error')
+                    logger.error(f"❌ Order failed: {error_msg}")
+                    return {'success': False, 'error': error_msg, 'retCode': data.get('retCode')}
+            else:
+                logger.error(f"❌ Order request failed: HTTP {response.status_code}")
+                return {'success': False, 'error': f'HTTP {response.status_code}'}
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to place order: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'success': False, 'error': str(e)}
+
+    def get_order_status_sync(self, symbol: str, order_id: str = None, order_link_id: str = None) -> Dict[str, Any]:
+        """
+        Get order status synchronously
+        
+        Args:
+            symbol: Trading pair
+            order_id: Bybit order ID (use orderId OR orderLinkId)
+            order_link_id: Custom order link ID
+            
+        Returns:
+            Order status information
+        """
+        if not self.api_key or not self.api_secret:
+            logger.error("❌ Cannot get order status: missing API credentials")
+            return {'success': False, 'error': 'Missing API credentials'}
+        
+        try:
+            timestamp = str(int(time.time() * 1000))
+            recv_window = '5000'
+            
+            # Build query parameters
+            query_params = {
+                "category": "linear",
+                "symbol": symbol
+            }
+            
+            if order_id:
+                query_params["orderId"] = order_id
+            elif order_link_id:
+                query_params["orderLinkId"] = order_link_id
+            else:
+                return {'success': False, 'error': 'Must provide orderId or orderLinkId'}
+            
+            # Create query string
+            query_string = '&'.join([f"{k}={v}" for k, v in sorted(query_params.items())])
+            
+            # V5 API signature
+            sign_string = timestamp + self.api_key + recv_window + query_string
+            signature = hmac.new(
+                self.api_secret.encode('utf-8'),
+                sign_string.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            
+            url = f"{self.base_url}/v5/order/realtime"
+            headers = {
+                'X-BAPI-API-KEY': self.api_key,
+                'X-BAPI-TIMESTAMP': timestamp,
+                'X-BAPI-RECV-WINDOW': recv_window,
+                'X-BAPI-SIGN': signature
+            }
+            
+            response = requests.get(url, params=query_params, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('retCode') == 0:
+                    result = data.get('result', {})
+                    orders = result.get('list', [])
+                    
+                    if orders:
+                        order = orders[0]
+                        return {
+                            'success': True,
+                            'orderId': order.get('orderId'),
+                            'orderStatus': order.get('orderStatus'),
+                            'avgPrice': float(order.get('avgPrice', 0)),
+                            'cumExecQty': float(order.get('cumExecQty', 0)),
+                            'cumExecFee': float(order.get('cumExecFee', 0)),
+                            'raw_order': order
+                        }
+                    else:
+                        return {'success': False, 'error': 'Order not found'}
+                else:
+                    return {'success': False, 'error': data.get('retMsg', 'Unknown error')}
+            else:
+                return {'success': False, 'error': f'HTTP {response.status_code}'}
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to get order status: {e}")
+            return {'success': False, 'error': str(e)}
 
     # Order Management
     async def place_order(self, 

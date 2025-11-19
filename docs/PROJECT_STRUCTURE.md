@@ -1,159 +1,146 @@
-# � Trading Algorithm - Production Structure
+# Trading Algorithm - Clean Project Structure
 
-## 📁 Production-Ready Directory Layout
+## 📁 Root Directory Files
+- `README.md` - Main project documentation
+- `SYSTEM_COMMANDS.md` - Command reference guide
+- `requirements.txt` - Python dependencies
+- `.env` - Environment variables (gitignored)
+- `.env.example` - Environment template
 
-```
-Trading Algorithm/
-├── 🚀 PRODUCTION ENTRY POINTS
-│   ├── app.py                      # Production launcher
-│   ├── requirements.txt            # Production dependencies
-│   └── README.md                   # Project documentation
-│
-├── 🏗️ SOURCE CODE
-│   └── src/
-│       ├── core/                   # Core application logic
-│       │   ├── __init__.py
-│       │   ├── app_launcher.py     # System coordinator
-│       │   ├── main.py             # Legacy main
-│       │   └── ict_system_demo.py  # ICT system demo
-│       │
-│       ├── monitors/               # Signal monitoring systems
-│       │   ├── __init__.py
-│       │   └── ict_enhanced_monitor.py  # ICT signal monitor
-│       │
-│       ├── trading/                # Trading execution
-│       │   ├── __init__.py
-│       │   └── demo_trading_system.py   # Bybit demo trading
-│       │
-│       └── integrations/           # External integrations
-│           └── bybit/              # Bybit API integration
-│
-├── ⚙️ CONFIGURATION
-│   └── config/
-│       ├── settings.py             # Environment configuration
-│       └── environments/           # Environment-specific configs
-│           ├── .env.development
-│           ├── .env.staging
-│           └── .env.production
-│
-├── 🧪 TESTING
-│   └── tests/
-│       ├── unit/                   # Unit tests
-│       └── integration/            # Integration tests
-│           ├── test_api_activation.py
-│           ├── test_bybit_connection.py
-│           └── test_v5_auth.py
-│
-├── 📊 DATA & LOGS
-│   ├── logs/
-│   │   └── archive/               # Archived logs
-│   ├── data/                      # Data storage
-│   ├── results/                   # Trading results
-│   └── models/                    # ML models
-│
-├── 🚀 DEPLOYMENT
-│   └── deployment/
-│       ├── deploy_staging.sh      # Staging deployment
-│       └── deploy_production.sh   # Production deployment
-│
-└── 🔧 DEVELOPMENT (Legacy)
-    ├── backtesting/               # Backtesting framework
-    ├── machine_learning/          # ML models
-    ├── utils/                     # Utility functions
-    ├── scripts/                   # Helper scripts
-    ├── tradingview/               # TradingView integration
-    ├── templates/                 # Template files
-    └── tasks/                     # Task definitions
-```
+## 📂 Core Directories
 
-## 🎯 Production Features
+### `/core/` - Core Trading System
+- `engines/` - Trading engines and algorithms
+- `monitors/` - **ict_enhanced_monitor.py** (main system)
+- `analysis/` - Analysis modules
 
-### ✅ **Environment Management**
+### `/systems/` - Complete Trading Systems
+- `demo_trading/` - Demo trading system with Bybit integration
+- `fundamental_analysis/` - Long-term fundamental analysis
+- `trade_system.py` - Main system launcher
 
-- **Development**: Debug mode, testnet API, verbose logging
-- **Staging**: Production-like testing, testnet API, info logging
-- **Production**: Live trading, production API, warning logging
+### `/trading/` - ICT Analysis Modules
+- `ict_analyzer.py` - Main ICT analyzer
+- `directional_bias_engine.py` - Bias detection
+- `order_block_detector.py` - Order block detection
+- `fvg_detector.py` - Fair Value Gap detection
+- `liquidity_detector.py` - Liquidity analysis
+- `fibonacci_analyzer.py` - Fibonacci analysis
+- `ict_hierarchy.py` - Timeframe hierarchy
 
-### ✅ **Deployment Ready**
+### `/scripts/` - Organized Scripts
+- `setup/` - System setup and management
+  - `start_all_systems.sh`
+  - `stop_all_systems.sh`
+  - `check_all_systems.sh`
+- `analysis/` - Trading analysis scripts
+- `testing/` - Test and validation scripts
+- `maintenance/` - Database and system maintenance
 
-- **Staging**: `./deployment/deploy_staging.sh`
-- **Production**: `./deployment/deploy_production.sh`
-- **Requirements**: Locked production dependencies
-- **Configuration**: Environment-specific settings
+### `/config/` - Configuration Files
+- `api_settings.json` - API configuration
+- `crypto_pairs.json` - Trading pairs
+- `risk_parameters.json` - Risk management settings
+- `fundamental_analysis_config.json` - Fundamental analysis config
+- `credentials/` - API credentials (gitignored)
+- `environments/` - Environment-specific configs
 
-### ✅ **Organized Codebase**
+### `/bybit_integration/` - Bybit Exchange Integration
+- `bybit_client.py` - API client
+- `websocket_client.py` - WebSocket connection
+- `trading_executor.py` - Trade execution
+- `integration_manager.py` - Integration orchestration
 
-- **Core**: Application coordination and management
-- **Monitors**: ICT signal generation and monitoring
-- **Trading**: Bybit demo trading with 10x leverage
-- **Integrations**: Clean API integration modules
+### `/databases/` - Database Files
+- `trading_data.db` - Main SQLite database
+- Other database files
 
-## 🚀 Quick Start
+### `/data/` - Data Storage
+- `persistence/` - Trading state persistence
+- `cache/` - Cached data
+- `trading_sessions/` - Session data
+- `trading.db` - Additional database
 
-### Development
+### `/logs/` - System Logs
+- Log files from all systems
 
-```bash
-# Set environment
-export ENVIRONMENT=development
-python app.py
-```
+### `/results/` - Backtest Results
+- Backtest output files (JSON format)
 
-### Staging Deployment
+### `/docs/` - Documentation
+- All project documentation
+- Implementation summaries
+- System status reports
+- Trading analysis reports
+- API guides and integration docs
 
-```bash
-./deployment/deploy_staging.sh
-```
+### `/docker/` - Docker Deployment
+- `Dockerfile` - Multi-stage build
+- `docker-compose.yml` - Orchestration
+- `docker-entrypoint.sh` - Container initialization
+- `docker-setup.sh` - Automated setup
+- `DOCKER_README.md` - Complete deployment guide
 
-### Production Deployment
+### `/tests/` - Test Suite
+- Unit and integration tests
 
-```bash
-./deployment/deploy_production.sh
-```
+### `/utils/` - Utility Modules
+- Helper functions and utilities
 
-## 📈 Current Status
+### `/dashboard/` - Web Dashboard
+- `ict_dashboard.py` - Main dashboard
 
-- **Structure**: ✅ Production-ready organization
-- **API**: ✅ Working testnet credentials
-- **Systems**: ✅ ICT Monitor + Bybit Demo Trading
-- **Deployment**: ✅ Staging and production scripts ready
-- **GitHub**: 🔄 Ready for repository push
+### `/integrations/` - External Integrations
+- `tradingview/` - TradingView integration
 
-## 🎯 Key Improvements
+### `/backtesting/` - Backtesting Framework
+- Backtesting modules and tools
 
-### ✅ **Clean Root Directory**
+### `/deployment/` - Deployment Scripts
+- Production and staging deployment
 
-- Only essential files remain in root (main.py, README.md, monitoring_stats.json)
-- Core system files easily accessible
-- No clutter or scattered configuration files
+### `/frontend/` - Frontend Application
+- React/Vue frontend (if used)
 
-### ✅ **Organized Project Structure**
+### `/tradingview/` - TradingView Resources
+- Pine scripts
+- Integration guides
 
-- **Configuration**: All config files in `project/configuration/`
-- **Documentation**: All docs consolidated in `project/documentation/`
-- **Media**: Media scripts and files properly separated
-- **Pine Scripts**: TradingView scripts in dedicated directory
+### `/media/` - Media Files
+- Transcripts and other media
 
-### ✅ **Maintained Functionality**
+### `/services/` - Service Modules
+- Notification and other services
 
-- ✅ Dashboard: `http://localhost:5001` - Kirston's Crypto Bot
-- ✅ Webhook Server: `http://localhost:8080` - TradingView integration
-- ✅ Persistence: `monitoring_stats.json` - Scan count and journal
-- ✅ Enhanced Features: 7-column journal, 75% confidence, personalized branding
+### `/machine_learning/` - ML Components
+- Machine learning models and scripts
 
-### ✅ **Logical Separation**
+## 🗄️ Archived Directories
 
-- **Core System**: Main execution files
-- **Development**: Source code and modules
-- **Data**: Storage and results
-- **Testing**: Test frameworks and templates
-- **Project Files**: Configuration and documentation
+### `/archive/` - Archived/Legacy Code
+- `old_src/` - Legacy src/ directory
+- `old_project/` - Legacy project/ configurations
+- `old_monitoring/` - Old monitoring scripts
+- `old_files/` - Archived tasks, templates, models, examples
+- `standalone_servers/` - Old standalone servers
 
-## 🚀 System Status
+## 🚫 Removed/Cleaned
+- ✅ Duplicate configuration files
+- ✅ Old backup directories
+- ✅ Temporary files (.DS_Store, screenshots)
+- ✅ Old log files (>7 days)
+- ✅ Duplicate scripts (api_server.py, fix_db_connections.py)
 
-- **Structure**: ✅ Clean and organized
-- **Functionality**: ✅ All features preserved
-- **Dashboard**: ✅ Running on port 5001
-- **Monitoring**: ✅ Scan count: 73, persistence active
-- **Branding**: ✅ "Kirston's Crypto Bot" throughout interface
+## 📝 Key Changes Made
+1. **Consolidated monitor location**: `ict_enhanced_monitor.py` now in `core/monitors/`
+2. **Organized documentation**: All docs in `/docs/` directory
+3. **Archived duplicates**: Legacy code moved to `/archive/`
+4. **Clean root**: Only essential config files remain in root
+5. **Updated .gitignore**: Excludes archives and backups
 
-This clean structure maintains all enhanced features while providing a professional, organized codebase that's easy to navigate and maintain.
+## 🎯 Active System Entry Points
+- `core/monitors/ict_enhanced_monitor.py` - Main ICT monitor
+- `systems/demo_trading/demo_trading_system.py` - Demo trading
+- `systems/trade_system.py` - System launcher
+- `scripts/setup/start_all_systems.sh` - One-command startup
+

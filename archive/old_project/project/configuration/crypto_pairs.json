@@ -1,0 +1,164 @@
+{
+  "supported_pairs": {
+    "major": [
+      {
+        "symbol": "BTCUSDT",
+        "name": "Bitcoin",
+        "base": "BTC",
+        "quote": "USDT",
+        "min_order_size": 0.001,
+        "tick_size": 0.1,
+        "risk_multiplier": 1.0,
+        "volatility_factor": 1.2,
+        "enabled": true,
+        "priority": 1
+      },
+      {
+        "symbol": "ETHUSDT", 
+        "name": "Ethereum",
+        "base": "ETH",
+        "quote": "USDT",
+        "min_order_size": 0.01,
+        "tick_size": 0.01,
+        "risk_multiplier": 1.1,
+        "volatility_factor": 1.3,
+        "enabled": true,
+        "priority": 2
+      },
+      {
+        "symbol": "BNBUSDT",
+        "name": "Binance Coin",
+        "base": "BNB", 
+        "quote": "USDT",
+        "min_order_size": 0.01,
+        "tick_size": 0.01,
+        "risk_multiplier": 1.2,
+        "volatility_factor": 1.4,
+        "enabled": true,
+        "priority": 3
+      }
+    ],
+    "defi": [
+      {
+        "symbol": "UNIUSDT",
+        "name": "Uniswap",
+        "base": "UNI",
+        "quote": "USDT", 
+        "min_order_size": 0.1,
+        "tick_size": 0.001,
+        "risk_multiplier": 1.5,
+        "volatility_factor": 1.8,
+        "enabled": true,
+        "priority": 4
+      },
+      {
+        "symbol": "AAVEUSDT",
+        "name": "Aave",
+        "base": "AAVE",
+        "quote": "USDT",
+        "min_order_size": 0.01,
+        "tick_size": 0.01,
+        "risk_multiplier": 1.4,
+        "volatility_factor": 1.7,
+        "enabled": true,
+        "priority": 5
+      }
+    ],
+    "layer1": [
+      {
+        "symbol": "ADAUSDT",
+        "name": "Cardano", 
+        "base": "ADA",
+        "quote": "USDT",
+        "min_order_size": 1.0,
+        "tick_size": 0.0001,
+        "risk_multiplier": 1.3,
+        "volatility_factor": 1.5,
+        "enabled": true,
+        "priority": 6
+      },
+      {
+        "symbol": "SOLUSDT",
+        "name": "Solana",
+        "base": "SOL", 
+        "quote": "USDT",
+        "min_order_size": 0.01,
+        "tick_size": 0.01,
+        "risk_multiplier": 1.4,
+        "volatility_factor": 1.9,
+        "enabled": true,
+        "priority": 7
+      },
+      {
+        "symbol": "DOTUSDT",
+        "name": "Polkadot",
+        "base": "DOT",
+        "quote": "USDT",
+        "min_order_size": 0.1,
+        "tick_size": 0.001,
+        "risk_multiplier": 1.3,
+        "volatility_factor": 1.6,
+        "enabled": true,
+        "priority": 8
+      }
+    ],
+    "altcoins": [
+      {
+        "symbol": "LINKUSDT",
+        "name": "Chainlink",
+        "base": "LINK",
+        "quote": "USDT",
+        "min_order_size": 0.1,
+        "tick_size": 0.001,
+        "risk_multiplier": 1.3,
+        "volatility_factor": 1.5,
+        "enabled": true,
+        "priority": 9
+      },
+      {
+        "symbol": "MATICUSDT",
+        "name": "Polygon",
+        "base": "MATIC",
+        "quote": "USDT",
+        "min_order_size": 1.0,
+        "tick_size": 0.0001,
+        "risk_multiplier": 1.4,
+        "volatility_factor": 1.7,
+        "enabled": true,
+        "priority": 10
+      },
+      {
+        "symbol": "AVAXUSDT",
+        "name": "Avalanche",
+        "base": "AVAX", 
+        "quote": "USDT",
+        "min_order_size": 0.01,
+        "tick_size": 0.01,
+        "risk_multiplier": 1.5,
+        "volatility_factor": 1.8,
+        "enabled": true,
+        "priority": 11
+      }
+    ]
+  },
+  "trading_sessions": {
+    "24_7": true,
+    "high_volume_hours": [
+      "08:00-12:00",
+      "13:00-17:00", 
+      "20:00-24:00"
+    ],
+    "low_volume_hours": [
+      "00:00-08:00"
+    ]
+  },
+  "correlation_matrix": {
+    "BTC_dominance_threshold": 0.6,
+    "high_correlation_pairs": [
+      ["BTCUSDT", "ETHUSDT"],
+      ["ETHUSDT", "UNIUSDT"],
+      ["ADAUSDT", "DOTUSDT"]
+    ],
+    "max_correlated_positions": 2
+  }
+}

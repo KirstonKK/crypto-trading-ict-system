@@ -6,7 +6,7 @@ Provides database operations for the trading system
 
 import sqlite3
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional
 import json
 
@@ -147,6 +147,17 @@ class TradingDatabase:
             )
         ''')
         
+        # Users table for authentication
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         self.conn.commit()
         logger.info("✅ Database tables initialized")
     
@@ -174,16 +185,24 @@ class TradingDatabase:
         if row:
             return dict(row)
         else:
-            # Create today's stats
+            # Get yesterday's balance to carry forward
+            yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
+            cursor.execute('SELECT paper_balance FROM daily_stats WHERE date = ? ORDER BY date DESC LIMIT 1', (yesterday,))
+            yesterday_row = cursor.fetchone()
+            
+            # Use yesterday's balance or default to 100.0 if this is the first day
+            starting_balance = yesterday_row['paper_balance'] if yesterday_row else 100.0
+            
+            # Create today's stats with carried forward balance
             cursor.execute('''
                 INSERT INTO daily_stats (date, scan_count, signals_generated, paper_balance, total_pnl)
-                VALUES (?, 0, 0, 100.0, 0.0)
-            ''', (today,))
+                VALUES (?, 0, 0, ?, 0.0)
+            ''', (today, starting_balance))
             self.conn.commit()
             return {
                 'scan_count': 0,
                 'signals_generated': 0,
-                'paper_balance': 100.0,
+                'paper_balance': starting_balance,
                 'total_pnl': 0.0
             }
     
@@ -370,13 +389,176 @@ class TradingDatabase:
         
         return [dict(row) for row in cursor.fetchall()]
     
+    def add_paper_trade(self, trade_data: Dict) -> int:
+        """Add a new trade to the database (supports both paper and live trades)
+        
+        Args:
+            trade_data: Dictionary containing trade information
+                Required keys: symbol, direction, entry_price, position_size, 
+                              stop_loss, take_profit, risk_amount
+                Optional keys: signal_id, status, created_date, trade_type,
+                              order_id, order_link_id, execution_price, 
+                              commission, commission_asset
+                
+        Returns:
+            int: ID of the created trade
+        """
+        try:
+            self._ensure_connection()
+            cursor = self.conn.cursor()
+            
+            # Extract required fields
+            symbol = trade_data.get('symbol')
+            direction = trade_data.get('direction')
+            entry_price = trade_data.get('entry_price')
+            position_size = trade_data.get('position_size')
+            stop_loss = trade_data.get('stop_loss')
+            take_profit = trade_data.get('take_profit')
+            risk_amount = trade_data.get('risk_amount')
+            
+            # Extract optional fields
+            signal_id = trade_data.get('signal_id')
+            status = trade_data.get('status', 'OPEN')
+            created_date = trade_data.get('created_date')
+            
+            # NEW: Live trading fields
+            trade_type = trade_data.get('trade_type', 'paper')
+            order_id = trade_data.get('order_id')
+            order_link_id = trade_data.get('order_link_id')
+            execution_price = trade_data.get('execution_price')
+            commission = trade_data.get('commission')
+            commission_asset = trade_data.get('commission_asset')
+            
+            # Insert the trade with live trading support
+            if created_date:
+                cursor.execute('''
+                    INSERT INTO paper_trades 
+                    (signal_id, symbol, direction, entry_price, position_size, 
+                     stop_loss, take_profit, risk_amount, status, created_date,
+                     trade_type, order_id, order_link_id, execution_price,
+                     commission, commission_asset)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (signal_id, symbol, direction, entry_price, position_size,
+                      stop_loss, take_profit, risk_amount, status, created_date,
+                      trade_type, order_id, order_link_id, execution_price,
+                      commission, commission_asset))
+            else:
+                cursor.execute('''
+                    INSERT INTO paper_trades 
+                    (signal_id, symbol, direction, entry_price, position_size, 
+                     stop_loss, take_profit, risk_amount, status,
+                     trade_type, order_id, order_link_id, execution_price,
+                     commission, commission_asset)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (signal_id, symbol, direction, entry_price, position_size,
+                      stop_loss, take_profit, risk_amount, status,
+                      trade_type, order_id, order_link_id, execution_price,
+                      commission, commission_asset))
+            
+            self.conn.commit()
+            trade_id = cursor.lastrowid
+            
+            trade_label = "live" if trade_type == "live" else "paper"
+            logger.info(f"✅ Added {trade_label} trade: {symbol} {direction} at ${entry_price}")
+            return trade_id
+            
+        except Exception as e:
+            logger.error(f"❌ Error adding trade: {e}")
+            return None
+    
     def migrate_existing_data(self, json_file_path: str):
         """Migrate data from JSON file if needed (stub for compatibility)"""
         logger.info(f"Skipping migration from {json_file_path} (database-first mode)")
         pass
     
+    def update_live_trade_execution(self, trade_id: int, order_data: Dict) -> bool:
+        """Update live trade with execution details from Bybit
+        
+        Args:
+            trade_id: ID of the trade to update
+            order_data: Dictionary containing execution details
+                Keys: order_id, order_link_id, execution_price, commission, commission_asset
+                
+        Returns:
+            bool: True if update successful, False otherwise
+        """
+        try:
+            self._ensure_connection()
+            cursor = self.conn.cursor()
+            
+            order_id = order_data.get('order_id')
+            order_link_id = order_data.get('order_link_id')
+            execution_price = order_data.get('execution_price')
+            commission = order_data.get('commission', 0)
+            commission_asset = order_data.get('commission_asset', 'USDT')
+            
+            cursor.execute('''
+                UPDATE paper_trades 
+                SET order_id = ?,
+                    order_link_id = ?,
+                    execution_price = ?,
+                    commission = ?,
+                    commission_asset = ?
+                WHERE id = ?
+            ''', (order_id, order_link_id, execution_price, commission, commission_asset, trade_id))
+            
+            self.conn.commit()
+            logger.info(f"✅ Updated live trade #{trade_id} with execution details")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error updating live trade execution: {e}")
+            return False
+    
+    def get_live_trades(self) -> List[Dict]:
+        """Get all live (non-paper) trades
+        
+        Returns:
+            List of live trade dictionaries
+        """
+        try:
+            self._ensure_connection()
+            cursor = self.conn.cursor()
+            
+            cursor.execute('''
+                SELECT * FROM paper_trades 
+                WHERE trade_type = 'live'
+                ORDER BY entry_time DESC
+            ''')
+            
+            return [dict(row) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting live trades: {e}")
+            return []
+    
+    def get_trade_by_order_id(self, order_id: str) -> Optional[Dict]:
+        """Get trade by Bybit order ID
+        
+        Args:
+            order_id: Bybit order ID
+            
+        Returns:
+            Trade dictionary if found, None otherwise
+        """
+        try:
+            self._ensure_connection()
+            cursor = self.conn.cursor()
+            
+            cursor.execute('''
+                SELECT * FROM paper_trades 
+                WHERE order_id = ?
+            ''', (order_id,))
+            
+            row = cursor.fetchone()
+            return dict(row) if row else None
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting trade by order ID: {e}")
+            return None
+    
     def get_user_by_email(self, email: str) -> Optional[Dict]:
-        """Get user by email (stub for authentication)
+        """Get user by email
         
         Args:
             email: User email address
@@ -384,11 +566,30 @@ class TradingDatabase:
         Returns:
             User dict if found, None otherwise
         """
-        # Stub implementation - authentication not used in production
-        return None
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                SELECT id, email, password_hash, is_admin, created_at
+                FROM users
+                WHERE email = ?
+            ''', (email,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'email': row[1],
+                    'password_hash': row[2],
+                    'is_admin': bool(row[3]),
+                    'created_at': row[4]
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user by email: {e}")
+            return None
     
     def create_user(self, email: str, password_hash: str, is_admin: bool = False) -> int:
-        """Create a new user (stub for authentication)
+        """Create a new user
         
         Args:
             email: User email
@@ -398,8 +599,17 @@ class TradingDatabase:
         Returns:
             User ID
         """
-        # Stub implementation - authentication not used in production
-        return 1
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                INSERT INTO users (email, password_hash, is_admin, created_at)
+                VALUES (?, ?, ?, datetime('now'))
+            ''', (email, password_hash, 1 if is_admin else 0))
+            self.conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+            return None
     
     def close(self):
         """Close database connection"""

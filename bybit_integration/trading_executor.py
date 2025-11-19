@@ -2,9 +2,12 @@
 Bybit Trading Executor
 =====================
 
-Integrates ICT Enhanced Trading Monitor signals with Bybit demo trading.
+Integrates ICT Enhanced Trading Monitor signals with Bybit LIVE trading.
 Executes trades based on signals while managing risk and position limits.
-Version: 1.0 - CodeRabbit Review Target
+
+⚠️  WARNING: THIS EXECUTES REAL TRADES WITH REAL MONEY ⚠️
+
+Version: 2.0 - Live Trading
 """
 
 import asyncio
@@ -15,7 +18,7 @@ import json
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from .bybit_client import BybitDemoClient, format_bybit_symbol, calculate_quantity_precision
+from .bybit_client import BybitClient, format_bybit_symbol, calculate_quantity_precision
 
 logger = logging.getLogger(__name__)
 
@@ -85,14 +88,16 @@ class BybitTradingExecutor:
     """
     
     def __init__(self, 
-                 bybit_client: BybitDemoClient,
+                 bybit_client: BybitClient,
                  max_positions: int = 3,
                  max_risk_per_trade: float = 0.01,   # 1% per trade - STRICT LIMIT
                  max_portfolio_risk: float = 0.03,   # 3% total portfolio  
                  min_confidence: float = 0.7,        # 70% minimum confidence
                  dynamic_take_profit: bool = True):  # Enable dynamic RR ratios
         """
-        Initialize trading executor
+        Initialize trading executor for LIVE trading
+        
+        ⚠️  WARNING: THIS WILL PLACE REAL ORDERS ⚠️
         
         Args:
             bybit_client: Configured Bybit API client

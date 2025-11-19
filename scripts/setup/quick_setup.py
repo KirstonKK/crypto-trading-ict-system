@@ -15,7 +15,7 @@ import asyncio
 import sys
 
 sys.path.append('.')
-from bybit_integration.bybit_client import BybitDemoClient
+from bybit_integration.bybit_client import BybitClient
 
 def update_env_file(api_key, api_secret):
     """Update .env file with new API credentials"""
@@ -46,14 +46,14 @@ def update_env_file(api_key, api_secret):
         return False
 
 async def test_connection_and_setup(api_key, api_secret):
-    """Test connection and setup demo account"""
+    """Test connection and setup live account"""
     try:
         print("🔗 Testing Bybit connection...")
         
-        client = BybitDemoClient(
+        client = BybitClient(
             api_key=api_key,
             api_secret=api_secret,
-            testnet=True
+            testnet=False  # LIVE mainnet
         )
         
         # Test connection
@@ -73,11 +73,11 @@ async def test_connection_and_setup(api_key, api_secret):
         usdt_balance = balance_info.get('USDT', 0)
         
         if usdt_balance > 0:
-            print("💰 Demo Balance: ${usdt_balance:,.2f} USDT")
-            print("🎉 Demo account ready for trading!")
+            print(f"💰 Account Balance: ${usdt_balance:,.2f} USDT")
+            print("🎉 Account ready for trading!")
         else:
-            print("⏳ No demo funds yet - they may take a few minutes to appear")
-            print("💡 You can request more at: https://testnet.bybit.com/asset")
+            print("⚠️  No balance found - please fund your account before trading")
+            print("💡 You can deposit at: https://www.bybit.com/asset")
         
         await client.close()
         return True

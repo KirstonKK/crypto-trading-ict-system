@@ -2,8 +2,10 @@
 Bybit Integration Configuration
 ==============================
 
-Configuration settings for Bybit demo trading integration.
+Configuration settings for Bybit LIVE trading integration.
 Create a .env file in your project root with these settings.
+
+⚠️  WARNING: This is for LIVE TRADING with REAL MONEY!
 """
 
 import os
@@ -12,18 +14,15 @@ from dataclasses import dataclass
 
 @dataclass
 class BybitConfig:
-    """Bybit API configuration"""
+    """Bybit API configuration - LIVE TRADING"""
     api_key: str = ""
     api_secret: str = ""
-    testnet: bool = True
-    demo: bool = False  # Demo Mainnet (real prices, fake money)
+    testnet: bool = False  # FALSE = Live Mainnet (REAL MONEY)
     base_url: str = ""
     
     def __post_init__(self):
-        # Demo Mainnet takes precedence
-        if self.demo:
-            self.base_url = "https://api-demo.bybit.com"
-        elif self.testnet:
+        # Default to LIVE MAINNET
+        if self.testnet:
             self.base_url = "https://api-testnet.bybit.com"
         else:
             self.base_url = "https://api.bybit.com"
@@ -125,8 +124,7 @@ def load_config_from_env(env_file: str = ".env") -> IntegrationConfig:
     bybit_config = BybitConfig(
         api_key=os.getenv("BYBIT_API_KEY", ""),
         api_secret=os.getenv("BYBIT_API_SECRET", ""),
-        testnet=os.getenv("BYBIT_TESTNET", "true").lower() == "true",
-        demo=os.getenv("BYBIT_DEMO", "false").lower() == "true"
+        testnet=os.getenv("BYBIT_TESTNET", "false").lower() == "true"
     )
     
     # Trading configuration

@@ -3,11 +3,13 @@ Bybit Integration Manager
 ========================
 
 Main orchestration layer that integrates ICT Enhanced Trading Monitor 
-with Bybit demo trading environment.
+with Bybit LIVE trading environment.
+
+⚠️  WARNING: LIVE TRADING WITH REAL MONEY ⚠️
 
 Features:
 - Signal processing from ICT monitor
-- Trade execution management
+- Live trade execution management
 - Real-time market data integration
 - Performance monitoring and reporting
 - Risk management coordination
@@ -23,7 +25,7 @@ from dataclasses import dataclass, asdict
 import aiohttp
 from concurrent.futures import ThreadPoolExecutor
 
-from .bybit_client import BybitDemoClient
+from .bybit_client import BybitClient
 from .trading_executor import BybitTradingExecutor, TradingSignal, TradeExecution
 from .websocket_client import BybitWebSocketClient, MarketData, OrderUpdate, PositionUpdate
 
@@ -45,7 +47,9 @@ class IntegrationStatus:
 
 class BybitIntegrationManager:
     """
-    Main integration manager for Bybit demo trading
+    Main integration manager for Bybit LIVE trading
+    
+    ⚠️  WARNING: THIS SYSTEM TRADES WITH REAL MONEY ⚠️
     
     Coordinates:
     - ICT signal reception and validation
@@ -60,16 +64,18 @@ class BybitIntegrationManager:
                  api_key: str = None,
                  api_secret: str = None,
                  ict_monitor_url: str = "http://localhost:5001",
-                 testnet: bool = True,
+                 testnet: bool = False,
                  auto_trading: bool = False):
         """
         Initialize integration manager
+        
+        ⚠️  LIVE TRADING MODE - REAL MONEY AT RISK ⚠️
         
         Args:
             api_key: Bybit API key
             api_secret: Bybit API secret
             ict_monitor_url: ICT Enhanced Monitor URL
-            testnet: Use Bybit testnet
+            testnet: Use Bybit testnet (False = LIVE mainnet)
             auto_trading: Enable automatic trade execution
         """
         self.ict_monitor_url = ict_monitor_url
@@ -77,7 +83,7 @@ class BybitIntegrationManager:
         self.testnet = testnet
         
         # Initialize clients
-        self.bybit_client = BybitDemoClient(api_key, api_secret, testnet)
+        self.bybit_client = BybitClient(api_key, api_secret, testnet)
         self.websocket_client = BybitWebSocketClient(api_key, api_secret, testnet)
         
         # Initialize trading executor with strict 1% risk and dynamic RR
@@ -114,9 +120,9 @@ class BybitIntegrationManager:
         self.http_session = None
         
         logger.info("🔧 Bybit Integration Manager initialized")
-        logger.info("   ICT Monitor: {ict_monitor_url}")
-        logger.info("   Auto Trading: {'Enabled' if auto_trading else 'Disabled'}")
-        logger.info("   Environment: {'Testnet' if testnet else 'Mainnet'}")
+        logger.info(f"   ICT Monitor: {ict_monitor_url}")
+        logger.info(f"   Auto Trading: {'Enabled' if auto_trading else 'Disabled'}")
+        logger.info(f"   Environment: {'⚠️  LIVE MAINNET (REAL MONEY) ⚠️' if not testnet else 'Testnet'}")
 
     async def initialize(self):
         """Initialize all components"""
@@ -220,7 +226,7 @@ class BybitIntegrationManager:
                                 self.status.total_signals_received += 1
                                 self.status.last_signal_time = datetime.now()
                                 
-                                logger.info("📡 New signal received: {signal.get('symbol')} {signal.get('action')}")
+                                logger.info(f"📡 New signal received: {signal.get('symbol')} {signal.get('action')}")
                 
                 await asyncio.sleep(2)  # Poll every 2 seconds
                 
@@ -394,7 +400,7 @@ class BybitIntegrationManager:
                 ]
                 
                 logger.info("✅ Integration system started successfully")
-                logger.info("   Auto Trading: {'ON' if self.auto_trading else 'OFF'}")
+                logger.info(f"   Auto Trading: {'ON' if self.auto_trading else 'OFF'}")
                 
                 # Run all tasks concurrently
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -449,12 +455,12 @@ class BybitIntegrationManager:
         """Subscribe to real-time data for a symbol"""
         self.websocket_client.subscribe_ticker(symbol)
         self.websocket_client.subscribe_trades(symbol)
-        logger.info("📡 Subscribed to real-time data: {symbol}")
+        logger.info(f"📡 Subscribed to real-time data: {symbol}")
 
     async def manual_trade(self, signal_data: Dict) -> Optional[TradeExecution]:
         """Manually execute a trade"""
         try:
-            logger.info("🔧 Manual trade execution: {signal_data.get('symbol')}")
+            logger.info(f"🔧 Manual trade execution: {signal_data.get('symbol')}")
             
             if not self._validate_signal_format(signal_data):
                 logger.warning("⚠️  Invalid signal format for manual trade")
@@ -465,7 +471,7 @@ class BybitIntegrationManager:
             if execution:
                 self.status.total_trades_executed += 1
                 self.status.last_trade_time = datetime.now()
-                logger.info("✅ Manual trade executed: {execution.symbol}")
+                logger.info(f"✅ Manual trade executed: {execution.symbol}")
             
             return execution
             
@@ -513,12 +519,12 @@ class BybitIntegrationManager:
 # Utility Functions
 
 def load_config_from_env() -> Dict[str, Any]:
-    """Load configuration from environment variables"""
+    """Load configuration from environment variables for LIVE trading"""
     return {
         "api_key": os.getenv("BYBIT_API_KEY"),
         "api_secret": os.getenv("BYBIT_API_SECRET"),
         "ict_monitor_url": os.getenv("ICT_MONITOR_URL", "http://localhost:5001"),
-        "testnet": os.getenv("BYBIT_TESTNET", "true").lower() == "true",
+        "testnet": os.getenv("BYBIT_TESTNET", "false").lower() == "true",
         "auto_trading": os.getenv("AUTO_TRADING", "false").lower() == "true"
     }
 

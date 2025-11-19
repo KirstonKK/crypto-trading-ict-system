@@ -16,7 +16,7 @@ from datetime import datetime
 # Add current directory to path
 sys.path.append('.')
 
-from bybit_integration.bybit_client import BybitDemoClient
+from bybit_integration.bybit_client import BybitClient
 
 class FundsMonitor:
     def __init__(self):
@@ -36,15 +36,15 @@ class FundsMonitor:
                             key, value = line.strip().split('=', 1)
                             env_vars[key] = value
             
-            self.client = BybitDemoClient(
+            self.client = BybitClient(
                 api_key=env_vars.get('BYBIT_API_KEY'),
                 api_secret=env_vars.get('BYBIT_API_SECRET'),
-                testnet=True
+                testnet=False  # LIVE mainnet
             )
             return True
             
         except Exception as e:
-            print("❌ Failed to initialize client: {e}")
+            print(f"❌ Failed to initialize client: {e}")
             return False
     
     async def check_balance(self):
@@ -59,16 +59,16 @@ class FundsMonitor:
             return usdt_balance
             
         except Exception as e:
-            print("❌ Error checking balance: {e}")
+            print(f"❌ Error checking balance: {e}")
             return 0
     
     async def monitor_funds(self):
         """Main monitoring loop"""
-        print("🔍 BYBIT DEMO FUNDS MONITOR STARTED")
+        print("🔍 BYBIT LIVE ACCOUNT MONITOR STARTED")
         print("=" * 50)
-        print("⏰ Checking every {self.check_interval} seconds...")
-        print("🎯 Waiting for demo funds to appear...")
-        print("📋 You can request funds at: https://testnet.bybit.com/asset")
+        print(f"⏰ Checking every {self.check_interval} seconds...")
+        print("🎯 Monitoring live account balance...")
+        print("� You can deposit at: https://www.bybit.com/asset")
         print()
         
         check_count = 0
@@ -78,7 +78,7 @@ class FundsMonitor:
                 check_count += 1
                 current_time = datetime.now().strftime("%H:%M:%S")
                 
-                print("[{current_time}] Check #{check_count}: ", end="", flush=True)
+                print(f"[{current_time}] Check #{check_count}: ", end="", flush=True)
                 
                 balance = await self.check_balance()
                 

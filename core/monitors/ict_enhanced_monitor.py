@@ -149,15 +149,38 @@ class ICTCryptoMonitor:
         self.trade_manager = create_trade_manager(max_hold_hours=4.0)  # 4 hour max hold
         logger.info("✅ Trade Manager: 4h max hold | Session close at NY 4 PM")
         
-        # Paper trading configuration
-        self.paper_trading_enabled = True
-        self.paper_balance = 100.0  # Loaded from database, cached for performance
-        self.live_demo_balance = 0.0  # Live balance from Bybit Demo Trading
+        # 🛡️ SAFETY FEATURES - Critical protection for live trading
+        logger.info("🛡️ Initializing Trading Safety Manager...")
+        from core.safety import TradingSafetyManager
+        
+        # Load risk parameters from config
+        risk_config_path = os.path.join(project_root, 'config', 'risk_parameters.json')
+        try:
+            with open(risk_config_path, 'r') as f:
+                risk_config = json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load risk config: {e}")
+            risk_config = {}
+        
+        # Initialize safety manager with configuration
+        safety_config = {
+            'max_daily_loss': risk_config.get('daily_loss_limit', 0.05),  # 5% daily loss limit
+            'require_confirmation': not os.getenv('AUTO_TRADING', 'false').lower() == 'true',  # Confirm trades unless AUTO_TRADING
+            'max_position_size': risk_config.get('max_position_size', 10.0),  # $10 max
+            'max_portfolio_risk': risk_config.get('portfolio_risk_limit', 0.02)  # 2% portfolio risk
+        }
+        
+        self.safety_manager = TradingSafetyManager(safety_config)
+        logger.info("✅ Safety Manager: Daily loss limit, Emergency stop, Trade confirmation, Position validation")
+        
+        # ⚠️ LIVE TRADING CONFIGURATION ⚠️
+        logger.warning("🚨 LIVE TRADING MODE - ALL TRADES ARE REAL 🚨")
+        self.live_trading_enabled = True
+        self.account_balance = 0.0  # Fetched from Bybit API
+        self.bybit_client = None  # Initialized lazily when needed
         self.account_blown = False  # Track if account is blown
-        self.blow_up_threshold = 0.0  # Blow up when balance <= $0
-        # REMOVED: self.active_paper_trades = [] - Now queried from database
-        # REMOVED: self.completed_paper_trades = [] - Now queried from database
-        self.total_paper_pnl = 0.0
+        self.blow_up_threshold = 10.0  # Blow up when balance <= $10
+        self.total_pnl = 0.0
         self.last_balance_update = None  # Track last Bybit balance fetch
         
         # Load previous state on startup
@@ -190,7 +213,7 @@ class ICTCryptoMonitor:
         logger.info(f"⏰ Active Hours: {self.active_hours} GMT")
         logger.info(f"🎯 Risk per trade: {self.risk_per_trade*100:.1f}% (Fixed) | RR: Dynamic 1:2-1:8")
         logger.info(f"📋 Signal Management: Max {self.max_live_signals} signals, newest replaces oldest")
-        logger.info(f"📄 Paper Trading: ENABLED | Balance: ${self.paper_balance:,.2f}")
+        logger.warning(f"� LIVE TRADING: ENABLED | Balance: Fetching from Bybit...")
     
     @property
     def daily_pnl(self):
@@ -226,11 +249,11 @@ class ICTCryptoMonitor:
             # Restore ALL fields from database
             self.scan_count = daily_stats.get('scan_count', 0)
             self.signals_today = daily_stats.get('signals_generated', 0)
-            self.paper_balance = daily_stats.get('paper_balance', 100.0)
-            self.total_paper_pnl = daily_stats.get('total_pnl', 0.0)
-            self.account_blown = self.paper_balance <= 10.0
+            self.account_balance = 0.0  # Will be fetched from Bybit API
+            self.total_pnl = daily_stats.get('total_pnl', 0.0)
+            self.account_blown = False  # Will check after fetching real balance
             
-            logger.info(f"🔄 RESTORED STATE: Scan #{self.scan_count}, Signals: {self.signals_today}, Balance: ${self.paper_balance:.2f}")
+            logger.info(f"🔄 RESTORED STATE: Scan #{self.scan_count}, Signals: {self.signals_today}")
             
             # ✅ DATABASE-FIRST: All data queried on-demand, no in-memory restoration
             # Load counts for display only
@@ -260,23 +283,22 @@ class ICTCryptoMonitor:
             # Initialize with defaults if database load fails
             self.scan_count = 0
             self.signals_today = 0
-            self.paper_balance = 100.0
-            self.total_paper_pnl = 0.0
+            self.account_balance = 0.0
+            self.total_pnl = 0.0
             self.account_blown = False
-            # ✅ DATABASE-FIRST: No list initialization - query database instead
     
     def _save_trading_state(self):
         """Save current trading state to database (replaces JSON persistence)"""
         try:
             # Update account balance in database
-            self.db.update_balance(self.paper_balance, 'paper')
+            self.db.update_balance(self.account_balance, 'live')
             
             # The database automatically handles persistence of:
             # - scan_count (updated via increment_scan_count)
             # - signals_today (updated via add_signal)
             # - daily stats (automatically maintained)
             
-            logger.debug(f"💾 State saved to database: Scan #{self.scan_count}, Balance: ${self.paper_balance:.2f}")
+            logger.debug(f"💾 State saved to database: Scan #{self.scan_count}, Balance: ${self.account_balance:.2f}")
             
         except Exception as e:
             logger.error(f"❌ Failed to save state to database: {e}")
@@ -335,12 +357,12 @@ class ICTCryptoMonitor:
             active_signals = self.db.get_active_signals()
             for _ in active_signals:
                 # Calculate risk amount (each active signal represents 1% risk)
-                risk_amount = self.paper_balance * 0.01  # 1% risk per trade
+                risk_amount = self.account_balance * 0.01  # 1% risk per trade
                 total_risk += risk_amount
         except Exception as e:
             logger.warning(f"Could not calculate portfolio risk: {e}")
         
-        return (total_risk / self.paper_balance) if self.paper_balance > 0 else 0
+        return (total_risk / self.account_balance) if self.account_balance > 0 else 0
     
     def can_accept_new_signal(self, symbol: str) -> tuple[bool, str]:
         """Comprehensive check if new signal can be accepted (Solutions 2 & 3)"""
@@ -400,17 +422,88 @@ class ICTCryptoMonitor:
         # UI will query database for active signals to display
         return 0  # Return 0 for archived count (backward compatibility)
     
-    def execute_paper_trade(self, signal):
-        """Execute a paper trade based on signal - DATABASE-FIRST"""
-        if not self.paper_trading_enabled:
-            return
+    def _get_bybit_client(self):
+        """Lazy initialization of Bybit client"""
+        if self.bybit_client is None:
+            sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+            from bybit_integration.bybit_client import BybitClient
+            from dotenv import load_dotenv
+            
+            # Load API credentials
+            env_path = os.path.join(os.path.dirname(__file__), '../../.env')
+            load_dotenv(env_path)
+            
+            api_key = os.getenv('BYBIT_API_KEY')
+            api_secret = os.getenv('BYBIT_API_SECRET')
+            testnet = os.getenv('BYBIT_TESTNET', 'false').lower() == 'true'
+            
+            self.bybit_client = BybitClient(
+                api_key=api_key,
+                api_secret=api_secret,
+                testnet=testnet
+            )
+            logger.info("✅ Bybit client initialized for live trading")
+        
+        return self.bybit_client
+    
+    def get_live_balance(self):
+        """Fetch current account balance from Bybit"""
+        try:
+            client = self._get_bybit_client()
+            balance_data = client.get_balance_sync()
+            
+            if balance_data:
+                self.account_balance = float(balance_data.get('total_equity', 0))
+                self.last_balance_update = datetime.now()
+                logger.debug(f"💰 Live balance updated: ${self.account_balance:.2f}")
+                
+                # Check if account is blown
+                if self.account_balance <= self.blow_up_threshold:
+                    self.account_blown = True
+                    logger.error(f"🚨 ACCOUNT BLOWN: Balance ${self.account_balance:.2f} <= ${self.blow_up_threshold}")
+                
+                return self.account_balance
+            else:
+                logger.warning("Could not fetch balance from Bybit")
+                return self.account_balance
+                
+        except Exception as e:
+            logger.error(f"Error fetching live balance: {e}")
+            return self.account_balance
+    
+    def execute_live_trade(self, signal):
+        """
+        ⚠️ Execute a LIVE trade with REAL MONEY based on signal ⚠️
+        
+        This method:
+        1. Runs comprehensive safety checks (emergency stop, daily loss, position size, confirmation)
+        2. Fetches current account balance from Bybit
+        3. Calculates position size based on 1% risk
+        4. Places REAL order on Bybit with stop loss and take profit
+        5. Logs trade to database with order IDs
+        """
+        if not self.live_trading_enabled:
+            logger.warning("Live trading is disabled")
+            return None
+        
+        # Check if account is blown
+        if self.account_blown:
+            logger.error("🚨 ACCOUNT BLOWN - No new trades allowed")
+            return None
+        
+        # Fetch current balance
+        current_balance = self.get_live_balance()
+        if current_balance <= 0:
+            logger.error("Cannot execute trade: Zero balance")
+            return None
         
         # Calculate position size using risk management
         entry_price = signal.get('entry_price', 0)
         stop_loss = signal.get('stop_loss', 0)
+        take_profit = signal.get('take_profit', 0)
         
         # 1% risk per trade
-        risk_per_trade = self.paper_balance * 0.01
+        risk_per_trade = current_balance * 0.01
         
         # Calculate position size based on stop distance
         stop_distance = abs(entry_price - stop_loss)
@@ -419,26 +512,184 @@ class ICTCryptoMonitor:
         else:
             position_size = risk_per_trade / (entry_price * 0.02)  # 2% fallback
         
-        # Create paper trade in database
+        # Calculate position value and potential reward
+        position_value = position_size * entry_price
+        if signal.get('direction') == 'BUY':
+            potential_reward = (take_profit - entry_price) * position_size
+        else:  # SELL
+            potential_reward = (entry_price - take_profit) * position_size
+        
+        # 🛡️ CRITICAL SAFETY CHECKS
+        trade_details = {
+            'symbol': signal.get('symbol', ''),
+            'direction': signal.get('direction', 'BUY'),
+            'size': position_size,
+            'entry': entry_price,
+            'stop_loss': stop_loss,
+            'take_profit': take_profit,
+            'risk': risk_per_trade,
+            'reward': potential_reward,
+            'account_balance': current_balance
+        }
+        
+        # Run comprehensive safety check
+        is_safe, safety_reason = self.safety_manager.pre_trade_safety_check(trade_details)
+        
+        if not is_safe:
+            logger.error(f"🚨 TRADE REJECTED: {safety_reason}")
+            logger.error(f"   Symbol: {trade_details['symbol']}")
+            logger.error(f"   Direction: {trade_details['direction']}")
+            logger.error(f"   Size: {position_size:.6f}")
+            logger.error(f"   Risk: ${risk_per_trade:.2f}")
+            return None
+        
+        # Safety checks passed - log trade intent
+        logger.warning(f"✅ Safety checks passed: {safety_reason}")
+        logger.warning(f"🚨 LIVE TRADE: {signal.get('symbol')} {signal.get('direction')}")
+        logger.warning(f"   Entry: ${entry_price:.2f} | SL: ${stop_loss:.2f} | TP: ${take_profit:.2f}")
+        logger.warning(f"   Size: {position_size:.6f} | Risk: ${risk_per_trade:.2f}")
+        logger.warning(f"   Position Value: ${position_value:.2f} | Potential Reward: ${potential_reward:.2f}")
+        
+        # 🚀 EXECUTE LIVE TRADE ON BYBIT
         try:
-            paper_trade_id = self.db.add_paper_trade(
-                signal_id=signal.get('signal_id', ''),
-                symbol=signal.get('symbol', ''),
-                direction=signal.get('direction', 'BUY'),
-                entry_price=entry_price,
-                position_size=position_size,
+            # Get Bybit client
+            bybit_client = self._get_bybit_client()
+            if not bybit_client:
+                logger.error("❌ Cannot execute trade: Bybit client not available")
+                return None
+            
+            # Generate unique order link ID for tracking
+            import uuid
+            order_link_id = f"ICT_{signal.get('signal_id', '')}_{int(time.time())}"
+            
+            # Determine Bybit side
+            bybit_side = "Buy" if signal.get('direction') == 'BUY' else "Sell"
+            symbol = signal.get('symbol', '')
+            
+            logger.warning(f"📤 Submitting order to Bybit...")
+            logger.warning(f"   Symbol: {symbol}")
+            logger.warning(f"   Side: {bybit_side}")
+            logger.warning(f"   Qty: {position_size:.6f}")
+            logger.warning(f"   Type: Market")
+            logger.warning(f"   Stop Loss: ${stop_loss:.2f}")
+            logger.warning(f"   Take Profit: ${take_profit:.2f}")
+            
+            # Place market order with stop loss and take profit
+            order_result = bybit_client.place_order_sync(
+                symbol=symbol,
+                side=bybit_side,
+                qty=position_size,
+                order_type="Market",
                 stop_loss=stop_loss,
-                take_profit=signal.get('take_profit', 0),
-                risk_amount=risk_per_trade
+                take_profit=take_profit,
+                time_in_force="GTC",
+                order_link_id=order_link_id
             )
-            logger.info(f"📊 Paper trade #{paper_trade_id} created: {signal.get('symbol')} {signal.get('direction')} | Position: {position_size:.6f} @ ${entry_price}")
-            return paper_trade_id
+            
+            if not order_result.get('success'):
+                error_msg = order_result.get('error', 'Unknown error')
+                logger.error(f"❌ Order REJECTED by Bybit: {error_msg}")
+                logger.error(f"   Check API permissions, balance, and symbol whitelist")
+                return None
+            
+            # Order placed successfully
+            order_id = order_result.get('orderId')
+            order_link_id = order_result.get('orderLinkId')
+            
+            logger.warning(f"✅ Order ACCEPTED by Bybit!")
+            logger.warning(f"   Order ID: {order_id}")
+            logger.warning(f"   Order Link ID: {order_link_id}")
+            
+            # Wait briefly for order to fill (market orders usually fill immediately)
+            time.sleep(2)
+            
+            # Get order status to retrieve execution details
+            logger.info(f"📊 Fetching execution details...")
+            order_status = bybit_client.get_order_status_sync(
+                symbol=symbol,
+                order_id=order_id
+            )
+            
+            if order_status.get('success'):
+                status = order_status.get('orderStatus')
+                avg_price = order_status.get('avgPrice', entry_price)
+                executed_qty = order_status.get('cumExecQty', position_size)
+                commission = order_status.get('cumExecFee', 0)
+                
+                logger.warning(f"✅ Order Status: {status}")
+                logger.warning(f"   Avg Fill Price: ${avg_price:.2f}")
+                logger.warning(f"   Executed Qty: {executed_qty:.6f}")
+                logger.warning(f"   Commission: ${commission:.4f}")
+            else:
+                # Use estimated values if status check fails
+                logger.warning(f"⚠️  Could not fetch execution details, using estimates")
+                avg_price = entry_price
+                executed_qty = position_size
+                commission = position_value * 0.0006  # 0.06% taker fee estimate
+                status = "Filled"
+            
+            # Log trade to database with Bybit order details
+            trade_data = {
+                'signal_id': signal.get('signal_id', ''),
+                'symbol': symbol,
+                'direction': signal.get('direction', 'BUY'),
+                'entry_price': avg_price,  # Use actual fill price
+                'position_size': executed_qty,  # Use actual executed quantity
+                'stop_loss': stop_loss,
+                'take_profit': take_profit,
+                'risk_amount': risk_per_trade,
+                'trade_type': 'live',  # Mark as live trade
+                'order_id': order_id,  # Bybit order ID
+                'order_link_id': order_link_id,  # Custom tracking ID
+                'execution_price': avg_price,
+                'commission': commission,
+                'commission_asset': 'USDT'
+            }
+            
+            trade_id = self.db.add_paper_trade(trade_data)
+            
+            logger.warning(f"=" * 60)
+            logger.warning(f"✅ LIVE TRADE #{trade_id} EXECUTED SUCCESSFULLY")
+            logger.warning(f"=" * 60)
+            logger.warning(f"Symbol: {symbol} {signal.get('direction')}")
+            logger.warning(f"Order ID: {order_id}")
+            logger.warning(f"Qty: {executed_qty:.6f} @ ${avg_price:.2f}")
+            logger.warning(f"Stop Loss: ${stop_loss:.2f}")
+            logger.warning(f"Take Profit: ${take_profit:.2f}")
+            logger.warning(f"Commission: ${commission:.4f}")
+            logger.warning(f"Net Risk: ${risk_per_trade:.2f}")
+            logger.warning(f"=" * 60)
+            
+            return trade_id
+            
         except Exception as e:
-            logger.error(f"❌ Failed to create paper trade: {e}")
+            logger.error(f"❌ CRITICAL ERROR executing live trade: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Log failed attempt to database for tracking
+            try:
+                trade_data = {
+                    'signal_id': signal.get('signal_id', ''),
+                    'symbol': signal.get('symbol', ''),
+                    'direction': signal.get('direction', 'BUY'),
+                    'entry_price': entry_price,
+                    'position_size': position_size,
+                    'stop_loss': stop_loss,
+                    'take_profit': take_profit,
+                    'risk_amount': risk_per_trade,
+                    'trade_type': 'live',
+                    'status': 'FAILED',
+                    'notes': f'Order placement failed: {str(e)}'
+                }
+                self.db.add_paper_trade(trade_data)
+            except:
+                pass
+            
             return None
     
     def update_paper_trades(self, current_prices):
-        """Update active paper trades with current prices and check for TP/SL"""
+        """Update active trades with current prices and check for TP/SL"""
         if not current_prices:
             return 0
         
@@ -548,19 +799,23 @@ class ICTCryptoMonitor:
         return closed_count
         
     async def get_real_time_prices(self):
-        """Get real-time prices from Bybit Demo Trading (real market prices)"""
+        """Get real-time prices from Bybit (real market prices)"""
         try:
             # Import Bybit client
             sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
-            from bybit_integration.bybit_client import BybitDemoClient
+            from bybit_integration.bybit_client import BybitClient
             from dotenv import load_dotenv
             
             # Load API credentials
             env_path = os.path.join(os.path.dirname(__file__), '../../.env')
             load_dotenv(env_path)
             
+            api_key = os.getenv('BYBIT_API_KEY')
+            api_secret = os.getenv('BYBIT_API_SECRET')
+            testnet = os.getenv('BYBIT_TESTNET', 'false').lower() == 'true'
+            
             # Use async context manager to ensure proper session cleanup
-            async with BybitDemoClient(demo=True) as client:
+            async with BybitClient(api_key=api_key, api_secret=api_secret, testnet=testnet) as client:
                 prices = {}
                 
                 # Map our symbols to Bybit format
@@ -630,7 +885,7 @@ class ICTCryptoMonitor:
                 # Session cleanup is automatic with async context manager
                 
                 if prices:
-                    logger.info(f"✅ Real-time prices updated from Bybit Demo Trading: BTC=${prices.get('BTC', {}).get('price', 0):,.2f}")
+                    logger.info(f"✅ Real-time prices updated from Bybit: BTC=${prices.get('BTC', {}).get('price', 0):,.2f}")
                     return prices
                 else:
                     logger.warning("No prices fetched from Bybit, using fallback")
@@ -721,10 +976,19 @@ class ICTCryptoMonitor:
             Dictionary with '1h' key containing DataFrame for resampling, or None if fetch fails
         """
         try:
-            from bybit_integration.bybit_client import BybitDemoClient
+            from bybit_integration.bybit_client import BybitClient
+            from dotenv import load_dotenv
+            
+            # Load API credentials
+            env_path = os.path.join(os.path.dirname(__file__), '../../.env')
+            load_dotenv(env_path)
+            
+            api_key = os.getenv('BYBIT_API_KEY')
+            api_secret = os.getenv('BYBIT_API_SECRET')
+            testnet = os.getenv('BYBIT_TESTNET', 'false').lower() == 'true'
             
             # Use async context manager to ensure proper session cleanup
-            async with BybitDemoClient(demo=True) as client:
+            async with BybitClient(api_key=api_key, api_secret=api_secret, testnet=testnet) as client:
                 # Fetch 1H candles (200 periods = ~8 days of data)
                 # The backtest engine will resample this to 4H, 15m, 5m
                 logger.info(f"📊 Fetching 1H klines for {symbol} (200 candles = ~8 days)")
@@ -1091,16 +1355,14 @@ class ICTWebMonitor:
         
         @self.app.route('/')
         def home():
-            """Serve React app home page"""
-            frontend_path = os.path.join(project_root, 'frontend', 'dist')
-            if os.path.exists(os.path.join(frontend_path, INDEX_HTML_FILENAME)):
-                return send_from_directory(frontend_path, INDEX_HTML_FILENAME)
-            # Fallback to ICT monitor if React not built
-            return redirect('/monitor')
+            """Serve main dashboard - ICT Monitor (React app disabled in Docker)"""
+            # In Docker/production, serve the ICT monitor directly
+            # React frontend is disabled to avoid redirect loops and blank screens
+            return render_template_string(self.get_dashboard_html())
         
         @self.app.route('/monitor')
         def monitor_dashboard():
-            """Original ICT Monitor UI"""
+            """Original ICT Monitor UI (same as root)"""
             return render_template_string(self.get_dashboard_html())
         
         @self.app.route('/fundamental')
@@ -1144,12 +1406,32 @@ class ICTWebMonitor:
         def get_current_data():
             try:
                 # Get data from database instead of hardcoded values
-                daily_stats = self.crypto_monitor.db.get_daily_stats()
-                todays_signals = self.crypto_monitor.db.get_signals_today()  # For today's summary
-                active_signals = self.crypto_monitor.db.get_active_signals()  # For active paper trades (any date)
-                active_trades = self.crypto_monitor.db.get_active_paper_trades()  # Get OPEN paper trades
+                try:
+                    daily_stats = self.crypto_monitor.db.get_daily_stats()
+                except Exception as e:
+                    logger.error(f"❌ Error in get_daily_stats: {e}")
+                    raise
+                try:
+                    todays_signals = self.crypto_monitor.db.get_signals_today()  # For today's summary
+                except Exception as e:
+                    logger.error(f"❌ Error in get_signals_today: {e}")
+                    raise
+                try:
+                    active_signals = self.crypto_monitor.db.get_active_signals()  # For active paper trades (any date)
+                except Exception as e:
+                    logger.error(f"❌ Error in get_active_signals: {e}")
+                    raise
+                try:
+                    active_trades = self.crypto_monitor.db.get_active_paper_trades()  # Get OPEN paper trades
+                except Exception as e:
+                    logger.error(f"❌ Error in get_active_paper_trades: {e}")
+                    raise
                 # Get closed signals for trading journal (today's completed trades)
-                journal_entries = self.crypto_monitor.db.get_closed_signals_today()
+                try:
+                    journal_entries = self.crypto_monitor.db.get_closed_signals_today()
+                except Exception as e:
+                    logger.error(f"❌ Error in get_closed_signals_today: {e}")
+                    raise
                 
                 logger.info(f"🔍 API /api/data: Retrieved {len(todays_signals)} today's signals, {len(active_trades)} active trades from database")
                 
@@ -1562,9 +1844,21 @@ class ICTWebMonitor:
     
     async def async_analysis_cycle(self):
         """Async analysis cycle"""
+        balance_fetch_counter = 0  # Fetch balance every 10 cycles
+        
         while self.is_running:
             try:
                 logger.info("🔍 Running ICT Trading Analysis...")
+                
+                # Periodically fetch live balance from Bybit (every 10 cycles = ~5 minutes)
+                if balance_fetch_counter % 10 == 0:
+                    try:
+                        self.crypto_monitor.get_live_balance()
+                        logger.info(f"💰 Live balance updated: ${self.crypto_monitor.account_balance:.2f}")
+                    except Exception as e:
+                        logger.error(f"Failed to fetch live balance: {e}")
+                
+                balance_fetch_counter += 1
                 
                 # Get real-time prices
                 self.current_prices = await self.crypto_monitor.get_real_time_prices()
@@ -2021,9 +2315,8 @@ class ICTWebMonitor:
                 'signals_today': today_signals,  # DATABASE-FIRST: From get_signals_today()
                 'total_signals': self.crypto_monitor.total_signals,
                 'daily_pnl': self.crypto_monitor.daily_pnl,  # DATABASE-FIRST: From get_closed_signals_today()
-                'paper_balance': self.crypto_monitor.paper_balance,
-                'live_demo_balance': self.crypto_monitor.live_demo_balance,
-                'total_paper_pnl': self.crypto_monitor.total_paper_pnl,
+                'account_balance': self.crypto_monitor.account_balance,  # LIVE: Fetched from Bybit
+                'total_pnl': self.crypto_monitor.total_pnl,
                 'active_paper_trades': len(serialized_active_trades),  # DATABASE-FIRST: From get_active_signals()
                 'completed_paper_trades': serialized_completed_trades,  # DATABASE-FIRST: From get_closed_signals_today()
                 'active_hours': self.crypto_monitor.active_hours,
@@ -2524,13 +2817,10 @@ class ICTWebMonitor:
             <div class="stat-number" id="signals-today">0</div>
             <div class="stat-label">Signals Today</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-number" id="paper-balance" style="color: #ffa500;">$100</div>
-            <div class="stat-label">Paper Balance</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="live-demo-balance" style="color: #00ff88; font-size: 1.3em; word-break: break-all;">$0</div>
-            <div class="stat-label">Live Demo Balance</div>
+        <div class="stat-card" style="border: 2px solid #ff4444;">
+            <div class="stat-number" id="account-balance" style="color: #00ff88; font-size: 1.5em;">$0.00</div>
+            <div class="stat-label">🚨 Live Account Balance</div>
+            <div style="font-size: 10px; color: #ff4444; margin-top: 5px;">⚠️ REAL MONEY</div>
         </div>
         <div class="stat-card">
             <div class="stat-number" id="daily-pnl">$0</div>
@@ -2541,8 +2831,8 @@ class ICTWebMonitor:
             <div class="stat-label">Live Signals</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number" id="paper-trades-count" style="color: #0096ff;">0</div>
-            <div class="stat-label">Paper Trades</div>
+            <div class="stat-number" id="live-trades-count" style="color: #ffa500;">0</div>
+            <div class="stat-label">Active Trades</div>
         </div>
         <div class="stat-card">
             <div class="stat-number" id="active-hours">08:00-22:00</div>
@@ -2559,9 +2849,12 @@ class ICTWebMonitor:
         </div>
 
         <div class="card">
-            <h2 class="section-title"> Trading Journal</h2>
+            <h2 class="section-title">📊 Trading Journal</h2>
             <div style="margin-bottom: 10px; font-size: 12px; color: rgba(255,255,255,0.7);">
-                Paper trades executed automatically | $100 risk per trade | 1:3 RR
+                ⚠️ LIVE TRADING - Real orders on Bybit | 1% risk per trade | Dynamic RR 1:2-1:8
+            </div>
+            <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,68,68,0.1); border-left: 3px solid #ff4444; font-size: 11px; color: #ff4444;">
+                🚨 <strong>WARNING:</strong> All trades execute with REAL MONEY on Bybit Mainnet
             </div>
             <div style="overflow-x: auto;">
                 <table>
@@ -2586,11 +2879,14 @@ class ICTWebMonitor:
         </div>
     </div>
 
-    <!-- Active Paper Trades Section -->
+    <!-- Active Trades Section -->
     <div class="card">
-        <h2 class="section-title">💼 Active Paper Trades</h2>
+        <h2 class="section-title">💼 Active Live Trades</h2>
+        <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,165,0,0.1); border-left: 3px solid #ffa500; font-size: 11px; color: #ffa500;">
+            💰 These are REAL positions on Bybit with your ACTUAL money
+        </div>
         <div id="paper-trades-list">
-            <div class="no-data">💼 No active paper trades yet...</div>
+            <div class="no-data">💼 No active trades yet...</div>
         </div>
     </div>
 
@@ -2681,11 +2977,12 @@ class ICTWebMonitor:
             // Update stats
             document.getElementById('scan-count').textContent = data.scan_count;
             document.getElementById('signals-today').textContent = data.signals_today;
-            document.getElementById('paper-balance').textContent = '$' + (data.paper_balance || 100).toFixed(2);
-            // Format live demo balance with commas and proper wrapping
-            const liveDemoBalance = data.live_demo_balance || 0;
-            document.getElementById('live-demo-balance').textContent = '$' + liveDemoBalance.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-            document.getElementById('daily-pnl').textContent = '$' + (data.daily_pnl || 0).toFixed(2);  // Fixed to use daily_pnl
+            
+            // Update LIVE account balance with proper formatting
+            const accountBalance = data.account_balance || 0;
+            document.getElementById('account-balance').textContent = '$' + accountBalance.toFixed(2);
+            
+            document.getElementById('daily-pnl').textContent = '$' + (data.daily_pnl || 0).toFixed(2);
             document.getElementById('active-hours').textContent = data.active_hours;
             
             // Update live signals count with color coding
@@ -2703,16 +3000,16 @@ class ICTWebMonitor:
                 liveSignalsElement.style.color = '#ffc107';
             }
             
-            // Update paper trading count
-            const paperTradesElement = document.getElementById('paper-trades-count');
+            // Update live trades count
+            const liveTradesElement = document.getElementById('live-trades-count');
             const activeTrades = data.active_paper_trades || 0;
-            paperTradesElement.textContent = activeTrades;
+            liveTradesElement.textContent = activeTrades;
             
             // Color code based on active trades
             if (activeTrades === 0) {
-                paperTradesElement.style.color = 'rgba(255,255,255,0.6)';
+                liveTradesElement.style.color = 'rgba(255,255,255,0.6)';
             } else if (activeTrades <= 3) {
-                paperTradesElement.style.color = '#0096ff';
+                liveTradesElement.style.color = '#ffa500';
             } else {
                 paperTradesElement.style.color = '#ffc107';
             }

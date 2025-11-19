@@ -1,0 +1,114 @@
+{
+  "timeframes": {
+    "primary": {
+      "daily": {
+        "interval": "1d",
+        "lookback_periods": 200,
+        "weight": 0.4,
+        "description": "Primary trend analysis",
+        "min_data_points": 100,
+        "enabled": true
+      },
+      "four_hour": {
+        "interval": "4h", 
+        "lookback_periods": 168,
+        "weight": 0.3,
+        "description": "Intermediate trend detection",
+        "min_data_points": 84,
+        "enabled": true
+      },
+      "one_hour": {
+        "interval": "1h",
+        "lookback_periods": 120,
+        "weight": 0.2,
+        "description": "Short-term trend analysis", 
+        "min_data_points": 60,
+        "enabled": true
+      },
+      "fifteen_minute": {
+        "interval": "15m",
+        "lookback_periods": 96,
+        "weight": 0.1,
+        "description": "Entry timing optimization",
+        "min_data_points": 48,
+        "enabled": true
+      }
+    },
+    "secondary": {
+      "weekly": {
+        "interval": "1w",
+        "lookback_periods": 52,
+        "weight": 0.15,
+        "description": "Long-term trend confirmation",
+        "min_data_points": 26,
+        "enabled": false
+      },
+      "five_minute": {
+        "interval": "5m",
+        "lookback_periods": 144,
+        "weight": 0.05,
+        "description": "Micro-timing for entries",
+        "min_data_points": 72,
+        "enabled": false
+      }
+    }
+  },
+  "analysis_hierarchy": {
+    "cascade_order": ["1d", "4h", "1h", "15m"],
+    "confirmation_required": {
+      "daily_for_major_signals": true,
+      "four_hour_for_entries": true,
+      "one_hour_for_timing": true
+    },
+    "divergence_handling": {
+      "max_timeframe_conflicts": 1,
+      "conflict_resolution": "favor_higher_timeframe",
+      "wait_for_alignment": true
+    }
+  },
+  "crypto_optimizations": {
+    "volatility_adjustments": {
+      "high_volatility": {
+        "sensitivity_multiplier": 1.2,
+        "confirmation_threshold": 0.7,
+        "applicable_pairs": ["BTCUSDT", "ETHUSDT"]
+      },
+      "extreme_volatility": {
+        "sensitivity_multiplier": 1.5,
+        "confirmation_threshold": 0.8,
+        "applicable_pairs": ["SOLUSDT", "AVAXUSDT"]
+      }
+    },
+    "market_conditions": {
+      "trending": {
+        "primary_timeframes": ["1d", "4h"],
+        "confirmation_weight": 0.8
+      },
+      "ranging": {
+        "primary_timeframes": ["1h", "15m"],
+        "confirmation_weight": 0.6
+      },
+      "volatile": {
+        "primary_timeframes": ["4h", "1h"],
+        "confirmation_weight": 0.9
+      }
+    }
+  },
+  "data_requirements": {
+    "minimum_history": {
+      "backtesting": {
+        "days": 365,
+        "required_timeframes": ["1d", "4h", "1h"]
+      },
+      "live_trading": {
+        "days": 30,
+        "required_timeframes": ["1d", "4h", "1h", "15m"]
+      }
+    },
+    "data_validation": {
+      "max_missing_candles": 5,
+      "gap_tolerance_minutes": 30,
+      "quality_threshold": 0.95
+    }
+  }
+}

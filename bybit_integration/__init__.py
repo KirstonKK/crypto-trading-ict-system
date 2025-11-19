@@ -3,10 +3,12 @@ Bybit Integration Module
 =======================
 
 Integration layer for connecting ICT Enhanced Trading Monitor
-with Bybit demo trading environment.
+with Bybit LIVE trading environment.
+
+⚠️  WARNING: THIS MODULE TRADES WITH REAL MONEY ⚠️
 
 This module provides:
-- BybitDemoClient: Core API client for Bybit testnet/mainnet
+- BybitClient: Core API client for Bybit mainnet/testnet
 - BybitTradingExecutor: Signal processing and trade execution
 - BybitWebSocketClient: Real-time market data and order updates
 - BybitIntegrationManager: Main orchestration layer
@@ -21,7 +23,7 @@ Usage:
     manager = BybitIntegrationManager(
         api_key="your_api_key",
         api_secret="your_api_secret",
-        testnet=True,
+        testnet=False,  # False = LIVE mainnet
         auto_trading=True
     )
     
@@ -29,11 +31,11 @@ Usage:
     await manager.start()
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"  # Live trading version
 __author__ = "Trading Algorithm Development Team"
 
 # Core imports
-from .bybit_client import BybitDemoClient, format_bybit_symbol, calculate_quantity_precision
+from .bybit_client import BybitClient, format_bybit_symbol, calculate_quantity_precision
 from .trading_executor import (
     BybitTradingExecutor, 
     TradingSignal, 
@@ -57,7 +59,7 @@ from .integration_manager import (
 
 __all__ = [
     # Main classes
-    "BybitDemoClient",
+    "BybitClient",
     "BybitTradingExecutor", 
     "BybitWebSocketClient",
     "BybitIntegrationManager",

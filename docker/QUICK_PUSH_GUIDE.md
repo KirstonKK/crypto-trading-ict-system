@@ -1,8 +1,28 @@
-# 🚀 Quick Start: Push to Docker Hub
+# Quick Push to Docker Hub Guide
 
-## Prerequisites ✅
-- ✅ Docker Desktop installed and running
-- 🔲 Docker Hub account (create at https://hub.docker.com/signup)
+This guide helps you quickly push the Crypto Trading ICT System to Docker Hub.
+
+## 📦 Latest Version
+
+**Current Image**: `kirston/crypto-trading-ict:latest`  
+**Docker Hub**: https://hub.docker.com/r/kirston/crypto-trading-ict  
+**Last Updated**: November 8, 2025  
+**Status**: ✅ **WORKING** - All import errors fixed
+
+### Recent Fixes (v2)
+
+- ✅ Fixed `ModuleNotFoundError: No module named 'database.trading_database'`
+- ✅ Added complete TradingDatabase wrapper class
+- ✅ All database operations now working in container
+- ✅ Ready for production deployment
+
+## ✅ Prerequisites
+
+1. **Docker Hub Account**: Create one at https://hub.docker.com
+2. **Docker Installed**: Ensure Docker Desktop is installed and running
+3. **Git Repository**: Have your code ready to push
+
+## 🚀 Quick Start (Automated Script)
 
 ## Step-by-Step Instructions
 
@@ -85,6 +105,7 @@ open http://localhost:5001
 ## Troubleshooting
 
 ### Docker command not found
+
 ```bash
 # Use full path:
 /usr/local/bin/docker --version
@@ -95,6 +116,7 @@ source ~/.zshrc
 ```
 
 ### Docker Desktop not running
+
 ```bash
 # Start Docker Desktop
 open -a Docker
@@ -104,6 +126,7 @@ open -a Docker
 ```
 
 ### Authentication issues
+
 ```bash
 # Logout and login again
 /usr/local/bin/docker logout
@@ -111,6 +134,7 @@ open -a Docker
 ```
 
 ### Build errors
+
 ```bash
 # Check Dockerfile syntax
 cd docker
@@ -127,12 +151,13 @@ Don't forget to update the image name in `docker-compose.registry.yml`:
 ```yaml
 services:
   ict-monitor:
-    image: YOUR_DOCKERHUB_USERNAME/crypto-trading-ict:latest  # Update this line
+    image: YOUR_DOCKERHUB_USERNAME/crypto-trading-ict:latest # Update this line
 ```
 
 ## Docker Hub Repository URL
 
 After pushing, your image will be available at:
+
 ```
 https://hub.docker.com/r/YOUR_DOCKERHUB_USERNAME/crypto-trading-ict
 ```

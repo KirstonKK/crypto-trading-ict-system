@@ -1,0 +1,85 @@
+# =============================================================================
+# Docker Compose Configuration for Kirston's Crypto Trading System
+# =============================================================================
+# This file automatically loads credentials from .env file
+# No need to manually pass -e flags anymore!
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # ICT Enhanced Trading Monitor
+  # ---------------------------------------------------------------------------
+  ict-monitor:
+    image: kirston/crypto-trading-ict:latest
+    container_name: crypto-trading-ict
+    
+    # Automatically load ALL variables from .env file
+    env_file:
+      - .env
+    
+    # Optional: Override specific variables
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ICT_MONITOR_PORT=5001
+      - PAPER_TRADING=${PAPER_TRADING:-true}
+    
+    # Port mapping
+    ports:
+      - "5001:5001"  # ICT Monitor Dashboard
+      - "5002:5002"  # Fundamental Analysis (optional)
+    
+    # Volume mounts for data persistence
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./results:/app/results
+      - ./config:/app/config
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (optional - adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Network configuration
+    networks:
+      - trading-network
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  trading-network:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volumes (optional - for named volumes)
+# ---------------------------------------------------------------------------
+volumes:
+  trading-data:
+  trading-logs:

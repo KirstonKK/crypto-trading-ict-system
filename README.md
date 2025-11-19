@@ -60,3 +60,36 @@ python3 src/monitors/ict_enhanced_monitor.py --port 5001
 - ✅ Commercial-grade features and reliability
 
 **Overall Grade: A- (8.7/10)** - Top 15% of retail trading platforms
+
+---
+
+## 🐳 Docker Deployment
+
+### Quick Docker Start
+
+```bash
+# Pull and run the latest image
+docker pull kirston/crypto-trading-ict:latest
+docker-compose up -d
+
+# Access dashboard
+open http://localhost:5001
+```
+
+### Troubleshooting
+
+If you experience issues with the Docker deployment, use the built-in diagnostic tool:
+
+```bash
+# Run automated diagnostics
+docker exec crypto-trading-ict diagnose_blue_screen.sh
+```
+
+**For complete Docker setup and troubleshooting:**
+
+- 📖 **Team Setup**: `docs/TEAM_SETUP_GUIDE.md`
+- 🚀 **Quick Start**: `docs/DOCKER_QUICK_START.md`
+- 🔧 **Troubleshooting**: `docs/TROUBLESHOOTING_BLUE_SCREEN.md`
+- 📜 **All Commands**: `SYSTEM_COMMANDS.md`
+
+---
