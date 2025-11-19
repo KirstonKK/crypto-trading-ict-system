@@ -289,8 +289,8 @@ BYBIT_TESTNET=false         # false = Live mainnet
 EMERGENCY_STOP=false        # Set to 'true' to halt trading
 
 # Bybit API (Live Mainnet)
-BYBIT_API_KEY=HB85thv3OT8WPqiTYu
-BYBIT_API_SECRET=<your_secret>
+BYBIT_API_KEY=<your_api_key>
+BYBIT_API_SECRET=<your_api_secret>
 ```
 
 ---

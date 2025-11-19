@@ -392,7 +392,7 @@ self.safety_manager = TradingSafetyManager(safety_config)
 2. **Enable Symbol Whitelist on Bybit**:
 
    - Login to Bybit → API Management
-   - Select API key (HB85thv3OT8WPqiTYu)
+   - Select your API key
    - Enable Symbol Restrictions
    - Add: BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT
    - Save changes

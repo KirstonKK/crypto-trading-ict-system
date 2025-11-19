@@ -334,7 +334,7 @@ Net Risk: $0.50
 
    ```
    Login to Bybit → API Management
-   Select API key: HB85thv3OT8WPqiTYu
+   Select your API key
    Enable "Symbol Restrictions"
    Add symbols:
      - BTCUSDT
