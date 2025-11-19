@@ -771,11 +771,11 @@ class ICTCryptoMonitor:
                         signal_id = trade['signal_id']
                         self.db.close_signal(signal_id, current_price, close_reason)
                         
-                        # Update paper balance
-                        self.paper_balance += unrealized_pnl
+                        # Update account balance
+                        self.account_balance += unrealized_pnl
                         closed_count += 1
                         
-                        logger.info(f"📄 PAPER TRADE CLOSED: {crypto} {direction} | {close_reason} | PnL: ${unrealized_pnl:.2f} | New Balance: ${self.paper_balance:.2f}")
+                        logger.info(f"📄 PAPER TRADE CLOSED: {crypto} {direction} | {close_reason} | PnL: ${unrealized_pnl:.2f} | New Balance: ${self.account_balance:.2f}")
                         
                         # Add to journal (use correct method signature)
                         try:
@@ -1393,8 +1393,8 @@ class ICTWebMonitor:
                 'scan_count': self.crypto_monitor.scan_count,
                 'signals_today': today_signals,
                 'market_hours': self.statistics.is_market_hours(),
-                'paper_balance': self.crypto_monitor.paper_balance,
-                'live_demo_balance': self.crypto_monitor.live_demo_balance,
+                'paper_balance': self.crypto_monitor.account_balance,  # Live trading uses account_balance
+                'live_demo_balance': self.crypto_monitor.account_balance,  # Same for live
                 'account_blown': self.crypto_monitor.account_blown,
                 'ml_model_status': {
                     'loaded': False,  # Removed ML model - using pure ICT methodology
@@ -1580,9 +1580,9 @@ class ICTWebMonitor:
                     'scan_count': daily_stats.get('scan_count', 0),
                     'signals_today': active_signals_count,  # Only count ACTIVE or FILLED signals
                     'daily_pnl': daily_stats.get('total_pnl', 0),
-                    'paper_balance': daily_stats.get('paper_balance', 100),
-                    'live_demo_balance': self.crypto_monitor.live_demo_balance,
-                    'account_blown': daily_stats.get('paper_balance', 100) <= 10,  # Account blown if balance <= $10
+                    'paper_balance': self.crypto_monitor.account_balance,  # Use live account balance
+                    'live_demo_balance': self.crypto_monitor.account_balance,  # Same for live
+                    'account_blown': self.crypto_monitor.account_balance <= 10,  # Account blown if balance <= $10
                     'live_signals': serialized_signals,
                     'total_live_signals': len(todays_signals),
                     'signals_summary': todays_summary,  # Full summary from database
@@ -1698,13 +1698,16 @@ class ICTWebMonitor:
         
         @self.app.route('/api/reset_account', methods=['POST'])
         def reset_account():
-            """Reset blown account back to $100 starting balance"""
+            """Reset blown account back to initial balance (live mode: fetch from Bybit)"""
             try:
-                old_balance = self.crypto_monitor.paper_balance
+                old_balance = self.crypto_monitor.account_balance
                 was_blown = self.crypto_monitor.account_blown
                 
-                # Reset account
-                self.crypto_monitor.paper_balance = 100.0
+                # Reset account (for live trading, just refetch balance)
+                if self.crypto_monitor.live_trading_enabled:
+                    self.crypto_monitor.get_live_balance()  # Fetch fresh balance from Bybit
+                else:
+                    self.crypto_monitor.account_balance = 100.0  # Reset paper trading
                 self.crypto_monitor.account_blown = False
                 self.crypto_monitor.total_paper_pnl = 0.0
                 
@@ -1900,8 +1903,8 @@ class ICTWebMonitor:
                     # 2. Check active trades for time limits
                     active_trades = self.crypto_monitor.db.get_active_paper_trades()
                     if active_trades:
-                        # Log trade status
-                        self.crypto_monitor.trade_manager.log_trade_status(active_trades)
+                        # Log trade status (simple logging instead of method call)
+                        logger.debug(f"📊 Monitoring {len(active_trades)} active trades for time limits")
                         
                         # Get trades that need to be closed
                         trades_to_close = self.crypto_monitor.trade_manager.get_trades_to_close(active_trades)
@@ -1948,10 +1951,10 @@ class ICTWebMonitor:
                                     self.crypto_monitor.db.close_signal(signal_id, current_price, close_reason)
                                 
                                 # Update balance
-                                self.crypto_monitor.paper_balance += exit_pnl
-                                self.crypto_monitor.db.update_balance(self.crypto_monitor.paper_balance)
+                                self.crypto_monitor.account_balance += exit_pnl
+                                self.crypto_monitor.db.update_balance(self.crypto_monitor.account_balance)
                                 
-                                logger.info(f"💰 Updated balance: ${self.crypto_monitor.paper_balance:.2f}")
+                                logger.info(f"💰 Updated balance: ${self.crypto_monitor.account_balance:.2f}")
                         
                 except Exception as e:
                     logger.error(f"❌ Error in trade time management: {e}")
@@ -1990,7 +1993,7 @@ class ICTWebMonitor:
                         current_time = df_1h.index[-1]
                         
                         # Get current account balance for 1% risk calculation
-                        current_balance = self.crypto_monitor.paper_balance
+                        current_balance = self.crypto_monitor.account_balance
                         
                         # Generate ICT signal using proven ICT methodology with REAL ACCOUNT BALANCE
                         logger.info("💰 Using account balance: $%.2f for 1%% risk calculation", current_balance)
@@ -2080,8 +2083,11 @@ class ICTWebMonitor:
                     # Update signal cache to prevent duplicates
                     self.crypto_monitor.update_signal_cache(crypto)
                     
-                    # Execute paper trade automatically
-                    if self.crypto_monitor.paper_trading_enabled:
+                    # Execute trade (live or paper depending on mode)
+                    if self.crypto_monitor.live_trading_enabled:
+                        # Execute live trade with real money
+                        self.crypto_monitor.execute_live_trade(signal)
+                    else:
                         # Execute paper trade
                         self.crypto_monitor.execute_paper_trade(signal)
                     
@@ -2125,8 +2131,9 @@ class ICTWebMonitor:
                 if new_signals:
                     logger.info(f"📊 Signal Processing: {approved_signals} approved, {rejected_signals} rejected")
                 
-                # Update paper trades with current prices
-                if self.crypto_monitor.paper_trading_enabled:
+                # Update trades with current prices (both live and paper)
+                if not self.crypto_monitor.live_trading_enabled:
+                    # Only update paper trades if not in live mode
                     closed_trades = self.crypto_monitor.update_paper_trades(self.current_prices)
                     if closed_trades > 0:
                         logger.info(f"📄 Paper Trading: Closed {closed_trades} trades")

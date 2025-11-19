@@ -23,7 +23,8 @@
 
 ## 🔒 SECURITY STATUS
 
-**API Key Exposure**: ✅ RESOLVED  
+**API Key Exposure**: ✅ RESOLVED
+
 - Only API KEY was exposed (not SECRET)
 - Risk Level: LOW (key alone cannot execute trades)
 - Current code is clean
@@ -38,6 +39,7 @@
 **Why**: Prevents accidental trading on wrong pairs
 
 **Steps**:
+
 1. Login to [Bybit.com](https://www.bybit.com)
 2. Navigate to: **API Management**
 3. Find your API key
@@ -52,6 +54,7 @@
 8. Verify: Only 4 symbols are whitelisted
 
 **Verification**:
+
 ```bash
 # Test that other symbols are blocked (should fail)
 # Will add verification script if needed
@@ -64,12 +67,13 @@
 **Why**: Fresh start with keys that were never exposed
 
 **Steps**:
+
 1. Login to Bybit → API Management
 2. **Revoke** current API key
 3. Click **Create New Key**
 4. Set permissions:
    - ✅ Contract → Orders
-   - ✅ Contract → Positions  
+   - ✅ Contract → Positions
    - ✅ Spot → Orders
    - ✅ Wallet → Read
    - ❌ Wallet → Withdraw (NEVER enable)
@@ -93,6 +97,7 @@
 **Why**: Verify you can halt trading instantly if needed
 
 **Test Steps**:
+
 ```bash
 # Set emergency stop
 echo "EMERGENCY_STOP=true" >> .env
@@ -104,7 +109,8 @@ echo "EMERGENCY_STOP=true" >> .env
 # Edit .env: EMERGENCY_STOP=false
 ```
 
-**Expected Result**: 
+**Expected Result**:
+
 - System logs: "🚨 EMERGENCY STOP ACTIVE"
 - All new trades blocked
 - Dashboard shows emergency stop warning
@@ -117,15 +123,16 @@ echo "EMERGENCY_STOP=true" >> .env
 
 ```json
 {
-  "position_size_percent": 0.20,      // 20% of $50 = $10 max
-  "risk_per_trade": 0.01,             // 1% of $50 = $0.50 risk
-  "max_positions": 1,                  // One trade at a time
-  "min_confidence": 0.80,              // 80% signal confidence
-  "daily_loss_limit_percent": 0.05    // 5% daily = $2.50 max loss
+  "position_size_percent": 0.2, // 20% of $50 = $10 max
+  "risk_per_trade": 0.01, // 1% of $50 = $0.50 risk
+  "max_positions": 1, // One trade at a time
+  "min_confidence": 0.8, // 80% signal confidence
+  "daily_loss_limit_percent": 0.05 // 5% daily = $2.50 max loss
 }
 ```
 
 **Verification**:
+
 - Max position: $10 ✅
 - Risk per trade: $0.50 ✅
 - Daily loss limit: $2.50 ✅
@@ -154,11 +161,13 @@ echo "EMERGENCY_STOP=true" >> .env
 ### Step 6: Execute First Test Trade (MANUAL MODE)
 
 **Configuration**:
+
 - ✅ `AUTO_TRADING=false` (manual approval required)
 - ✅ `BYBIT_TESTNET=false` (live mainnet)
 - ✅ `EMERGENCY_STOP=false` (trading enabled)
 
 **First Trade Parameters**:
+
 - Symbol: BTC or ETH only (highest liquidity)
 - Position Size: $10 (20% of capital)
 - Risk: $0.50 (1% risk)
@@ -166,6 +175,7 @@ echo "EMERGENCY_STOP=true" >> .env
 - Take Profit: 2:1 R/R minimum
 
 **Execution**:
+
 1. Wait for high-confidence signal (80%+)
 2. System will prompt: "Approve trade? (yes/no)"
 3. Review details carefully
@@ -173,6 +183,7 @@ echo "EMERGENCY_STOP=true" >> .env
 5. Monitor order on Bybit exchange
 
 **What to Watch**:
+
 - Order appears on Bybit immediately ✅
 - Entry price matches system price ✅
 - Stop loss is set correctly ✅
@@ -184,6 +195,7 @@ echo "EMERGENCY_STOP=true" >> .env
 ### Step 7: First 24 Hours Monitoring
 
 **Monitor Closely**:
+
 - Trade execution
 - P&L calculations
 - Safety feature triggers
@@ -191,11 +203,12 @@ echo "EMERGENCY_STOP=true" >> .env
 - Commission accuracy
 
 **Daily Checks**:
+
 ```bash
 # Check database
 sqlite3 data/persistence/trading_system.db "
-  SELECT * FROM live_trades 
-  ORDER BY entry_time DESC 
+  SELECT * FROM live_trades
+  ORDER BY entry_time DESC
   LIMIT 5;
 "
 
@@ -211,21 +224,24 @@ python3 scripts/testing/test_bybit_connection.py
 ## 🎯 SUCCESS CRITERIA
 
 ### After First Trade:
+
 - [ ] Order executed on Bybit successfully
 - [ ] Stop loss placed correctly
-- [ ] Take profit placed correctly  
+- [ ] Take profit placed correctly
 - [ ] Database logged correctly
 - [ ] P&L calculations match Bybit
 - [ ] Commission fees are accurate
 - [ ] No safety feature false positives
 
 ### After First Day:
+
 - [ ] System ran without errors
 - [ ] Daily loss limit works correctly
 - [ ] Emergency stop is accessible
 - [ ] No unexpected behavior
 
 ### After First Week:
+
 - [ ] Net P&L is tracked accurately
 - [ ] Win rate is reasonable (40%+)
 - [ ] Risk management is working
@@ -238,25 +254,29 @@ python3 scripts/testing/test_bybit_connection.py
 ### If Something Goes Wrong:
 
 1. **Immediate Stop**:
+
    ```bash
    echo "EMERGENCY_STOP=true" >> .env
    ```
 
 2. **Close All Positions** (Bybit.com):
+
    - Login → Positions
    - Close all open positions manually
 
 3. **Check Database**:
+
    ```bash
    sqlite3 data/persistence/trading_system.db "
-     SELECT symbol, side, quantity, entry_price, 
-            pnl, status 
-     FROM live_trades 
+     SELECT symbol, side, quantity, entry_price,
+            pnl, status
+     FROM live_trades
      WHERE status IN ('OPEN', 'PENDING');
    "
    ```
 
 4. **Review Logs**:
+
    ```bash
    tail -100 logs/ict_monitor_$(date +%Y%m%d).log
    ```
@@ -294,4 +314,4 @@ python3 scripts/testing/test_bybit_connection.py
 
 **READY TO GO LIVE!** 🚀
 
-*Last Updated: November 19, 2025*
+_Last Updated: November 19, 2025_
