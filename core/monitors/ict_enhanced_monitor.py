@@ -1354,22 +1354,138 @@ class ICTWebMonitor:
         # ============ FRONTEND ROUTES ============
         
         @self.app.route('/')
+        def login_page():
+            """Login page - first page users see (no auth required, just UI)"""
+            login_html = '''
+            <!doctype html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <title>Login - ICT Trading Monitor</title>
+                <style>
+                    body { font-family: Arial, sans-serif; background:#0f1724; color:#e6edf3; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+                    .card { background:#0b1220; padding:40px; border-radius:12px; box-shadow:0 10px 30px rgba(2,6,23,0.8); width:360px; border:1px solid #223047; }
+                    h2 { text-align:center; margin-bottom:10px; color:#0ea5a4; font-size:28px; }
+                    .subtitle { text-align:center; color:#8b949e; margin-bottom:30px; font-size:14px; }
+                    label { display:block; margin-top:16px; font-size:14px; color:#e6edf3; font-weight:500; }
+                    input { width:100%; padding:12px; margin-top:8px; border-radius:6px; border:1px solid #223047; background:#071126; color:#fff; font-size:14px; }
+                    input:focus { outline:none; border-color:#0ea5a4; }
+                    button { margin-top:24px; width:100%; padding:14px; border-radius:8px; background:linear-gradient(135deg, #0ea5a4 0%, #00d4ff 100%); border:none; color:#042027; font-weight:700; font-size:16px; cursor:pointer; transition:all 0.3s; }
+                    button:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(14,165,164,0.4); }
+                    .msg { margin-top:12px; font-size:13px; text-align:center; }
+                    .demo-note { margin-top:20px; padding:12px; background:rgba(14,165,164,0.1); border:1px solid rgba(14,165,164,0.3); border-radius:6px; font-size:12px; color:#8b949e; text-align:center; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>🤖 ICT Trading System</h2>
+                    <p class="subtitle">Professional Trading Platform</p>
+                    <div>
+                        <label for="email">Email</label>
+                        <input id="email" name="email" autocomplete="username" placeholder="Enter your email" />
+                    </div>
+                    <div>
+                        <label for="password">Password</label>
+                        <input id="password" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" />
+                    </div>
+                    <button id="loginBtn">Sign In</button>
+                    <div class="msg" id="msg"></div>
+                    <div class="demo-note">
+                        💡 <strong>Demo Mode:</strong> No authentication required - just click "Sign In" to access the system
+                    </div>
+                </div>
+
+                <script>
+                    function doLogin(){
+                        // Demo mode - no actual auth, just redirect to home
+                        document.getElementById('msg').textContent='Logging in...';
+                        document.getElementById('msg').style.color='#0ea5a4';
+                        setTimeout(() => {
+                            window.location.href='/home';
+                        }, 500);
+                    }
+                    document.getElementById('loginBtn').addEventListener('click', doLogin);
+                    document.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin() });
+                </script>
+            </body>
+            </html>
+            '''
+            return render_template_string(login_html)
+        
+        @self.app.route('/home')
         def home():
-            """Serve main dashboard - ICT Monitor (React app disabled in Docker)"""
-            # In Docker/production, serve the ICT monitor directly
-            # React frontend is disabled to avoid redirect loops and blank screens
-            return render_template_string(self.get_dashboard_html())
+            """Home/Landing page with navigation to all dashboards"""
+            return render_template_string(self._get_home_page_html())
         
         @self.app.route('/monitor')
         def monitor_dashboard():
-            """Original ICT Monitor UI (same as root)"""
+            """ICT Trading Monitor Dashboard"""
             return render_template_string(self.get_dashboard_html())
         
         @self.app.route('/fundamental')
         def fundamental_dashboard():
             """Fundamental Analysis Dashboard"""
             return render_template_string(self._get_fundamental_dashboard_html())
-            
+
+        @self.app.route('/dashboard')
+        def analytics_dashboard():
+            """Analytics Dashboard with Charts and Statistics"""
+            return render_template_string(self._get_analytics_dashboard_html())
+            login_html = '''
+            <!doctype html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <title>Login - ICT Trading Monitor</title>
+                <style>
+                    body { font-family: Arial, sans-serif; background:#0f1724; color:#e6edf3; display:flex; align-items:center; justify-content:center; height:100vh; }
+                    .card { background:#0b1220; padding:24px; border-radius:8px; box-shadow:0 6px 18px rgba(2,6,23,0.6); width:320px }
+                    label { display:block; margin-top:8px; font-size:13px }
+                    input { width:100%; padding:8px; margin-top:6px; border-radius:4px; border:1px solid #223047; background:#071126; color:#fff }
+                    button { margin-top:12px; width:100%; padding:10px; border-radius:6px; background:#0ea5a4; border:none; color:#042027; font-weight:600 }
+                    .msg { margin-top:8px; font-size:13px }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h3>ICT Monitor Login</h3>
+                    <div>
+                        <label for="email">Email</label>
+                        <input id="email" name="email" autocomplete="username" />
+                    </div>
+                    <div>
+                        <label for="password">Password</label>
+                        <input id="password" type="password" name="password" autocomplete="current-password" />
+                    </div>
+                    <button id="loginBtn">Sign in</button>
+                    <div class="msg" id="msg"></div>
+                </div>
+
+                <script>
+                    async function doLogin(){
+                    const u=document.getElementById('email').value;
+                    const p=document.getElementById('password').value;
+                    document.getElementById('msg').textContent='Logging in...';
+                    try{
+                        const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:u,password:p})});
+                        if(res.ok){
+                            // on success redirect to monitor
+                            window.location.href='/monitor';
+                        } else {
+                            const j=await res.json();
+                            document.getElementById('msg').textContent=j.message||'Login failed';
+                        }
+                    }catch(e){ document.getElementById('msg').textContent='Network error' }
+                }
+                document.getElementById('loginBtn').addEventListener('click', doLogin);
+                document.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin() });
+                </script>
+            </body>
+            </html>
+            '''
+            return render_template_string(login_html)
         @self.app.route('/health')
         def health_check():
             # Get count of actual trades executed today
@@ -1797,32 +1913,10 @@ class ICTWebMonitor:
                     'timestamp': datetime.now().isoformat()
                 }), 500
         
-        # ============ STATIC FILE SERVING FOR REACT ============
-        
-        # Serve React static files
-        @self.app.route('/static/<path:path>')
-        def serve_react_static(path):
-            """Serve React static assets"""
-            frontend_dist = os.path.join(project_root, 'frontend', 'dist', 'static')
-            return send_from_directory(frontend_dist, path)
-        
-        # Serve React app (catch-all for client-side routing)
-        @self.app.route('/', defaults={'path': ''})
-        @self.app.route('/<path:path>')
-        def serve_react_app(path):
-            """Serve React app or fall back to index.html for client-side routing"""
-            frontend_dist = os.path.join(project_root, 'frontend', 'dist')
-            
-            # Exclude /monitor route - let the original ICT monitor handle it
-            if path == 'monitor':
-                return monitor_dashboard()
-            
-            # If path exists as a file, serve it
-            if path and os.path.exists(os.path.join(frontend_dist, path)):
-                return send_from_directory(frontend_dist, path)
-            
-            # Otherwise serve index.html (React Router will handle routing)
-            return send_from_directory(frontend_dist, INDEX_HTML_FILENAME)
+        # ============ STATIC FILE SERVING REMOVED ============
+        # React frontend routes removed - using built-in Flask HTML dashboards instead
+        # The React app was causing conflicts with Flask routes and redirecting to /login
+        # All dashboards now served via Flask routes: /, /monitor, /fundamental
     
     def setup_socketio_events(self):
         """Setup SocketIO events for real-time updates"""
@@ -2198,6 +2292,7 @@ class ICTWebMonitor:
         Args:
             today_only (bool): If True, only return trades from today
         """
+        serialized_active_trades = []  # Initialize outside try block
         try:
             # FORCE DATABASE-ONLY: Query paper_trades table directly
             active_trades = self.crypto_monitor.db.get_active_paper_trades()
@@ -2218,7 +2313,6 @@ class ICTWebMonitor:
             
             logger.info(f"✅ _get_active_paper_trades: Found {len(active_trades)} legitimate database trades")
             
-            serialized_active_trades = []
             for trade in active_trades:
                 crypto = trade.get('symbol', 'BTCUSDT').replace('USDT', '')
                 entry_price = trade.get('entry_price', 0)
@@ -2349,6 +2443,686 @@ class ICTWebMonitor:
             self.socketio.emit('status_update', update_data)
         except Exception as e:
             logger.error(f"❌ Error broadcasting update: {e}")
+    
+    def _get_home_page_html(self):
+        """Generate home/landing page with navigation to all dashboards"""
+        return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICT Trading System - Home</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #0ea5a4 0%, #00d4ff 100%);
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(14, 165, 164, 0.3);
+        }
+        
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #0ea5a4 0%, #00d4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #b0b0b0;
+            margin-bottom: 40px;
+        }
+        
+        .main-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        
+        .nav-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(14, 165, 164, 0.5);
+            box-shadow: 0 15px 40px rgba(14, 165, 164, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .nav-card.monitor:hover { border-color: #0ea5a4; box-shadow: 0 15px 40px rgba(14, 165, 164, 0.3); }
+        .nav-card.dashboard:hover { border-color: #3b82f6; box-shadow: 0 15px 40px rgba(59, 130, 246, 0.3); }
+        .nav-card.fundamental:hover { border-color: #8b5cf6; box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3); }
+        
+        .nav-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .nav-card h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+        
+        .nav-card p {
+            font-size: 16px;
+            color: #b0b0b0;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .nav-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #0ea5a4 0%, #00d4ff 100%);
+            color: #042027;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .nav-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(14, 165, 164, 0.4);
+        }
+        
+        .nav-card.dashboard .nav-button {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: #ffffff;
+        }
+        
+        .nav-card.fundamental .nav-button {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+            color: #ffffff;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 50px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #0ea5a4;
+        }
+        
+        .feature-card p {
+            font-size: 14px;
+            color: #b0b0b0;
+            line-height: 1.5;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #808080;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📈</div>
+            <h1>ICT Trading System</h1>
+            <p class="subtitle">Professional Algorithmic Trading Platform</p>
+        </div>
+        
+        <div class="main-buttons">
+            <div class="nav-card monitor" onclick="window.location.href='/monitor'">
+                <span class="nav-icon">⚡</span>
+                <h2>Live Monitor</h2>
+                <p>Real-time trading monitor with live signals, active positions, and system status updates.</p>
+                <button class="nav-button">Open Monitor</button>
+            </div>
+            
+            <div class="nav-card dashboard" onclick="window.location.href='/dashboard'">
+                <span class="nav-icon">📊</span>
+                <h2>Analytics Dashboard</h2>
+                <p>Comprehensive charts, performance metrics, and detailed trade history analysis.</p>
+                <button class="nav-button">Open Dashboard</button>
+            </div>
+            
+            <div class="nav-card fundamental" onclick="window.location.href='/fundamental'">
+                <span class="nav-icon">🎯</span>
+                <h2>Fundamental Analysis</h2>
+                <p>Long-term investment insights with scores, recommendations, and confidence levels.</p>
+                <button class="nav-button">Open Analysis</button>
+            </div>
+        </div>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Risk Management</h3>
+                <p>1% risk per trade with automatic position sizing and stop-loss protection</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>ICT Strategy</h3>
+                <p>Advanced Inner Circle Trader concepts with multi-timeframe confluence</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Real-Time Data</h3>
+                <p>Live market data streaming with WebSocket connections for instant updates</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔔</div>
+                <h3>Smart Alerts</h3>
+                <p>Instant notifications for trade signals and position updates</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>ICT Trading System v3.0 | Professional Edition</p>
+        </div>
+    </div>
+</body>
+</html>
+'''
+    
+    def _get_analytics_dashboard_html(self):
+        """Generate analytics dashboard with charts and statistics"""
+        return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - ICT Trading System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1724 0%, #1a2332 100%);
+            color: #e6edf3;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .top-nav {
+            background: rgba(11, 18, 32, 0.95);
+            padding: 15px 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #223047;
+        }
+        
+        .nav-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0ea5a4;
+        }
+        
+        .home-btn {
+            background: linear-gradient(135deg, #0ea5a4 0%, #00d4ff 100%);
+            color: #042027;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .home-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(14, 165, 164, 0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(11, 18, 32, 0.95);
+            border: 1px solid #223047;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            border-color: #0ea5a4;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(14, 165, 164, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #0ea5a4;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: rgba(11, 18, 32, 0.95);
+            border: 1px solid #223047;
+            border-radius: 12px;
+            padding: 25px;
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #e6edf3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chart-icon {
+            font-size: 24px;
+        }
+        
+        canvas {
+            max-height: 300px;
+        }
+        
+        .trades-table {
+            background: rgba(11, 18, 32, 0.95);
+            border: 1px solid #223047;
+            border-radius: 12px;
+            padding: 25px;
+            overflow-x: auto;
+        }
+        
+        .table-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #e6edf3;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #223047;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #0ea5a4;
+            border-bottom: 2px solid #0ea5a4;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #223047;
+            color: #8b949e;
+        }
+        
+        tr:hover {
+            background: rgba(14, 165, 164, 0.05);
+        }
+        
+        .profit { color: #10b981; font-weight: 600; }
+        .loss { color: #ef4444; font-weight: 600; }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-nav">
+        <div class="nav-title">📊 Analytics Dashboard</div>
+        <button class="home-btn" onclick="window.location.href='/home'">🏠 Back to Home</button>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="total-trades">0</div>
+            <div class="stat-label">Total Trades</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="win-rate">0%</div>
+            <div class="stat-label">Win Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="total-pnl">$0.00</div>
+            <div class="stat-label">Total P&L</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="balance">$0.00</div>
+            <div class="stat-label">Account Balance</div>
+        </div>
+    </div>
+    
+    <div class="charts-container">
+        <div class="chart-card">
+            <div class="chart-title">
+                <span class="chart-icon">📈</span>
+                Equity Curve
+            </div>
+            <canvas id="equityChart"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">
+                <span class="chart-icon">🎯</span>
+                Win/Loss Distribution
+            </div>
+            <canvas id="winLossChart"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">
+                <span class="chart-icon">💰</span>
+                P&L by Symbol
+            </div>
+            <canvas id="symbolPnlChart"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">
+                <span class="chart-icon">📊</span>
+                Trade Volume
+            </div>
+            <canvas id="volumeChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="trades-table">
+        <div class="table-title">Recent Trades</div>
+        <div id="trades-list" class="loading">Loading trade data...</div>
+    </div>
+    
+    <script>
+        const socket = io();
+        let equityChart, winLossChart, symbolPnlChart, volumeChart;
+        
+        socket.on('connect', () => {
+            console.log('Connected to trading system');
+            fetchDashboardData();
+        });
+        
+        socket.on('status_update', (data) => {
+            updateStats(data);
+        });
+        
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+            }
+        }
+        
+        function updateStats(data) {
+            document.getElementById('total-trades').textContent = data.total_trades || 0;
+            document.getElementById('win-rate').textContent = (data.win_rate || 0).toFixed(1) + '%';
+            document.getElementById('total-pnl').textContent = '$' + (data.total_pnl || 0).toFixed(2);
+            document.getElementById('balance').textContent = '$' + (data.balance || 0).toFixed(2);
+        }
+        
+        function updateDashboard(data) {
+            updateStats(data);
+            initializeCharts(data);
+            updateTradesTable(data.recent_trades || []);
+        }
+        
+        function initializeCharts(data) {
+            // Equity Curve Chart
+            const equityCtx = document.getElementById('equityChart').getContext('2d');
+            if (equityChart) equityChart.destroy();
+            equityChart = new Chart(equityCtx, {
+                type: 'line',
+                data: {
+                    labels: data.equity_dates || [],
+                    datasets: [{
+                        label: 'Account Balance',
+                        data: data.equity_values || [],
+                        borderColor: '#0ea5a4',
+                        backgroundColor: 'rgba(14, 165, 164, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#e6edf3' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#223047' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#223047' } }
+                    }
+                }
+            });
+            
+            // Win/Loss Pie Chart
+            const winLossCtx = document.getElementById('winLossChart').getContext('2d');
+            if (winLossChart) winLossChart.destroy();
+            winLossChart = new Chart(winLossCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Wins', 'Losses'],
+                    datasets: [{
+                        data: [data.wins || 0, data.losses || 0],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderColor: '#0f1724',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#e6edf3' } }
+                    }
+                }
+            });
+            
+            // Symbol P&L Bar Chart
+            const symbolPnlCtx = document.getElementById('symbolPnlChart').getContext('2d');
+            if (symbolPnlChart) symbolPnlChart.destroy();
+            symbolPnlChart = new Chart(symbolPnlCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.symbols || [],
+                    datasets: [{
+                        label: 'P&L by Symbol',
+                        data: data.symbol_pnl || [],
+                        backgroundColor: '#0ea5a4',
+                        borderColor: '#00d4ff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#e6edf3' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#223047' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#223047' } }
+                    }
+                }
+            });
+            
+            // Volume Chart
+            const volumeCtx = document.getElementById('volumeChart').getContext('2d');
+            if (volumeChart) volumeChart.destroy();
+            volumeChart = new Chart(volumeCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.volume_dates || [],
+                    datasets: [{
+                        label: 'Daily Trades',
+                        data: data.volume_counts || [],
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#60a5fa',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#e6edf3' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#223047' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#223047' } }
+                    }
+                }
+            });
+        }
+        
+        function updateTradesTable(trades) {
+            const tableDiv = document.getElementById('trades-list');
+            if (!trades || trades.length === 0) {
+                tableDiv.innerHTML = '<div class="loading">No trades available yet</div>';
+                return;
+            }
+            
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Symbol</th>
+                            <th>Direction</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>P&L</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            trades.forEach(trade => {
+                const pnlClass = trade.pnl >= 0 ? 'profit' : 'loss';
+                const pnlSign = trade.pnl >= 0 ? '+' : '';
+                tableHTML += `
+                    <tr>
+                        <td>${new Date(trade.time).toLocaleString()}</td>
+                        <td>${trade.symbol}</td>
+                        <td>${trade.direction}</td>
+                        <td>$${trade.entry}</td>
+                        <td>$${trade.exit || '--'}</td>
+                        <td class="${pnlClass}">${pnlSign}$${trade.pnl.toFixed(2)}</td>
+                        <td>${trade.status}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            tableDiv.innerHTML = tableHTML;
+        }
+        
+        // Initialize on load
+        fetchDashboardData();
+        
+        // Refresh every 5 seconds
+        setInterval(fetchDashboardData, 5000);
+    </script>
+</body>
+</html>
+'''
     
     def get_dashboard_html(self):
         """Generate the dashboard HTML matching previous monitor exactly"""
@@ -3494,12 +4268,14 @@ class ICTWebMonitor:
             print()
             print("✅ Monitoring: BTC, SOL, ETH, XRP")
             print("✅ ICT Methodology: Order Blocks, FVGs, Market Structure")
-            print("✅ Risk Management: $100 per trade | RR 1:3")
+            print("✅ Risk Management: 1% of account per trade | RR 1:3")
             print("✅ Market Hours: 08:00-22:00 GMT")
             print("✅ Real-time Price Updates")
             print("✅ Trading Journal & Session Status")
             print()
             print(f"🌐 Web Interface: http://localhost:{self.port}")
+            print(f"📊 Monitor Dashboard: http://localhost:{self.port}/monitor")
+            print(f"📈 Fundamental Analysis: http://localhost:{self.port}/fundamental")
             print(f"📊 Health Check: http://localhost:{self.port}/health")
             print(f"🔗 API Endpoint: http://localhost:{self.port}/api/data")
             print()
@@ -3660,7 +4436,7 @@ class ICTWebMonitor:
     </style>
 </head>
 <body>
-    <a href="/" class="back-link">← Back to Home</a>
+    <a href="/home" class="back-link">← Back to Home</a>
     
     <div class="header">
         <h1>📊 Fundamental Analysis</h1>
