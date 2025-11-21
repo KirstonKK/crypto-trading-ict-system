@@ -1488,35 +1488,49 @@ class ICTWebMonitor:
             return render_template_string(login_html)
         @self.app.route('/health')
         def health_check():
-            # Get count of actual trades executed today
-            from datetime import date
-            today = date.today().isoformat()
-            conn = self.crypto_monitor.db._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT COUNT(*) FROM paper_trades 
-                WHERE date(entry_time) = ?
-            """, (today,))
-            today_signals = cursor.fetchone()[0]
-            conn.close()
+            """Health check endpoint with database error handling"""
+            try:
+                # Get count of actual trades executed today
+                from datetime import date
+                today = date.today().isoformat()
+                conn = self.crypto_monitor.db._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) FROM paper_trades 
+                    WHERE date(entry_time) = ?
+                """, (today,))
+                today_signals = cursor.fetchone()[0]
+                conn.close()
 
-            return jsonify({
-                'status': 'operational',
-                'service': 'ICT Enhanced Trading Monitor',
-                'port': self.port,
-                'timestamp': datetime.now().isoformat(),
-                'symbols': self.crypto_monitor.display_symbols,
-                'scan_count': self.crypto_monitor.scan_count,
-                'signals_today': today_signals,
-                'market_hours': self.statistics.is_market_hours(),
-                'paper_balance': self.crypto_monitor.account_balance,  # Live trading uses account_balance
-                'live_demo_balance': self.crypto_monitor.account_balance,  # Same for live
-                'account_blown': self.crypto_monitor.account_blown,
-                'ml_model_status': {
-                    'loaded': False,  # Removed ML model - using pure ICT methodology
-                    'status': 'not_used'
-                }
-            })
+                return jsonify({
+                    'status': 'operational',
+                    'service': 'ICT Enhanced Trading Monitor',
+                    'port': self.port,
+                    'timestamp': datetime.now().isoformat(),
+                    'symbols': self.crypto_monitor.display_symbols,
+                    'scan_count': self.crypto_monitor.scan_count,
+                    'signals_today': today_signals,
+                    'market_hours': self.statistics.is_market_hours(),
+                    'paper_balance': self.crypto_monitor.account_balance,
+                    'live_demo_balance': self.crypto_monitor.account_balance,
+                    'account_blown': self.crypto_monitor.account_blown,
+                    'ml_model_status': {
+                        'loaded': False,
+                        'status': 'not_used'
+                    },
+                    'database': 'healthy'
+                })
+            except Exception as e:
+                logger.error(f"Health check database error: {e}")
+                return jsonify({
+                    'status': 'degraded',
+                    'service': 'ICT Enhanced Trading Monitor',
+                    'port': self.port,
+                    'timestamp': datetime.now().isoformat(),
+                    'error': str(e),
+                    'database': 'error',
+                    'message': 'Database error - system may need reinitialization'
+                }), 500
             
         @self.app.route('/api/data')
         def get_current_data():

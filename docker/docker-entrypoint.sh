@@ -108,13 +108,23 @@ if [ ! -f "$DATABASE_PATH" ]; then
 else
     log_success "Database found at $DATABASE_PATH"
     
-    # Check database integrity
-    if sqlite3 "$DATABASE_PATH" "PRAGMA integrity_check;" > /dev/null 2>&1; then
-        log_success "Database integrity check passed"
+    # Check if file is actually a valid SQLite database
+    if ! file "$DATABASE_PATH" | grep -q "SQLite"; then
+        log_error "Database file exists but is not a valid SQLite database!"
+        log_warn "This may be a corrupted or empty file."
+        log_info "Creating backup and removing corrupted database..."
+        mv "$DATABASE_PATH" "${DATABASE_PATH}.corrupted.$(date +%Y%m%d_%H%M%S)"
+        log_success "Corrupted database backed up. New database will be created."
     else
-        log_error "Database integrity check failed!"
-        log_info "Creating database backup..."
-        cp "$DATABASE_PATH" "${DATABASE_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+        # Check database integrity
+        if sqlite3 "$DATABASE_PATH" "PRAGMA integrity_check;" > /dev/null 2>&1; then
+            log_success "Database integrity check passed"
+        else
+            log_error "Database integrity check failed!"
+            log_info "Creating database backup and removing corrupted database..."
+            mv "$DATABASE_PATH" "${DATABASE_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+            log_success "Corrupted database backed up. New database will be created."
+        fi
     fi
 fi
 
